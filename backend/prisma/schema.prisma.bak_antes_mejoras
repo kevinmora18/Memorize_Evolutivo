@@ -1,0 +1,179 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// TABLA PRINCIPAL: USUARIOS
+// ============================================
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  username    String?
+  role        String    @default("player") // "player" o "admin"
+  level       Int       @default(1)
+  xp          Int       @default(0)
+  coins       Int       @default(0)
+  gems        Int       @default(0)
+  isBanned    Boolean   @default(false)
+  bannedUntil DateTime?
+  banReason   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones 1:1
+  stats     PlayerStats? // Un usuario tiene una estadística
+  inventory Inventory?   // Un usuario tiene un inventario
+
+  // Relaciones 1:N
+  matches   Match[]    // Un usuario tiene muchas partidas
+  adminLogs AdminLog[] // Un admin tiene muchos logs
+
+  @@map("users")
+}
+
+// ============================================
+// RELACIÓN 1:1 - ESTADÍSTICAS DEL JUGADOR
+// ============================================
+model PlayerStats {
+  id     String @id @default(uuid())
+  userId String @unique // UNIQUE = Relación 1:1
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  gamesPlayed    Int @default(0)
+  gamesWon       Int @default(0)
+  totalScore     Int @default(0)
+  bestScore      Int @default(0)
+  totalMatches   Int @default(0)
+  perfectMatches Int @default(0)
+  maxCombo       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("player_stats")
+}
+
+// ============================================
+// RELACIÓN 1:1 - INVENTARIO DEL JUGADOR
+// ============================================
+model Inventory {
+  id     String @id @default(uuid())
+  userId String @unique // UNIQUE = Relación 1:1
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ownedPacks  String[] @default([])
+  ownedFrames String[] @default([])
+  ownedSkins  String[] @default([])
+  ownedBoards String[] @default([])
+
+  equippedPack  String @default("frutas")
+  equippedFrame String @default("basic")
+  equippedSkin  String @default("classic")
+  equippedBoard String @default("default")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inventories")
+}
+
+// ============================================
+// RELACIÓN 1:N - HISTORIAL DE PARTIDAS
+// ============================================
+model Match {
+  id     String @id @default(uuid())
+  userId String // NO UNIQUE = Relación 1:N (un usuario puede tener muchas partidas)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mode     String // 'classic', 'infinite', 'challenge', 'boss', 'multiplayer'
+  level    Int?
+  score    Int
+  accuracy Int?
+  combo    Int?
+  timeLeft Int?
+  won      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("matches")
+}
+
+// ============================================
+// SIN RELACIONES - ANUNCIOS DEL SISTEMA
+// ============================================
+model Announcement {
+  id        String    @id @default(uuid())
+  title     String
+  message   String
+  type      String    @default("info") // "info", "warning", "success", "error"
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([isActive])
+  @@map("announcements")
+}
+
+// ============================================
+// RELACIÓN 1:N - LOGS ADMINISTRATIVOS
+// ============================================
+model AdminLog {
+  id        String   @id @default(uuid())
+  adminId   String   // NO UNIQUE = Relación 1:N (un admin puede tener muchos logs)
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action    String   // "ban_user", "unban_user", "delete_user", "change_role", "give_currency", "create_announcement"
+  targetId  String?  // ID del usuario afectado o recurso
+  details   String?  // JSON con detalles adicionales
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+// ============================================
+// SIN RELACIONES - PROMOCIONES
+// ============================================
+model Promotion {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String   // "coins_multiplier", "gems_bonus", "discount"
+  value       Float    // Multiplicador o descuento
+  isActive    Boolean  @default(true)
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([isActive])
+  @@map("promotions")
+}
+
+// ============================================
+// RESUMEN DE RELACIONES
+// ============================================
+// 1:1 (Uno a Uno) - Campo con UNIQUE
+//   - User ←→ PlayerStats
+//   - User ←→ Inventory
+//
+// 1:N (Uno a Muchos) - Campo sin UNIQUE
+//   - User → Matches
+//   - User → AdminLogs
+//
+// N:N (Muchos a Muchos) - Tabla intermedia
+//   - No implementado actualmente
+//   - Ejemplo: Users ←→ Achievements (necesitaría UserAchievements)
+//
+// Sin Relaciones
+//   - Announcements
+//   - Promotions

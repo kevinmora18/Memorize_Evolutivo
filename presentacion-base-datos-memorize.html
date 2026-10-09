@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base de Datos - Memorize Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        /* Slide de portada */
+        .slide-cover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            text-align: center;
+        }
+
+        .slide-cover h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            animation: fadeInDown 1s ease;
+        }
+
+        .slide-cover .subtitle {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            animation: fadeInUp 1s ease 0.3s both;
+        }
+
+        .slide-cover .info {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            animation: fadeIn 1s ease 0.6s both;
+        }
+
+        .logo {
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+            margin: 2rem auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        /* Slides de contenido */
+        .slide-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .slide-title {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.6s ease both;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-right: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .card-badge {
+            margin-left: auto;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .card-description {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .card-fields {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .field {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .field-icon {
+            margin-right: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .field-type {
+            margin-left: auto;
+            opacity: 0.7;
+            font-style: italic;
+        }
+
+        /* Slide de diagrama */
+        .slide-diagram {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+
+        .diagram-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .diagram-box {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 15px;
+            padding: 1rem;
+            margin: 1rem;
+            text-align: center;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .diagram-box h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-line {
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+            height: 40px;
+            margin: 0 auto;
+            width: 3px;
+        }
+
+        /* Slide de estadísticas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation: fadeInScale 0.6s ease both;
+        }
+
+        .stat-number {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stat-label {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Navegación */
+        .navigation {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 1000;
+        }
+
+        .nav-button {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.5rem;
+        }
+
+        .nav-button:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        .slide-indicator {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            z-index: 1000;
+        }
+
+        /* Animaciones */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Tabla de relaciones */
+        .relations-table {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .relations-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .relations-table th,
+        .relations-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .relations-table th {
+            background: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+        }
+
+        .relation-type {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .relation-1-1 {
+            background: rgba(72, 187, 120, 0.8);
+        }
+
+        .relation-1-n {
+            background: rgba(66, 153, 225, 0.8);
+        }
+
+        .relation-n-n {
+            background: rgba(237, 137, 54, 0.8);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .slide-cover h1 { font-size: 2.5rem; }
+            .slide-title { font-size: 2rem; }
+            .cards-container { grid-template-columns: 1fr; }
+            .navigation { bottom: 1rem; right: 1rem; }
+            .nav-button { width: 50px; height: 50px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Indicador de slide -->
+    <div class="slide-indicator">
+        <span id="currentSlide">1</span> / <span id="totalSlides">10</span>
+    </div>
+
+    <!-- Navegación -->
+    <div class="navigation">
+        <div class="nav-button" onclick="previousSlide()">◀</div>
+        <div class="nav-button" onclick="nextSlide()">▶</div>
+    </div>
+
+    <!-- SLIDE 1: PORTADA -->
+    <div class="slide slide-cover" id="slide1">
+        <div class="logo">🧠</div>
+        <h1>BASE DE DATOS MEMORIZE</h1>
+        <p class="subtitle">Sistema de Gestión de Juego Educativo</p>
+        <p class="info">PostgreSQL 18 | 26 Tablas | Arquitectura Completa</p>
+        <p class="info" style="margin-top: 1rem;">Kevin Mora & Jose David | Ficha 3172526 | SENA</p>
+    </div>
+
+    <!-- SLIDE 2: ESTADÍSTICAS -->
+    <div class="slide slide-content" id="slide2" style="display: none;">
+        <h2 class="slide-title">📊 Estadísticas de la Base de Datos</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">26</div>
+                <div class="stat-label">Tablas Totales</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Relaciones 1:1</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">15</div>
+                <div class="stat-label">Relaciones 1:N</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Relaciones N:N</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">35+</div>
+                <div class="stat-label">Índices Optimizados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">Completitud</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: TABLAS PRINCIPALES -->
+    <div class="slide slide-content" id="slide3" style="display: none;">
+        <h2 class="slide-title">👤 Tablas Principales de Usuario</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">👤</span>
+                    <div class="card-title">users</div>
+                    <span class="card-badge">Principal</span>
+                </div>
+                <div class="card-description">
+                    Tabla central del sistema. Almacena información de todos los usuarios del juego.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🔑</span>
+                        <span>id</span>
+                        <span class="field-type">UUID</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✉️</span>
+                        <span>email</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👤</span>
+                        <span>username</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⭐</span>
+                        <span>level</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>xp</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💰</span>
+                        <span>coins</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💎</span>
+                        <span>gems</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📊</span>
+                    <div class="card-title">player_stats</div>
+                    <span class="card-badge">1:1</span>
+                </div>
+                <div class="card-description">
+                    Estadísticas detalladas de cada jugador. Relación uno a uno con users.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🎮</span>
+                        <span>gamesPlayed</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏆</span>
+                        <span>gamesWon</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💯</span>
+                        <span>totalScore</span>
+                        <span class="field-type">BigInt</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⭐</span>
+                        <span>bestScore</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🔥</span>
+                        <span>maxCombo</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🎒</span>
+                    <div class="card-title">inventories</div>
+                    <span class="card-badge">1:1</span>
+                </div>
+                <div class="card-description">
+                    Inventario de cosméticos y packs del jugador.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📦</span>
+                        <span>ownedPacks</span>
+                        <span class="field-type">Array</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎭</span>
+                        <span>ownedSkins</span>
+                        <span class="field-type">Array</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🖼️</span>
+                        <span>ownedFrames</span>
+                        <span class="field-type">Array</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎨</span>
+                        <span>equippedSkin</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <div class="card-title">user_settings</div>
+                    <span class="card-badge">1:1</span>
+                </div>
+                <div class="card-description">
+                    Configuración personalizada de audio, video e idioma.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🔊</span>
+                        <span>soundEnabled</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎵</span>
+                        <span>musicEnabled</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🌍</span>
+                        <span>language</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🌓</span>
+                        <span>theme</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4: PARTIDAS Y SESIONES -->
+    <div class="slide slide-content" id="slide4" style="display: none;">
+        <h2 class="slide-title">🎮 Sistema de Partidas</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🎯</span>
+                    <div class="card-title">matches</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Registro básico de partidas. Un usuario puede tener múltiples partidas.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🎮</span>
+                        <span>mode</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💯</span>
+                        <span>score</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>accuracy</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🔥</span>
+                        <span>combo</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏆</span>
+                        <span>won</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📊</span>
+                    <div class="card-title">game_sessions</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Historial avanzado con analytics detallados por partida.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🎮</span>
+                        <span>gameMode</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🌍</span>
+                        <span>universe</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⏱️</span>
+                        <span>timePlayed</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⭐</span>
+                        <span>xpGained</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>result</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">👹</span>
+                    <div class="card-title">boss_defeats</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Registro de jefes derrotados por universo y tipo.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">👾</span>
+                        <span>bossType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🌍</span>
+                        <span>universe</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⏱️</span>
+                        <span>timeTaken</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🔄</span>
+                        <span>attempts</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📈</span>
+                    <div class="card-title">game_events</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Sistema de analytics para debugging y métricas.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>eventType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📦</span>
+                        <span>eventData</span>
+                        <span class="field-type">JSON</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🔗</span>
+                        <span>sessionId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: LOGROS Y RANKINGS -->
+    <div class="slide slide-content" id="slide5" style="display: none;">
+        <h2 class="slide-title">🏆 Sistema de Logros y Rankings</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🏅</span>
+                    <div class="card-title">achievements</div>
+                    <span class="card-badge">Catálogo</span>
+                </div>
+                <div class="card-description">
+                    Definición de logros del sistema. Tabla de catálogo.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🆔</span>
+                        <span>achievementId</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>name</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>description</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⭐</span>
+                        <span>xpReward</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>category</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">✅</span>
+                    <div class="card-title">user_achievements</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Progreso de logros por usuario. Relación muchos a muchos.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🔗</span>
+                        <span>userId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏅</span>
+                        <span>achievementId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📊</span>
+                        <span>progress</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>target</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>isCompleted</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🏆</span>
+                    <div class="card-title">leaderboard_entries</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Rankings globales, semanales y por modo de juego.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>leaderboardType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💯</span>
+                        <span>score</span>
+                        <span class="field-type">BigInt</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">#️⃣</span>
+                        <span>rank</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📦</span>
+                        <span>metadata</span>
+                        <span class="field-type">JSON</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🎁</span>
+                    <div class="card-title">unlocked_items</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Items desbloqueados normalizado (reemplaza arrays).
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>itemType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🆔</span>
+                        <span>itemId</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📅</span>
+                        <span>unlockedAt</span>
+                        <span class="field-type">DateTime</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: SOCIAL -->
+    <div class="slide slide-content" id="slide6" style="display: none;">
+        <h2 class="slide-title">👥 Sistema Social</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🤝</span>
+                    <div class="card-title">friendships</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Relaciones de amistad entre usuarios.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">👤</span>
+                        <span>userId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👥</span>
+                        <span>friendId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>status</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📅</span>
+                        <span>acceptedAt</span>
+                        <span class="field-type">DateTime</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📨</span>
+                    <div class="card-title">friend_requests</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Solicitudes de amistad pendientes y respondidas.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📤</span>
+                        <span>senderId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📥</span>
+                        <span>receiverId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>status</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🔔</span>
+                    <div class="card-title">notifications</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Sistema de notificaciones del juego.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>notificationType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>title</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✉️</span>
+                        <span>message</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👁️</span>
+                        <span>isRead</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: MULTIJUGADOR -->
+    <div class="slide slide-content" id="slide7" style="display: none;">
+        <h2 class="slide-title">🎮 Sistema Multijugador</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🏠</span>
+                    <div class="card-title">rooms</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Salas de juego multijugador para partidas en equipo.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>name</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🔑</span>
+                        <span>code</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👤</span>
+                        <span>creatorId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👥</span>
+                        <span>maxPlayers</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">▶️</span>
+                        <span>isStarted</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">👥</span>
+                    <div class="card-title">room_players</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Participantes en salas multijugador con equipos.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🏠</span>
+                        <span>roomId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">👤</span>
+                        <span>userId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>teamId</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💯</span>
+                        <span>score</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>isReady</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: ECONOMÍA -->
+    <div class="slide slide-content" id="slide8" style="display: none;">
+        <h2 class="slide-title">💰 Sistema de Economía</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">💎</span>
+                    <div class="card-title">user_currency</div>
+                    <span class="card-badge">1:1</span>
+                </div>
+                <div class="card-description">
+                    Monedas y gemas del usuario separadas de la tabla principal.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">💰</span>
+                        <span>coins</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💎</span>
+                        <span>gems</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🛒</span>
+                    <div class="card-title">shop_items</div>
+                    <span class="card-badge">Catálogo</span>
+                </div>
+                <div class="card-description">
+                    Catálogo de items disponibles en la tienda.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🆔</span>
+                        <span>itemId</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>name</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💰</span>
+                        <span>priceCoins</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💎</span>
+                        <span>priceGems</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🧾</span>
+                    <div class="card-title">user_purchases</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Historial de compras realizadas por usuarios.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">🛒</span>
+                        <span>itemId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💵</span>
+                        <span>pricePaid</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💳</span>
+                        <span>currencyType</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📅</span>
+                    <div class="card-title">daily_missions</div>
+                    <span class="card-badge">Catálogo</span>
+                </div>
+                <div class="card-description">
+                    Misiones diarias disponibles en el sistema.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>name</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>target</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⭐</span>
+                        <span>xpReward</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💰</span>
+                        <span>coinReward</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">✅</span>
+                    <div class="card-title">user_daily_missions</div>
+                    <span class="card-badge">N:N</span>
+                </div>
+                <div class="card-description">
+                    Progreso de misiones diarias por usuario.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📊</span>
+                        <span>progress</span>
+                        <span class="field-type">Int</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>isCompleted</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎁</span>
+                        <span>isClaimed</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 9: ADMINISTRACIÓN -->
+    <div class="slide slide-content" id="slide9" style="display: none;">
+        <h2 class="slide-title">⚙️ Sistema de Administración</h2>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📢</span>
+                    <div class="card-title">announcements</div>
+                    <span class="card-badge">Global</span>
+                </div>
+                <div class="card-description">
+                    Anuncios del sistema para todos los usuarios.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>title</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✉️</span>
+                        <span>message</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>type</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">✅</span>
+                        <span>isActive</span>
+                        <span class="field-type">Boolean</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📋</span>
+                    <div class="card-title">admin_logs</div>
+                    <span class="card-badge">1:N</span>
+                </div>
+                <div class="card-description">
+                    Registro de acciones administrativas con auditoría.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">👤</span>
+                        <span>adminId</span>
+                        <span class="field-type">FK</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">⚡</span>
+                        <span>action</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🎯</span>
+                        <span>targetId</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>details</span>
+                        <span class="field-type">JSON</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🎉</span>
+                    <div class="card-title">promotions</div>
+                    <span class="card-badge">Global</span>
+                </div>
+                <div class="card-description">
+                    Promociones y eventos especiales del juego.
+                </div>
+                <div class="card-fields">
+                    <div class="field">
+                        <span class="field-icon">📝</span>
+                        <span>name</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">🏷️</span>
+                        <span>type</span>
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">💯</span>
+                        <span>value</span>
+                        <span class="field-type">Float</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📅</span>
+                        <span>startDate</span>
+                        <span class="field-type">DateTime</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-icon">📅</span>
+                        <span>endDate</span>
+                        <span class="field-type">DateTime</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 10: DIAGRAMA DE RELACIONES -->
+    <div class="slide slide-diagram" id="slide10" style="display: none;">
+        <h2 class="slide-title">🔗 Diagrama de Relaciones</h2>
+        <div class="diagram-container">
+            <div class="relations-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Tabla Origen</th>
+                            <th>Relación</th>
+                            <th>Tabla Destino</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="relation-type relation-1-1">1:1</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>player_stats</td>
+                            <td>Un usuario tiene una estadística</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-1">1:1</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>inventories</td>
+                            <td>Un usuario tiene un inventario</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-1">1:1</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>user_settings</td>
+                            <td>Un usuario tiene configuración</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-1">1:1</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>user_currency</td>
+                            <td>Un usuario tiene monedas</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>matches</td>
+                            <td>Un usuario tiene muchas partidas</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>game_sessions</td>
+                            <td>Un usuario tiene muchas sesiones</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>boss_defeats</td>
+                            <td>Un usuario derrota muchos bosses</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>leaderboard_entries</td>
+                            <td>Un usuario tiene muchas entradas en rankings</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>unlocked_items</td>
+                            <td>Un usuario desbloquea muchos items</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-1-n">1:N</span></td>
+                            <td>users</td>
+                            <td>→</td>
+                            <td>notifications</td>
+                            <td>Un usuario recibe muchas notificaciones</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-n-n">N:N</span></td>
+                            <td>users</td>
+                            <td>↔</td>
+                            <td>achievements</td>
+                            <td>Muchos usuarios tienen muchos logros (vía user_achievements)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-n-n">N:N</span></td>
+                            <td>users</td>
+                            <td>↔</td>
+                            <td>users</td>
+                            <td>Muchos usuarios tienen muchos amigos (vía friendships)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-n-n">N:N</span></td>
+                            <td>users</td>
+                            <td>↔</td>
+                            <td>rooms</td>
+                            <td>Muchos usuarios juegan en muchas salas (vía room_players)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-n-n">N:N</span></td>
+                            <td>users</td>
+                            <td>↔</td>
+                            <td>shop_items</td>
+                            <td>Muchos usuarios compran muchos items (vía user_purchases)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="relation-type relation-n-n">N:N</span></td>
+                            <td>users</td>
+                            <td>↔</td>
+                            <td>daily_missions</td>
+                            <td>Muchos usuarios tienen muchas misiones (vía user_daily_missions)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 2rem; text-align: center;">
+                <p style="font-size: 1.5rem; font-weight: bold;">Total: 26 Tablas | 24 Relaciones</p>
+                <p style="font-size: 1.2rem; opacity: 0.8; margin-top: 0.5rem;">
+                    4 Relaciones 1:1 | 15 Relaciones 1:N | 5 Relaciones N:N
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 10;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+            
+            if (n > totalSlides) currentSlide = 1;
+            if (n < 1) currentSlide = totalSlides;
+            
+            slides.forEach(slide => slide.style.display = 'none');
+            slides[currentSlide - 1].style.display = 'flex';
+            
+            document.getElementById('currentSlide').textContent = currentSlide;
+        }
+
+        function nextSlide() {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+
+        function previousSlide() {
+            currentSlide--;
+            showSlide(currentSlide);
+        }
+
+        // Navegación con teclado
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Inicializar
+        document.getElementById('totalSlides').textContent = totalSlides;
+        showSlide(currentSlide);
+    </script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sustentación BD — Memorize Evolutivo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --bg:#0B1220; --card:#16283F; --teal:#2DD4BF; --blue:#60A5FA; --violet:#A78BFA; --gold:#FBBF24; --txt:#E6EDF6; --mut:#9FB0C7; }
+  body { background:var(--bg); color:var(--txt); font-family:'Segoe UI',system-ui,Arial,sans-serif; overflow:hidden; }
+  .glow { position:fixed; inset:-20%; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(600px 400px at 15% 20%, #2dd4bf22, transparent 60%),
+      radial-gradient(700px 500px at 85% 75%, #60a5fa22, transparent 60%),
+      radial-gradient(500px 400px at 60% 10%, #a78bfa1c, transparent 60%);
+    animation:drift 18s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform:translate(0,0) scale(1);} to { transform:translate(-3%,4%) scale(1.08);} }
+  .grid-bg { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
+    background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);
+    background-size:44px 44px;
+    mask-image:radial-gradient(ellipse at center, black 40%, transparent 80%); }
+  .deck { position:relative; z-index:1; height:100vh; display:flex; align-items:center; justify-content:center; }
+  .slide { display:none; width:min(1180px,96vw); max-height:92vh; overflow:auto; background:linear-gradient(160deg,#16283Fee,#101f36f2);
+           border:1px solid #2DD4BF44; border-radius:18px; padding:40px 50px;
+           box-shadow:0 30px 80px #000a, 0 0 0 1px #ffffff08 inset; }
+  .slide.active { display:block; animation:enter .55s cubic-bezier(.2,.8,.25,1); }
+  @keyframes enter { from { opacity:0; transform:translateY(26px) scale(.985);} to { opacity:1; transform:none;} }
+  .slide.active h1, .slide.active h2 { animation:rise .5s .05s both; }
+  .slide.active p, .slide.active li, .slide.active pre, .slide.active table, .slide.active img, .slide.active .badge, .slide.active .tcard, .slide.active .acid-card
+    { animation:rise .5s both; }
+  .slide.active p:nth-of-type(2), .slide.active li:nth-child(2) { animation-delay:.12s; }
+  .slide.active p:nth-of-type(3), .slide.active li:nth-child(3) { animation-delay:.2s; }
+  .slide.active li:nth-child(4), .slide.active pre { animation-delay:.28s; }
+  .slide.active li:nth-child(5) { animation-delay:.36s; }
+  .slide.active img { animation-delay:.3s; }
+  @keyframes rise { from { opacity:0; transform:translateY(14px);} to { opacity:1; transform:none;} }
+  h1 { font-size:2.5em; text-align:center; line-height:1.2;
+       background:linear-gradient(90deg,#fff,#2DD4BF 60%,#60A5FA); -webkit-background-clip:text; background-clip:text; color:transparent;
+       animation:shine 6s linear infinite; background-size:200% auto; }
+  @keyframes shine { to { background-position:200% center; } }
+  h2 { font-size:1.7em; color:var(--teal); margin-bottom:14px; padding-bottom:10px;
+       border-bottom:2px solid; border-image:linear-gradient(90deg,var(--teal),transparent) 1; }
+  p, li { font-size:1.04em; line-height:1.65; color:var(--mut); }
+  ul { margin:10px 0 10px 24px; } li { margin-bottom:6px; }
+  li::marker { color:var(--teal); }
+  b, strong { color:#fff; }
+  .sub { text-align:center; margin-top:10px; font-size:1.15em; }
+  .badge { display:inline-block; background:linear-gradient(135deg,#2DD4BF,#60A5FA); color:#0B1220; font-weight:800;
+           border-radius:999px; padding:6px 20px; margin:6px 8px 0 0; font-size:.95em;
+           box-shadow:0 6px 20px #2dd4bf44; transition:transform .25s; }
+  .badge:hover { transform:translateY(-3px) scale(1.05); }
+  table { border-collapse:separate; border-spacing:0; margin:14px auto; font-size:.92em; width:100%;
+          border-radius:10px; overflow:hidden; box-shadow:0 10px 30px #0006; }
+  th { background:linear-gradient(135deg,#2C5F8A,#1d4e79); color:#fff; padding:9px 13px; text-align:left; }
+  td { padding:7px 13px; color:#111827; }
+  tr:nth-child(even) td { background:#F3F4F6; } tr:nth-child(odd) td { background:#fff; }
+  .tbl-wrap { background:#fff; border-radius:12px; padding:8px 16px 14px; margin-top:12px; }
+  code, pre { background:#0B1526; border:1px solid #2DD4BF44; border-radius:10px; color:#A7F3D0; font-family:Consolas,monospace; }
+  pre { padding:14px 18px; margin-top:12px; font-size:.88em; overflow:auto; line-height:1.6;
+        box-shadow:0 0 24px #2dd4bf14 inset; }
+  code { padding:2px 8px; font-size:.88em; }
+  img { max-width:100%; border-radius:12px; margin-top:12px; border:1px solid #2DD4BF33;
+        box-shadow:0 16px 44px #0009; transition:transform .3s; }
+  img:hover { transform:scale(1.015); }
+  .cols { display:flex; gap:24px; } .cols > div { flex:1; }
+  .ok { color:var(--teal); font-weight:800; }
+  .verdict { font-size:1.5em; text-align:center; margin-top:16px; animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform:scale(1);} 50% { transform:scale(1.03);} }
+  /* tarjetas de tablas */
+  .tgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .tcard { background:#0B1526; border:1px solid #2DD4BF3d; border-radius:12px; padding:14px 18px; }
+  .tcard h3 { color:#fff; font-size:1.1em; margin-bottom:6px; }
+  .tcard h3 .n { float:right; font-size:.8em; color:var(--teal); background:#2dd4bf1c; border-radius:12px; padding:2px 12px; }
+  .tcard p { font-size:.95em; } .tcard code { font-size:.82em; }
+  .mod-tag { display:inline-block; font-size:.85em; font-weight:800; border-radius:8px; padding:3px 12px; margin-bottom:12px; }
+  .tag-core { background:#2dd4bf22; color:var(--teal); } .tag-prog { background:#60a5fa22; color:var(--blue); }
+  .tag-soc { background:#a78bfa22; color:var(--violet); } .tag-eco { background:#fbbf2422; color:var(--gold); }
+  /* tarjetas ACID */
+  .acid-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .acid-card { background:#0B1526; border:1px solid #2DD4BF55; border-radius:14px;
+               padding:16px 18px; display:flex; gap:14px; align-items:flex-start; box-shadow:0 10px 30px #0007; }
+  .acid-letter { flex:0 0 52px; height:52px; border-radius:50%; display:flex; align-items:center;
+                 justify-content:center; font-size:1.8em; font-weight:800; color:#0B1220;
+                 background:linear-gradient(135deg,#2DD4BF,#60A5FA); }
+  .acid-card b { font-size:1.12em; } .acid-card p { font-size:.98em; margin-top:4px; }
+  .tip { margin-top:14px; background:#2dd4bf14; border-left:4px solid #2DD4BF;
+         border-radius:0 10px 10px 0; padding:10px 16px; }
+  .bar { position:fixed; top:0; left:0; height:4px; z-index:5; width:0%;
+         background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); transition:width .4s; }
+  .nav { position:fixed; bottom:12px; width:100%; text-align:center; color:#5B7290; font-size:.9em; z-index:5; }
+  .nav button { background:linear-gradient(135deg,#2DD4BF,#60A5FA); border:none; border-radius:10px; padding:9px 26px;
+                margin:0 8px; font-weight:800; cursor:pointer; color:#0B1220; font-size:1em;
+                box-shadow:0 8px 24px #2dd4bf3d; transition:transform .2s, box-shadow .2s; }
+  .nav button:hover { transform:translateY(-2px); box-shadow:0 12px 30px #2dd4bf55; }
+  .hero-emoji { font-size:3.2em; text-align:center; animation:float 3.5s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform:translateY(0);} 50% { transform:translateY(-12px);} }
+
+  .collist { font-size:.78em; line-height:1.6; }
+  .collist code { font-size:.95em; }
+  .kpk { color:#FBBF24; } .kfk { color:#2DD4BF; }
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="grid-bg"></div>
+<div class="bar" id="bar"></div>
+<div class="deck">
+
+<!-- 1 PORTADA -->
+<section class="slide active">
+  <div class="hero-emoji">🎮</div>
+  <h1>MEMORIZE EVOLUTIVO<br>La Base de Datos Explicada</h1>
+  <p class="sub">PostgreSQL 18 · BD <b>memorize</b> · 25 tablas · 26 FKs · 96 índices</p>
+  <p class="sub">SENA · Ficha 3172526 · Kevin Mora / Jose David Sandoval</p>
+  <p style="text-align:center; margin-top:20px;">
+    <span class="badge">4 vistas</span><span class="badge">2 procedimientos</span><span class="badge">4 triggers</span><span class="badge">ACID + CAP</span>
+  </p>
+</section>
+
+<!-- 2 AGENDA -->
+<section class="slide">
+  <h2>🗺️ Ruta de la exposición</h2>
+  <ul>
+    <li><b>1.</b> La base de datos en cifras: de 7 a 25 tablas</li>
+    <li><b>2.</b> Las tablas por módulo: núcleo, partidas, progresión, sistema, social y economía</li>
+    <li><b>3.</b> Cómo se relacionan: 1:1, 1:N y N:N con ejemplos reales</li>
+    <li><b>4.</b> ACID con evidencias + demo en vivo</li>
+    <li><b>5.</b> CAP: por qué memorize es un sistema CA</li>
+    <li><b>6.</b> Las 4 vistas, los 2 procedimientos y los 4 triggers</li>
+    <li><b>7.</b> Demo en vivo + veredicto 5/5</li>
+  </ul>
+</section>
+
+<!-- 3 CIFRAS -->
+<section class="slide">
+  <h2>📊 La BD en cifras</h2>
+  <div class="cols"><div>
+  <ul>
+    <li><b>7 → 25 tablas</b> en 5 fases (+2 corregidas en el camino)</li>
+    <li><b>26 llaves foráneas</b> con borrado en cascada</li>
+    <li><b>96 índices</b> (búsquedas por usuario, fecha, ranking)</li>
+    <li><b>211 reglas</b>: 25 PK + 11 UNIQUE + 26 FK + 149 CHECK</li>
+    <li><code>totalScore INTEGER → BIGINT</code> (anti-overflow)</li>
+  </ul></div>
+  <div><img src="img_ppt/img_fases.png" alt="Crecimiento por fases"></div></div>
+</section>
+
+<!-- 4 NÚCLEO -->
+<section class="slide">
+  <span class="mod-tag tag-core">MÓDULO NÚCLEO · 7 tablas base</span>
+  <h2>👤 El jugador y su ficha</h2>
+  <div class="tgrid"><div class="tcard"><h3>users <span class="n">3 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>email</code> text NN<br><code>username</code> text <br><code>level</code> integer NN<br><code>xp</code> integer NN<br><code>coins</code> integer NN<br><code>gems</code> integer NN<br><code>createdAt</code> timestamp NN<br><code>updatedAt</code> timestamp NN<br><code>role</code> text NN<br><code>banReason</code> text <br><code>bannedUntil</code> timestamp <br><code>isBanned</code> boolean NN<br><code>deletedAt</code> timestamp </p></div><div class="tcard"><h3>player_stats <span class="n">2 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>gamesPlayed</code> integer NN<br><code>gamesWon</code> integer NN<br><code>totalScore</code> bigint NN<br><code>bestScore</code> integer NN<br><code>totalMatches</code> integer NN<br><code>perfectMatches</code> integer NN<br><code>maxCombo</code> integer NN<br><code>createdAt</code> timestamp NN<br><code>updatedAt</code> timestamp NN</p></div><div class="tcard"><h3>inventories <span class="n">2 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>ownedPacks</code> text[] <br><code>ownedFrames</code> text[] <br><code>ownedSkins</code> text[] <br><code>ownedBoards</code> text[] <br><code>equippedPack</code> text NN<br><code>equippedFrame</code> text NN<br><code>equippedSkin</code> text NN<br><code>equippedBoard</code> text NN<br><code>createdAt</code> timestamp NN<br><code>updatedAt</code> timestamp NN</p></div><div class="tcard"><h3>matches <span class="n">1 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>mode</code> text NN<br><code>level</code> integer <br><code>score</code> integer NN<br><code>accuracy</code> integer <br><code>combo</code> integer <br><code>timeLeft</code> integer <br><code>won</code> boolean NN<br><code>createdAt</code> timestamp NN<br><code>deletedAt</code> timestamp </p></div></div>
+</section>
+
+<!-- 5 PARTIDAS -->
+<section class="slide">
+  <span class="mod-tag tag-prog">MÓDULO PARTIDAS Y RETOS</span>
+  <h2>🎯 Del historial simple al analytics</h2>
+  <div class="tgrid"><div class="tcard"><h3>game_sessions <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>gameMode</code> text NN<br><code>universe</code> text <br><code>levelReached</code> integer <br><code>score</code> integer NN<br><code>maxCombo</code> integer <br><code>timePlayed</code> integer NN<br><code>xpGained</code> integer <br><code>result</code> text NN<br><code>startedAt</code> timestamp NN<br><code>endedAt</code> timestamp </p></div><div class="tcard"><h3>boss_defeats <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>bossType</code> text NN<br><code>universe</code> text NN<br><code>timeTaken</code> integer NN<br><code>attempts</code> integer <br><code>xpGained</code> integer <br><code>defeatedAt</code> timestamp NN</p></div><div class="tcard"><h3>game_events <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b><br><code>sessionId</code> text <b class="kfk">→ game_sessions</b><br><code>eventType</code> text NN<br><code>eventData</code> jsonb <br><code>createdAt</code> timestamp </p></div><div class="tcard"><h3>admin_logs <span class="n">3 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>adminId</code> text <b class="kfk">→ users</b> NN<br><code>action</code> text NN<br><code>targetId</code> text <br><code>details</code> text <br><code>createdAt</code> timestamp NN</p></div></div>
+</section>
+
+<!-- 6 PROGRESIÓN -->
+<section class="slide">
+  <span class="mod-tag tag-prog">MÓDULO PROGRESIÓN</span>
+  <h2>🏆 Logros, rankings e inventario real</h2>
+  <div class="tgrid"><div class="tcard"><h3>achievements <span class="n">8 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>achievementId</code> text NN<br><code>name</code> text NN<br><code>description</code> text NN<br><code>icon</code> text NN<br><code>xpReward</code> integer <br><code>category</code> text NN<br><code>createdAt</code> timestamp NN</p></div><div class="tcard"><h3>user_achievements <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>achievementId</code> text <b class="kfk">→ achievements</b> NN<br><code>progress</code> integer <br><code>target</code> integer NN<br><code>isCompleted</code> boolean <br><code>completedAt</code> timestamp </p></div><div class="tcard"><h3>leaderboard_entries <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>leaderboardType</code> text NN<br><code>score</code> bigint NN<br><code>rank</code> integer <br><code>metadata</code> jsonb <br><code>createdAt</code> timestamp NN<br><code>updatedAt</code> timestamp NN</p></div><div class="tcard"><h3>unlocked_items <span class="n">5 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>itemType</code> text NN<br><code>itemId</code> text NN<br><code>unlockedAt</code> timestamp NN</p></div></div>
+</section>
+
+<!-- 7 SISTEMA -->
+<section class="slide">
+  <span class="mod-tag tag-core">MÓDULO SISTEMA</span>
+  <h2>⚙️ Configuración y mensajes globales</h2>
+  <div class="tgrid"><div class="tcard"><h3>user_settings <span class="n">3 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>soundEnabled</code> boolean <br><code>musicEnabled</code> boolean <br><code>soundVolume</code> integer <br><code>musicVolume</code> integer <br><code>notificationsEnabled</code> boolean <br><code>language</code> text <br><code>theme</code> text <br><code>selectedSkin</code> text <br><code>selectedEffect</code> text <br><code>updatedAt</code> timestamp </p></div><div class="tcard"><h3>announcements <span class="n">1 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>title</code> text NN<br><code>message</code> text NN<br><code>type</code> text NN<br><code>isActive</code> boolean NN<br><code>createdAt</code> timestamp NN<br><code>expiresAt</code> timestamp </p></div><div class="tcard"><h3>promotions <span class="n">1 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>name</code> text NN<br><code>description</code> text NN<br><code>type</code> text NN<br><code>value</code> double NN<br><code>isActive</code> boolean NN<br><code>startDate</code> timestamp NN<br><code>endDate</code> timestamp NN<br><code>createdAt</code> timestamp NN</p></div><div class="tcard"><h3>soft deletes <span class="n">técnica</span></h3><p><code>deletedAt</code> timestamp en <code>users</code> y <code>matches</code>: borrar es ocultar, no destruir.</p></div></div>
+</section>
+
+<!-- 8 SOCIAL -->
+<section class="slide">
+  <span class="mod-tag tag-soc">MÓDULO SOCIAL + MULTIJUGADOR</span>
+  <h2>👥 Amigos, salas y avisos</h2>
+  <div class="tgrid"><div class="tcard"><h3>rooms <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>name</code> text NN<br><code>code</code> text NN<br><code>creatorId</code> text <b class="kfk">→ users</b> NN<br><code>maxPlayers</code> integer <br><code>isStarted</code> boolean <br><code>isFinished</code> boolean <br><code>currentRound</code> integer <br><code>currentTeam</code> integer <br><code>createdAt</code> timestamp <br><code>startedAt</code> timestamp <br><code>finishedAt</code> timestamp </p></div><div class="tcard"><h3>room_players <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>roomId</code> text <b class="kfk">→ rooms</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>teamId</code> integer NN<br><code>score</code> integer <br><code>isReady</code> boolean <br><code>joinedAt</code> timestamp <br><code>leftAt</code> timestamp </p></div><div class="tcard"><h3>friendships <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>friendId</code> text <b class="kfk">→ users</b> NN<br><code>status</code> text NN<br><code>createdAt</code> timestamp <br><code>acceptedAt</code> timestamp </p></div><div class="tcard"><h3>friend_requests <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>senderId</code> text <b class="kfk">→ users</b> NN<br><code>receiverId</code> text <b class="kfk">→ users</b> NN<br><code>status</code> text <br><code>createdAt</code> timestamp <br><code>respondedAt</code> timestamp </p></div><div class="tcard"><h3>notifications <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>notificationType</code> text NN<br><code>title</code> text NN<br><code>message</code> text NN<br><code>data</code> jsonb <br><code>isRead</code> boolean <br><code>createdAt</code> timestamp <br><code>readAt</code> timestamp </p></div><div class="tcard"><h3>¿por qué vacías? <span class="n">dato</span></h3><p>Módulos nuevos listos: la estructura existe y espera los primeros jugadores reales.</p></div></div>
+</section>
+
+<!-- 9 ECONOMÍA -->
+<section class="slide">
+  <span class="mod-tag tag-eco">MÓDULO ECONOMÍA</span>
+  <h2>💰 Monedas, tienda y misiones</h2>
+  <div class="tgrid"><div class="tcard"><h3>user_currency <span class="n">3 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>coins</code> integer <br><code>gems</code> integer <br><code>updatedAt</code> timestamp </p></div><div class="tcard"><h3>shop_items <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>itemId</code> text NN<br><code>name</code> text NN<br><code>description</code> text NN<br><code>itemType</code> text NN<br><code>priceCoins</code> integer <br><code>priceGems</code> integer <br><code>isAvailable</code> boolean <br><code>createdAt</code> timestamp </p></div><div class="tcard"><h3>user_purchases <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>itemId</code> text <b class="kfk">→ shop_items</b> NN<br><code>pricePaid</code> integer NN<br><code>currencyType</code> text NN<br><code>purchasedAt</code> timestamp </p></div><div class="tcard"><h3>daily_missions <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>missionId</code> text NN<br><code>name</code> text NN<br><code>description</code> text NN<br><code>missionType</code> text NN<br><code>target</code> integer NN<br><code>xpReward</code> integer <br><code>coinReward</code> integer <br><code>isActive</code> boolean <br><code>createdAt</code> timestamp </p></div><div class="tcard"><h3>user_daily_missions <span class="n">0 filas</span></h3><p class="collist"><code>id</code> text <b class="kpk">PK</b> NN<br><code>userId</code> text <b class="kfk">→ users</b> NN<br><code>missionId</code> text <b class="kfk">→ daily_missions</b> NN<br><code>progress</code> integer <br><code>isCompleted</code> boolean <br><code>isClaimed</code> boolean <br><code>assignedAt</code> timestamp <br><code>completedAt</code> timestamp <br><code>claimedAt</code> timestamp </p></div></div>
+</section>
+
+<!-- 10 RELACIONES -->
+<section class="slide">
+  <h2>🔗 Cómo se relacionan (con ejemplos reales)</h2>
+  <div class="tgrid">
+    <div class="tcard"><h3>1:1 — uno a uno <span class="n">4 casos</span></h3>
+      <p>Columna <code>UNIQUE</code>: <code>users ⇄ player_stats</code>, <code>inventories</code>, <code>user_settings</code>, <code>user_currency</code>. Ej: kevin tiene exactamente 1 settings y 1 currency.</p></div>
+    <div class="tcard"><h3>1:N — uno a muchos <span class="n">mayoría</span></h3>
+      <p>FK repetible: <code>users → matches</code> (evidencia.backend y su partida de 1250 pts), <code>→ admin_logs</code> (3 acciones), <code>rooms → room_players</code>.</p></div>
+    <div class="tcard"><h3>N:N — muchos a muchos <span class="n">5 casos</span></h3>
+      <p>Tabla puente: usuarios⇄logros (<code>user_achievements</code>), usuarios⇄salas (<code>room_players</code>), usuario⇄usuario (<code>friendships</code>).</p></div>
+    <div class="tcard"><h3>Sin relación <span class="n">2 tablas</span></h3>
+      <p><code>announcements</code> y <code>promotions</code> son globales: no dependen de ningún usuario, son para todos.</p></div>
+  </div>
+</section>
+
+<!-- 11 DER -->
+<section class="slide">
+  <h2>🗺️ DER completo (25 tablas)</h2>
+  <p>PK = llave primaria · UQ = única · FK → tabla referenciada · ⚡ = tabla con trigger.</p>
+  <img src="img_ppt/img_er_full.png" alt="DER completo">
+</section>
+
+<!-- 12 ACID -->
+<section class="slide">
+  <h2>2️⃣ ACID — evidencias en memorize</h2>
+  <div class="acid-grid">
+    <div class="acid-card"><div class="acid-letter">A</div><div><b>Atomicidad</b><p>Transacción de 2 INSERTs: falló el 2.º (FK) → <b>ROLLBACK total, 0 filas parciales</b>.</p></div></div>
+    <div class="acid-card"><div class="acid-letter">C</div><div><b>Consistencia</b><p>25 PK + 11 UNIQUE + 26 FK + 149 CHECK <b>rechazan datos malos solos</b>.</p></div></div>
+    <div class="acid-card"><div class="acid-letter">I</div><div><b>Aislamiento</b><p>Nivel <b>read committed</b>: cada transacción solo ve datos confirmados.</p></div></div>
+    <div class="acid-card"><div class="acid-letter">D</div><div><b>Durabilidad</b><p><b>wal_level=replica + fsync=on</b>: lo confirmado sobrevive a caídas.</p></div></div>
+  </div>
+  <p class="tip">💡 <b>Idea para exponer:</b> “Si una operación falla a la mitad, PostgreSQL deshace todo; y los 211 constraints impiden guardar datos incoherentes.”</p>
+</section>
+
+<!-- 13 DEMO ACID -->
+<section class="slide">
+  <h2>🅰️ Atomicidad — código ejecutado en vivo</h2>
+  <p>Dos operaciones en una transacción: la 1.ª válida (partida + XP del trigger), la 2.ª con usuario fantasma.</p>
+<pre>BEGIN;
+CALL sp_register_match('59f90123-...','classic',200,true,1,90,6,100);
+-- CALL OK: partida insertada y trigger sumó XP temporalmente
+CALL sp_register_match('USUARIO-FANTASMA','classic',100,true,1,90,5,100);
+-- ERROR: sp_register_match: usuario USUARIO-FANTASMA no existe
+COMMIT;   -- jamás se ejecuta: la sesión aborta y hace ROLLBACK</pre>
+<pre>-- verificación posterior: kevin intacto
+SELECT count(*) FROM matches WHERE "userId"='59f90123-...';  --> 0
+SELECT xp, coins FROM users WHERE id='59f90123-...';         --> 0 | 500</pre>
+  <p class="tip">💡 <b>Ni la partida válida ni el XP del trigger sobrevivieron:</b> todo o nada, sin filas a medias.</p>
+</section>
+
+<section class="slide">
+  <h2>🅲 Consistencia — 4 rechazos ejecutados en vivo</h2>
+  <p>Intentamos guardar 4 datos malos. La BD los rechazó sola, sin código extra:</p>
+<pre>-- 1. Modo de juego inventado  -->  ERROR: viola chk_game_mode
+INSERT INTO game_sessions ("userId","gameMode","timePlayed",result)
+VALUES ('...kevin...','modo-inventado',60,'won');
+
+-- 2. Partida de usuario inexistente  -->  ERROR: viola matches_userId_fkey
+INSERT INTO matches (id,"userId",mode,score)
+VALUES ('TEST-FK-1','USUARIO-FANTASMA','classic',100);
+
+-- 3. Email duplicado  -->  ERROR: viola users_email_key
+INSERT INTO users (id,email,"updatedAt") VALUES ('X','kevinmora2838@gmail.com',NOW());
+
+-- 4. Partida sin puntaje  -->  ERROR: score viola NOT NULL
+INSERT INTO matches (id,"userId",mode) VALUES ('TEST-NN-1','...kevin...','classic');</pre>
+  <p class="tip">💡 <b>Escudo de 211 reglas:</b> 25 PK + 11 UNIQUE + 26 FK + 149 CHECK. El programador puede equivocarse; la BD, no.</p>
+</section>
+
+<section class="slide">
+  <h2>🅸 Aislamiento — 2 sesiones reales al mismo tiempo</h2>
+  <p>Sesión A abre una transacción y sube monedas <b>sin confirmar</b>. Sesión B consulta en ese instante:</p>
+<pre>-- SESIÓN A (queda abierta 12 segundos, SIN commit):
+BEGIN;
+UPDATE users SET coins = coins + 999 WHERE id = '...kevin...';  -- UPDATE 1
+
+-- SESIÓN B (en paralelo, ve la tabla):
+SELECT coins FROM users WHERE id = '...kevin...';  -->  500  ✅ valor VIEJO
+-- No ve el +999: lo no confirmado es invisible (read committed)
+
+-- SESIÓN A finalmente: ROLLBACK;
+SELECT coins FROM users WHERE id = '...kevin...';  -->  500  (como si nada pasó)</pre>
+  <p class="tip">💡 <b>Dos jugadores a la vez nunca ven datos a medias del otro.</b> Demo hecha con 2 conexiones simultáneas reales.</p>
+</section>
+
+<section class="slide">
+  <h2>🅳 Durabilidad — lo confirmado sobrevive</h2>
+<pre>SHOW wal_level;  -->  replica   (cada cambio se escribe al diario WAL)
+SHOW fsync;      -->  on        (el disco confirma antes de responder OK)</pre>
+  <ul>
+    <li><b>WAL (Write-Ahead Log):</b> PostgreSQL escribe cada COMMIT en el diario <i>antes</i> de decir “listo”. Si se apaga el PC, al prender replay del diario y todo confirmado sigue ahí.</li>
+    <li><b>fsync=on:</b> el sistema operativo no miente: el dato está físicamente en disco.</li>
+    <li><b>2.ª capa:</b> backups <code>memorize_backup_antes_mejoras.dump</code> (23 KB) y <code>despues_mejoras.dump</code> (83 KB) en <code>backups/</code>.</li>
+  </ul>
+  <p class="tip">💡 <b>Regla de oro:</b> lo que pgAdmin te confirma con COMMIT ya es inmortal: está en disco + en backup.</p>
+</section>
+
+<!-- 14 CAP -->
+<section class="slide">
+  <section class="slide">
+  <h2>🎮 A + código — ¿dónde está la atomicidad del juego?</h2>
+  <p>Al terminar una partida, <code>UserService.recordGamePlayed</code> debe guardar <b>dos cosas juntas</b> (usuario + stats):</p>
+<pre>// backend/src/services/UserService.ts:188-195
+const [updatedUser, updatedStats] = await Promise.all([
+  this.userRepository.update(userId, { xp, level, coins }),
+  this.statsRepository.update(stats.id, stats.toJSON()),
+]);</pre>
+  <ul>
+    <li>⚠️ Ojo crítico: el código <b>NO usa transacción</b> — si la 2.ª escritura falla, la 1.ª ya quedó guardada.</li>
+    <li>✅ Por eso la atomicidad real vive en la BD: <code>CALL sp_register_match(...)</code> mete el INSERT + el trigger en <b>una sola transacción implícita</b> (demo: ROLLBACK total).</li>
+  </ul>
+  <p class="tip">💡 <b>Frase:</b> “El juego pide, la base de datos garantiza: o se guarda todo, o no se guarda nada.”</p>
+</section>
+
+<section class="slide">
+  <h2>🎮 C + código — doble capa de validación</h2>
+  <p><b>Capa 1 — el backend</b> rechaza lo malo antes de tocar la BD:</p>
+<pre>// backend/src/controllers/UserController.ts:122-125
+if (score === undefined || won === undefined) {
+  res.status(400).json({ error: 'Datos incompletos' }); return;
+}
+// backend/src/services/UserService.ts:164-166 -> 'Usuario no encontrado' => 404</pre>
+  <p><b>Capa 2 — la BD</b>, por si algo se cuela: 211 constraints (el modo inventado, el email duplicado y el score nulo del demo fueron rechazados aquí).</p>
+  <p class="tip">💡 <b>Frase:</b> “El backend filtra y la BD sentencia: dos muros antes del dato sucio.”</p>
+</section>
+
+<section class="slide">
+  <h2>🎮 I + código — dos jugadores a la vez</h2>
+  <p>Dos partidas terminan al mismo tiempo → dos <code>prisma.user.update()</code> concurrentes. Con <b>read committed</b> ninguno ve datos a medias (demo: sesión B vio 500).</p>
+  <p>Y para sumar monedas, el admin usa incremento <b>atómico</b>:</p>
+<pre>// backend/src/routes/admin.ts:691-696
+if (coins) {
+  updateData.coins = { increment: coins };  // suma en el servidor, no en memoria
+}</pre>
+  <p class="tip">💡 <b>Frase:</b> “Ni 100 admins dando monedas a la vez pierden una sola: el incremento ocurre dentro de la BD, bajo aislamiento.”</p>
+</section>
+
+<section class="slide">
+  <h2>🎮 D + código — cada await es una promesa en disco</h2>
+<pre>// backend/src/repositories/UserRepository.ts:86-99
+const user = await this.prisma.user.update({
+  where: { id }, data: { ..., updatedAt: new Date() },
+});  // al resolverse el await, el COMMIT ya está en WAL (replica + fsync)</pre>
+  <ul>
+    <li>Cada escritura deja <code>updatedAt</code> fresco: rastro temporal de cuándo se confirmó.</li>
+    <li>Si el servidor cae un segundo después del <code>await</code>, al reiniciar el WAL repone el dato.</li>
+    <li>2.ª capa: dumps de 23 KB (antes) y 83 KB (después) en <code>backups/</code>.</li>
+  </ul>
+  <p class="tip">💡 <b>Frase:</b> “Await resuelto = dato inmortal: está en disco y en backup.”</p>
+</section>
+
+<h2>3️⃣ CAP — memorize es un sistema <span class="ok">CA</span></h2>
+  <ul>
+    <li><b>C</b>onsistencia ✅ — un solo nodo: cada lectura devuelve el dato más reciente, sin réplicas desactualizadas</li>
+    <li><b>A</b>isponibilidad ✅ — el servidor local responde a cada petición (<code>pg_stat_replication</code> vacío lo confirma: nada que sincronizar)</li>
+    <li><b>P</b>artición ➖ — <b>no aplica</b>: sin nodos distribuidos no hay red que pueda partirse</li>
+  </ul>
+  <p><b>📍 Dónde se aplica en Memorize (evidencia del sistema real):</b></p>
+<pre>Frontend (5173)  -->  1 backend Express  -->  1 PostgreSQL 18
+                                              localhost:5432 / memorize
+                                              0 réplicas, 0 nodos extra</pre>
+<pre>-- El backend conoce UN solo servidor (sin réplicas de lectura):
+// backend/prisma/schema.prisma:5-7
+datasource db { provider = "postgresql"  url = env("DATABASE_URL") }
+// backend/.env  (contraseña oculta)
+DATABASE_URL="postgresql://postgres:****@localhost:5432/memorize"
+
+-- Y el servidor confirma que no tiene con quién partirse:
+SELECT count(*) AS replicas FROM pg_stat_replication;  -->  0</pre>
+  <ul>
+    <li><b>C se aplica aquí:</b> cada <code>prisma.user.findUnique()</code> y cada vista va al <b>mismo nodo</b> → imposible leer un dato viejo de otra réplica.</li>
+    <li><b>A se aplica aquí:</b> ese nodo local responde siempre (endpoint <code>/health</code> + <code>test-connection.js</code> OK).</li>
+  </ul>
+  <p class="tip">💡 <b>Idea para exponer:</b> “Muestro el .env y el datasource: hay un solo host y cero réplicas. Sin red entre nodos no hay partición posible, así que por diseño el sistema es CA.”</p>
+</section>
+
+<!-- 15 VISTAS -->
+<section class="slide">
+  <h2>5️⃣ Las 4 vistas ✅ <span style="font-size:.6em;color:var(--mut)">consultas guardadas que se usan como tablas</span></h2>
+  <ul>
+    <li><code>v_ranking_global</code> — ranking con <code>ROW_NUMBER()</code> por puntaje total; excluye baneados</li>
+    <li><code>v_historial_partidas</code> — cada partida con username y email, ordenada por fecha</li>
+    <li><code>v_inventario_jugador</code> — equipos, conteos (<code>array_length</code>) y stats; aquí se ve que kevin no tiene inventario</li>
+    <li><code>v_auditoria_admin</code> — cada log con el admin que actuó y el usuario afectado</li>
+  </ul>
+<pre>SELECT * FROM v_ranking_global;   -- 3 filas: evidencia.backend 1250, rival 1250, kevin 0</pre>
+  <img src="img_ppt/img_evid_ranking.png" alt="Resultado v_ranking_global">
+</section>
+
+<!-- 16 SP -->
+<section class="slide">
+  <h2>6️⃣ Los 2 procedimientos ✅ <span style="font-size:.6em;color:var(--mut)">rutinas que se llaman con CALL</span></h2>
+  <ul>
+    <li><code>sp_register_match(usuario, modo, puntaje, ganó, …)</code> — inserta la partida; el trigger hace el resto (stats, XP, monedas)</li>
+    <li><code>sp_give_currency(admin, destino, coins, gems, detalle)</code> — premia y deja rastro en <code>admin_logs</code>; rechaza IDs inexistentes con <code>RAISE EXCEPTION</code></li>
+  </ul>
+<pre>CALL sp_register_match('uuid-kevin','classic',200,true,1,90,6,100);
+-- efecto: stats 1/1/200/200/6, xp +20, coins +10 (verificado con ROLLBACK)
+CALL sp_give_currency('uuid-admin','uuid-kevin',50,5,'bono');</pre>
+  <p>Encapsulan reglas de negocio <b>dentro</b> de la BD: el backend solo las invoca.</p>
+</section>
+
+<!-- 17 TRIGGERS -->
+<section class="slide">
+  <h2>7️⃣ Triggers ✅ <span style="font-size:.6em;color:var(--mut)">requisito: 1 · tenemos 4</span></h2>
+  <p><b>Anatomía:</b> CUÁNDO (<code>AFTER INSERT/UPDATE</code>) + DÓNDE (<code>ON tabla</code>) + QUÉ (<code>EXECUTE FUNCTION</code>).</p>
+<pre>CREATE TRIGGER trg_matches_update_stats
+AFTER INSERT ON matches FOR EACH ROW
+EXECUTE FUNCTION fn_trg_matches_update_stats();</pre>
+  <ul>
+    <li><code>trg_users_auto_create</code> → nace un usuario, nacen su stats + inventario ⭐ <i>empieza por este</i></li>
+    <li><code>trg_matches_update_stats</code> → partida guardada, stats y recompensas al día</li>
+    <li><code>trg_user_achievements_reward</code> → logro completado: +XP y notificación (probado: xp 0→100)</li>
+    <li><code>trg_boss_reward</code> → boss derrotado: +XP y aviso (probado: +200 XP)</li>
+  </ul>
+</section>
+
+<!-- 18 DEMO VIVO -->
+<section class="slide">
+  <h2>🧪 Demo en vivo para el instructor (2 min)</h2>
+<pre>-- 1. Estado inicial
+SELECT username, xp, coins FROM users;              -- kevin: 0 / 500
+-- 2. Registrar partida (SP + trigger trabajan solos)
+CALL sp_register_match('59f90123-...','classic',200,true,1,90,6,100);
+-- 3. Efecto automático, sin código extra
+SELECT username, xp, coins FROM users;              -- kevin: 20 / 510
+SELECT * FROM v_historial_partidas;                -- la partida aparece
+SELECT * FROM v_ranking_global;                    -- kevin ya puntúa</pre>
+  <p>Un solo <code>CALL</code> movió 3 tablas: la regla vive en la BD, no en el backend.</p>
+</section>
+
+<!-- 19 EVIDENCIA -->
+<section class="slide">
+  <h2>📎 Evidencia: 25 tablas con filas reales</h2>
+  <p>11 tablas pobladas (achievements 8, unlocked_items 5, users/settings/currency/admin 3…) y 14 vacías: módulos nuevos listos.</p>
+  <img src="img_ppt/img_evid_counts.png" alt="Conteo 25 tablas">
+</section>
+
+<!-- 20 CIERRE -->
+<section class="slide">
+  <h2>✔️ Cierre — 5/5 verificado en vivo</h2>
+  <div class="tbl-wrap"><table>
+    <tr><th>#</th><th>Requisito</th><th>Estado</th></tr>
+    <tr><td>1</td><td>ACID</td><td>✅ A/C/I/D con evidencia y demo</td></tr>
+    <tr><td>2</td><td>CAP</td><td>✅ Sistema CA (1 nodo, 0 réplicas)</td></tr>
+    <tr><td>3</td><td>4 vistas</td><td>✅ 4/4 ejecutadas</td></tr>
+    <tr><td>4</td><td>2 procedimientos</td><td>✅ 2/2 probados</td></tr>
+    <tr><td>5</td><td>1 trigger</td><td>✅ 4 (supera el mínimo)</td></tr>
+  </table></div>
+  <p class="sub">Entregables: <code>memorize_para_enviar.sql</code> · <code>schema_completo_memorize.sql</code> · <code>REPORTE_IMPLEMENTACION.md</code> · <code>demo_acid.sql</code></p>
+  <p class="verdict">“La regla vive en la base de datos: <span class="ok">aunque el programador olvide, ella nunca olvida</span>.”</p>
+</section>
+
+</div>
+<div class="nav">
+  <button onclick="go(-1)">◀ Anterior</button>
+  <span id="pg">1 / 20</span>
+  <button onclick="go(1)">Siguiente ▶</button>
+  <span style="margin-left:16px;">(usa ← → o espacio)</span>
+</div>
+<script>
+  const S = document.querySelectorAll('.slide');
+  const bar = document.getElementById('bar');
+  let i = 0;
+  function show() {
+    S.forEach((s,k)=>{ s.classList.remove('active'); void s.offsetWidth; s.classList.toggle('active',k===i); });
+    document.getElementById('pg').textContent = (i+1)+' / '+S.length;
+    bar.style.width = ((i+1)/S.length*100)+'%';
+  }
+  function go(d) { i = Math.min(S.length-1, Math.max(0, i+d)); show(); }
+  document.addEventListener('keydown', e => {
+    if (e.key==='ArrowRight'||e.key===' ') { e.preventDefault(); go(1); }
+    if (e.key==='ArrowLeft') go(-1);
+    if (e.key==='Home') { i=0; show(); }
+    if (e.key==='End') { i=S.length-1; show(); }
+  });
+  show();
+</script>
+</body>
+</html>

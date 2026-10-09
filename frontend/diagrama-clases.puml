@@ -1,0 +1,388 @@
+@startuml
+title Diagrama de Clases - Memorize (Backend: Multijugador + Motor de juego)
+hide circle
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #0b0f1a
+skinparam classBackgroundColor #111a2c
+skinparam classBorderColor #3b4f77
+skinparam classFontColor #e5e7eb
+skinparam classAttributeFontColor #cbd5e1
+skinparam classAttributeFontSize 11
+skinparam classFontSize 13
+skinparam interfaceBackgroundColor #1a1030
+skinparam interfaceBorderColor #7c5cff
+skinparam stereotypeCBackgroundColor #0e2038
+skinparam stereotypeFontColor #93c5fd
+skinparam defaultFontName Consolas
+skinparam shadowing false
+skinparam nodesep 16
+skinparam ranksep 30
+
+legend right
+  <color:#a78bfa>--|></color> Herencia (extends)
+  <color:#7c5cff>..|></color> Realizacion (implements)
+  <color:#fbbf24>--*</color> Composicion (tiene)
+  <color:#34d399>..></color> Dependencia (usa)
+endlegend
+
+package "Abstracciones base - src/core/" #0e1626 {
+
+  abstract class BaseEntity<TData> {
+    # readonly id: string
+    # readonly createdAt: Date
+    # _updatedAt?: Date
+    + get updatedAt(): Date
+    # touch(): void
+    + {abstract} toJSON(): TData
+  }
+
+  abstract class BaseService {
+    # serviceName: string
+    # log(msg, level): void
+    # handleError(e, ctx): never
+    + {abstract} initialize(): Promise<void>
+  }
+
+  abstract class BaseRepository<T, ID> {
+    # prisma: PrismaClient
+    # modelName: string
+    + {abstract} findById(id: ID): Promise<T>
+    + {abstract} create(data): Promise<T>
+    + {abstract} update(id, data): Promise<T>
+    + {abstract} delete(id: ID): Promise<void>
+    + {abstract} findAll(opts?): Promise<T[]>
+    # log(msg): void
+  }
+
+  abstract class BaseController {
+    # controllerName: string
+    # sendSuccess(res, data, code?): void
+    # sendCreated(res, data): void
+    # sendError(res, msg, code?): void
+    # handleHttpError(res, err, msg?): void
+  }
+}
+
+package "Interfaces - src/core/interfaces/" #1a1030 {
+
+  interface IGameModeStrategy {
+    + modeName: string
+    + getRequiredFlipsCount(): number
+    + checkMatch(flipped, idx): IMatchCheckResult
+    + calculateXp(score, won): number
+    + calculateCoins(score, won): number
+  }
+
+  interface ICrudRepository<T, ID> {
+    + findById(id: ID): Promise<T>
+    + findAll(opts?): Promise<T[]>
+    + create(data): Promise<T>
+    + update(id, data): Promise<T>
+    + delete(id: ID): Promise<void>
+  }
+
+  interface IRoomRepository {
+    + save(room): Promise<void>
+    + saveFinal(room, winnerId): Promise<void>
+    + findByCodeOrId(search): Promise<GameRoom>
+    + findActiveRooms(): Promise<GameRoom[]>
+  }
+
+  interface IRoomManager {
+    + createRoom(data): GameRoom
+    + getRoom(idOrCode): GameRoom
+    + deleteRoom(id): boolean
+    + getAvailableRooms(filters?): GameRoom[]
+    + joinRoom(id, player, pw?): GameRoom
+    + leaveRoom(id, playerId): void
+    + persistRoom(room): Promise<void>
+    + persistFinal(room, winnerId): Promise<void>
+    + recoverActiveRooms(): Promise<void>
+  }
+}
+
+package "Dominio: entidades - src/models/domain/" #231a0e {
+
+  class User {
+    - _username: string | null
+    - _role: UserRole
+    - _level: number
+    - _xp: number
+    - _coins: number
+    - _gems: number
+    - _isBanned: boolean
+    - _bannedUntil: Date | null
+    - _banReason: string | null
+    - _passwordHash: string | null
+    + setPasswordHash(hash): void
+    + isCurrentlyBanned(): boolean
+    + applyBan(reason, dur?): void
+    + removeBan(): void
+    + addXp(amount): number
+    + canLevelUp(): boolean
+    + levelUp(): void
+    + canAfford(c, g?): boolean
+    + purchase(c, g?): void
+    + setCurrency(c?, g?): void
+    + isAdmin(): boolean
+  }
+
+  class PlayerStats {
+    - _gamesPlayed: number
+    - _gamesWon: number
+    - _totalScore: number
+    - _bestScore: number
+    - _totalMatches: number
+    - _perfectMatches: number
+    - _maxCombo: number
+    + recordGame(score, won, m, pm, combo): void
+    + getWinRate(): number
+    + getAverageScore(): number
+    + getPerfectMatchRate(): number
+    + getSkillLevel(): string
+    + checkAchievements(): string[]
+  }
+
+  class Match {
+    + readonly userId: string
+    + readonly mode: string
+    + readonly level: number | null
+    + readonly score: number
+    + readonly accuracy: number | null
+    + readonly combo: number | null
+    + readonly won: boolean
+    + calculateXpEarned(): number
+    + calculateCoinsEarned(): number
+  }
+
+  class Player {
+    + readonly id: string
+    - _socketId: string
+    - _name: string
+    - _level: number
+    - _isReady: boolean
+    - _score: number
+    - _matches: number
+    - _isConnected: boolean
+    + setReady(ready): void
+    + addScore(points): void
+    + addMatch(): void
+    + resetGameStats(): void
+    + disconnect(): void
+    + reconnect(socketId): void
+    + toJSON(): IPlayer
+  }
+
+  class GameRoom {
+    + readonly code: string
+    - _name: string
+    - _hostId: string
+    - _hostName: string
+    - _maxPlayers: number
+    - _cardCount: number
+    - _mode: string
+    - _difficulty: string
+    - _isPrivate: boolean
+    - _deckSeed: string
+    - players: Map<string, Player>
+    - gameState: IGameState
+    + addPlayer(player): void
+    + removePlayer(id): void
+    + getPlayer(id): Player
+    + getPlayers(): Player[]
+    + setPlayerReady(id, ready): void
+    + areAllPlayersReady(): boolean
+    + startGame(deck, bypass?): void
+    + flipCard(playerId, cardIndex): void
+    + checkMatch(): IMatchCheckResult
+    + registerMatch(playerId, idx): void
+    + clearFlippedCards(): void
+    + nextTurn(): string
+    + isGameFinished(): boolean
+    + finishGame(): string | null
+    + reconnectPlayer(id, socketId): void
+    + disconnectPlayer(id): void
+    + validatePassword(pw): boolean
+    + getPublicGameState(): IGameState
+  }
+}
+
+package "Motor de juego - src/engine/ , src/managers/" #10203a {
+
+  class RoomCommandHandler {
+    - roomManager: IRoomManager
+    - engine: GameEngine
+    + handle(socket, command, payload): CommandOutcome
+    - join/leave/ready/start/flip(...): CommandOutcome
+    - emote/rematch/chat/reconnect/disconnect(...)
+    - memberRoom(socket, id, ev): GameRoom
+  }
+
+  class GameEngine {
+    - turnTimer: TurnTimer
+    - evaluating: Set<string>
+    - pendingResolve: Map<string, Timeout>
+    + startGame(room, mode, count): CommandOutcome
+    + flipCard(room, playerId, idx): CommandOutcome
+    + expireTurn(roomId): void
+    + resolveTurn(room): CommandOutcome
+    + shutdown(): void
+    - armTurnTimer(roomId, playerId, mode): void
+    - scheduleResolve(room): void
+  }
+
+  class TurnTimer {
+    - timers: Map<string, Timeout>
+    + start(roomId, sec, onExpire): void
+    + stop(roomId): void
+    + has(roomId): boolean
+    + stopAll(): void
+  }
+
+  class DeckGenerator <<module>> {
+    + generateDeck(seed, mode, count): ServerDeckCard[]
+    + cardKey(seed, faceId): string
+  }
+
+  class RoomManager <<Singleton>> {
+    - {static} instance: RoomManager
+    - rooms: Map<string, GameRoom>
+    - repo?: IRoomRepository
+    - {static} getInstance(repo?): RoomManager
+    + createRoom(data): GameRoom
+    + getRoom(idOrCode): GameRoom
+    + hasRoom(idOrCode): boolean
+    + deleteRoom(id): boolean
+    + getAvailableRooms(filters?): GameRoom[]
+    + joinRoom(id, player, pw?): GameRoom
+    + leaveRoom(id, playerId): void
+    + getStats(): object
+    + persistRoom(room): Promise<void>
+    + persistFinal(room, winnerId): Promise<void>
+    + recoverActiveRooms(): Promise<void>
+    - cleanupOldRooms(): void
+    - generateRoomId(): string
+  }
+}
+
+package "Patron Strategy / Factory - src/models/strategies/" #2a1a0e {
+
+  abstract class BaseGameModeStrategy {
+    + {abstract} modeName: string
+    + {abstract} requiredFlips: number
+    + {abstract} baseExp: number
+    + getRequiredFlipsCount(): number
+    + checkMatch(flipped, idx): IMatchCheckResult
+    + calculateXp(score, won): number
+    + calculateCoins(score, won): number
+  }
+
+  class PairsModeStrategy
+  class TriadsModeStrategy
+  class InfiniteModeStrategy
+  class ChallengeModeStrategy
+  class BossModeStrategy
+  class MultiplayerModeStrategy
+  class AiFriendsModeStrategy
+
+  class GameModeFactory <<Factory>> {
+    - {static} strategies: Map<string, IGameModeStrategy>
+    + {static} getStrategy(mode): IGameModeStrategy
+    + {static} registerStrategy(name, s): void
+  }
+}
+
+package "Servicios - src/services/" #231a0e {
+
+  class AuthService
+  class UserService
+  class MatchService
+  class LeaderboardService
+  class AdminService <<Facade>> {
+    + initialize(): Promise<void>
+    + verifyAdmin(adminId): Promise<boolean>
+    + ... delega en los 4 servicios ...
+  }
+  class AdminUserService
+  class AdminContentService
+  class AdminAnalyticsService
+  class AuditLogService
+}
+
+package "Repositorios - src/repositories/" #1a1030 {
+
+  class UserRepository
+  class MatchRepository
+  class PlayerStatsRepository
+  class RoomRepository
+  class InventoryRepository
+  class AnalyticsRepository
+  class AdminLogRepository
+}
+
+' ===== HERENCIA: entidades de dominio =====
+User --|> BaseEntity
+PlayerStats --|> BaseEntity
+Match --|> BaseEntity
+GameRoom --|> BaseEntity
+
+' ===== HERENCIA: servicios =====
+AuthService --|> BaseService
+UserService --|> BaseService
+MatchService --|> BaseService
+LeaderboardService --|> BaseService
+AdminService --|> BaseService
+AdminUserService --|> BaseService
+AdminContentService --|> BaseService
+AdminAnalyticsService --|> BaseService
+AuditLogService --|> BaseService
+
+' ===== HERENCIA: repositorios =====
+UserRepository --|> BaseRepository
+MatchRepository --|> BaseRepository
+PlayerStatsRepository --|> BaseRepository
+RoomRepository --|> BaseRepository
+
+' ===== REALIZACION de interfaces =====
+BaseRepository ..|> ICrudRepository
+BaseGameModeStrategy ..|> IGameModeStrategy
+PairsModeStrategy --|> BaseGameModeStrategy
+TriadsModeStrategy --|> BaseGameModeStrategy
+InfiniteModeStrategy --|> BaseGameModeStrategy
+ChallengeModeStrategy --|> BaseGameModeStrategy
+BossModeStrategy --|> BaseGameModeStrategy
+MultiplayerModeStrategy --|> BaseGameModeStrategy
+AiFriendsModeStrategy --|> BaseGameModeStrategy
+RoomManager ..|> IRoomManager
+GameModeFactory ..> IGameModeStrategy : crea / registra
+
+' ===== COMPOSICION =====
+RoomManager *-- GameRoom : contiene
+GameRoom *-- Player : compone
+
+' ===== DEPENDENCIAS del motor (Command + DIP) =====
+RoomCommandHandler ..> GameEngine : delega la partida
+RoomCommandHandler ..> IRoomManager : valida y muta
+GameEngine ..> IRoomManager : depende de la interfaz
+GameEngine ..> TurnTimer
+GameEngine ..> DeckGenerator : genera el mazo
+GameEngine ..> GameRoom : resuelve sobre el dominio
+GameRoom ..> GameModeFactory : reglas por modo
+RoomManager ..> IRoomRepository : persiste via interfaz
+
+' ===== DEPENDENCIAS de servicios (DIP) =====
+AuthService ..> UserRepository
+UserService ..> UserRepository
+UserService ..> InventoryRepository
+MatchService ..> MatchRepository
+LeaderboardService ..> UserRepository
+LeaderboardService ..> PlayerStatsRepository
+AdminUserService ..> UserRepository
+AdminAnalyticsService ..> AnalyticsRepository
+AuditLogService ..> AdminLogRepository
+AdminService ..> AdminUserService
+AdminService ..> AdminContentService
+AdminService ..> AdminAnalyticsService
+AdminService ..> AuditLogService
+
+@enduml

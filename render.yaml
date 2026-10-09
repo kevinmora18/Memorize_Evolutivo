@@ -1,0 +1,29 @@
+# Archivo de configuración para Render
+# Despliegue: Backend en web service, Frontend en static site
+
+services:
+  - type: web
+    name: memorize-backend
+    env: node
+    plan: free
+    branch: master
+    buildCommand: npm --prefix backend install && npm --prefix backend run build
+    startCommand: npm --prefix backend run start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://memorize-evolutivo.onrender.com
+
+  - type: static_site
+    name: memorize-frontend
+    env: node
+    plan: free
+    branch: master
+    buildCommand: npm --prefix frontend install && npm --prefix frontend run build
+    publishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://memorize-backend.onrender.com

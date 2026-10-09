@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitectura de Software — Memorize (Backend)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:#0b0f1a; }
+  body {
+    font-family:"Segoe UI", system-ui, sans-serif;
+    color:#e5e7eb;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #1e1b4b55, transparent 60%),
+      linear-gradient(160deg, #0b0f1a, #0a0f1c);
+    padding:26px 28px 60px;
+  }
+  header, .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:26px; background:linear-gradient(90deg,#22d3ee,#a78bfa); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:#94a3b8; font-size:14px; margin-top:6px; line-height:1.6; }
+
+  .band { max-width:1180px; margin:24px auto 0; }
+  .band-title { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-weight:700; font-size:15px; letter-spacing:.4px; }
+  .band-title .dot { width:10px; height:10px; border-radius:3px; }
+
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); }
+
+  .card {
+    background:#111a2c; border:1px solid #26324a; border-radius:10px; padding:13px 15px;
+    font-size:12.5px; line-height:1.6; transition:.15s;
+  }
+  .card:hover { border-color:#3b4f77; transform:translateY(-2px); }
+  .card h3 { font-size:13.5px; margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+  .card code { color:#67e8f9; font-family:"Cascadia Code", Consolas, monospace; font-size:12px; }
+  .card .who { color:#cbd5e1; font-family:"Cascadia Code", Consolas, monospace; font-size:11.5px; }
+  .n { color:#0b0f1a; font-weight:800; font-size:11px; border-radius:5px; padding:1px 7px; }
+
+  .l1 .n { background:#22d3ee; } .l1 h3 { color:#22d3ee; }
+  .l2 .n { background:#38bdf8; } .l2 h3 { color:#38bdf8; }
+  .l3 .n { background:#a78bfa; } .l3 h3 { color:#a78bfa; }
+  .l4 .n { background:#f472b6; } .l4 h3 { color:#f472b6; }
+  .l5 .n { background:#fbbf24; } .l5 h3 { color:#fbbf24; }
+  .l6 .n { background:#34d399; } .l6 h3 { color:#34d399; }
+
+  .figure {
+    max-width:1180px; margin:20px auto 0; background:#0e1626; border:1px solid #26324a;
+    border-radius:12px; padding:14px; text-align:center;
+  }
+  .figure img { max-width:100%; border-radius:8px; }
+  .figure .cap { color:#94a3b8; font-size:12px; margin-top:9px; }
+
+  .rel { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+  .rel-item { background:#0f1526; border:1px solid #26324a; border-radius:9px; padding:9px 13px; font-size:12.5px; display:flex; align-items:center; gap:9px; line-height:1.5; }
+  .arrow { font-weight:900; color:#34d399; white-space:nowrap; }
+  .arrow.dip { color:#a78bfa; }
+
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12.5px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #1f2a3f; vertical-align:top; }
+  th { color:#93c5fd; font-size:12px; letter-spacing:.3px; }
+  td code { color:#67e8f9; font-family:"Cascadia Code", Consolas, monospace; }
+
+  .note { max-width:1180px; margin:24px auto 0; font-size:12.5px; color:#64748b; line-height:1.75; }
+  .note b { color:#94a3b8; }
+  @media print { body { padding:10px; background:#fff; } .card,.figure { background:#fff; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏗️ Arquitectura de Software — Memorize (Backend)</h1>
+  <div class="sub">
+    Vista por capas del servidor (Express + Socket.IO + Prisma). La dependencia apunta siempre
+    hacia abajo y las capas altas dependen de <b>interfaces</b>, no de clases concretas
+    (<b>Inversión de Dependencias</b>). El servidor es la única fuente de verdad del juego.
+  </div>
+</header>
+
+<div class="figure">
+  <img src="arquitectura-backend.png" alt="Diagrama de arquitectura por capas del backend de Memorize">
+  <div class="cap">La imagen corresponde a <code>arquitectura-backend.puml</code> (renderizado con PlantUML).</div>
+</div>
+
+<!-- ================= CAPAS ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#22d3ee"></span>Flujo de una petición</div>
+  <div class="grid">
+    <div class="card l1">
+      <h3><span class="n">1</span> Transporte / Entrada</h3>
+      <div class="who">src/index.ts · routes/*.ts · socket/SocketManager.ts</div>
+      <p>Express expone la API REST bajo <code>/api/*</code>; Socket.IO recibe los comandos de sala/partida. Ninguno contiene reglas de negocio: solo traducen HTTP/WebSocket.</p>
+    </div>
+    <div class="card l2">
+      <h3><span class="n">2</span> Controladores</h3>
+      <div class="who">AuthController · UserController · RoomController · MatchController · AdminController · LeaderboardController</div>
+      <p>Reciben la petición, extraen la identidad del JWT y delegan en un servicio. Todos extienden <code>BaseController</code> y reciben sus dependencias por constructor (interfaces).</p>
+    </div>
+    <div class="card l3">
+      <h3><span class="n">3</span> Servicios</h3>
+      <div class="who">AuthService · UserService · MatchService · LeaderboardService · AdminService (fachada)</div>
+      <p>Concentran las reglas de negocio. <code>AdminService</code> delega en <code>AdminUserService</code>, <code>AdminContentService</code>, <code>AdminAnalyticsService</code> y <code>AuditLogService</code> (SRP). Extienden <code>BaseService</code>.</p>
+    </div>
+    <div class="card l4">
+      <h3><span class="n">4</span> Motor de juego / Dominio</h3>
+      <div class="who">RoomCommandHandler · GameEngine · DeckGenerator · TurnTimer · RoomManager · GameRoom · Player</div>
+      <p>El motor autoritativo: genera el mazo, valida volteos, posee el reloj de turno y calcula puntuaciones. El motor <b>no conoce Socket.IO</b>; devuelve <code>CommandOutcome</code> que el transporte aplica.</p>
+    </div>
+    <div class="card l5">
+      <h3><span class="n">5</span> Repositorios</h3>
+      <div class="who">IRepository.ts · UserRepository · MatchRepository · RoomRepository · InventoryRepository · AnalyticsRepository · AdminLogRepository</div>
+      <p>Único punto que habla con Prisma. Los servicios dependen de los contratos de <code>IRepository.ts</code>, jamás de la implementación concreta ni de <code>PrismaClient</code>.</p>
+    </div>
+    <div class="card l6">
+      <h3><span class="n">6</span> Infraestructura transversal</h3>
+      <div class="who">Container.ts · core/logger.ts · core/requestId.ts</div>
+      <p><code>Container</code> es el único lugar que construye e inyecta todo el grafo de dependencias. Logger estructurado y correlación por <code>requestId</code> atraviesan las capas.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DIP ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#a78bfa"></span>Dónde vive la Inversión de Dependencias (D)</div>
+  <div class="rel">
+    <div class="rel-item"><span class="arrow dip">⇢</span> Los <b>controladores</b> reciben <code>IAuthService</code>, <code>IUserService</code>, <code>IRoomManager</code>… por constructor</div>
+    <div class="rel-item"><span class="arrow dip">⇢</span> Los <b>servicios</b> reciben <code>IUserRepository</code>, <code>IMatchRepository</code>, <code>IAnalyticsRepository</code>…</div>
+    <div class="rel-item"><span class="arrow dip">⇢</span> <code>GameEngine</code> depende de <code>IRoomManager</code> y de un <b>callback</b>, no de <code>SocketManager</code></div>
+    <div class="rel-item"><span class="arrow dip">⇢</span> El <b>Container</b> decide qué implementación concreta inyectar en cada caso</div>
+    <div class="rel-item"><span class="arrow">✓</span> Refactor aplicado: <code>AdminService</code> y <code>LeaderboardService</code> ya <b>no</b> importan <code>PrismaClient</code></div>
+  </div>
+</div>
+
+<!-- ================= TABLA CAPAS ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#38bdf8"></span>Responsabilidad por capa</div>
+  <table>
+    <thead>
+      <tr><th>Capa</th><th>Ruta</th><th>Puede depender de</th><th>Nunca depende de</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Transporte</td><td><code>src/index.ts</code>, <code>src/routes/</code>, <code>src/socket/</code></td><td>Controladores, Container, motor</td><td>Prisma</td></tr>
+      <tr><td>Controladores</td><td><code>src/controllers/</code></td><td>Interfaces de servicios, BaseController</td><td>Repositorios, Prisma</td></tr>
+      <tr><td>Servicios</td><td><code>src/services/</code></td><td>Interfaces de repositorios, BaseService</td><td>Prisma, Express, Socket.IO</td></tr>
+      <tr><td>Motor / Dominio</td><td><code>src/engine/</code>, <code>src/models/</code>, <code>src/managers/</code></td><td>Modelos de dominio, estrategias</td><td>Express, Socket.IO (solo recibe <code>Socket</code> para identidad)</td></tr>
+      <tr><td>Repositorios</td><td><code>src/repositories/</code></td><td>Prisma Client, BaseRepository</td><td>Servicios, controladores</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="note">
+  <b>Cómo leerlo:</b> cada flecha descendente es una llamada; el flujo REST es
+  <code>HTTP → Controlador → Servicio → IRepositorio → Prisma → PostgreSQL</code>, y el flujo
+  de partida es <code>Socket.IO → RoomCommandHandler → GameEngine/RoomManager → Repositorio</code>.
+  La capa <code>Container</code> no aparece en el camino de ejecución porque solo se usa al
+  arrancar: es quien "cablea" las dependencias. Gracias a eso, cambiar PostgreSQL, el motor de
+  plantillas o el transporte no obliga a tocar las reglas de negocio.
+</div>
+
+</body>
+</html>

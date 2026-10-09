@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                                                String                @id @default(uuid())
+  email                                             String                @unique
+  username                                          String?
+  level                                             Int                   @default(1)
+  xp                                                Int                   @default(0)
+  coins                                             Int                   @default(0)
+  gems                                              Int                   @default(0)
+  createdAt                                         DateTime              @default(now())
+  updatedAt                                         DateTime              @updatedAt
+  role                                              String                @default("player")
+  banReason                                         String?
+  bannedUntil                                       DateTime?
+  isBanned                                          Boolean               @default(false)
+  deletedAt                                         DateTime?
+  adminLogs                                         AdminLog[]
+  boss_defeats                                      boss_defeats[]
+  friend_requests_friend_requests_receiverIdTousers friend_requests[]     @relation("friend_requests_receiverIdTousers")
+  friend_requests_friend_requests_senderIdTousers   friend_requests[]     @relation("friend_requests_senderIdTousers")
+  friendships_friendships_friendIdTousers           friendships[]         @relation("friendships_friendIdTousers")
+  friendships_friendships_userIdTousers             friendships[]         @relation("friendships_userIdTousers")
+  game_events                                       game_events[]
+  game_sessions                                     game_sessions[]
+  inventory                                         Inventory?
+  leaderboard_entries                               leaderboard_entries[]
+  matches                                           Match[]
+  notifications                                     notifications[]
+  stats                                             PlayerStats?
+  room_players                                      room_players[]
+  rooms                                             rooms[]
+  unlocked_items                                    unlocked_items[]
+  user_achievements                                 user_achievements[]
+  user_currency                                     user_currency?
+  user_daily_missions                               user_daily_missions[]
+  user_purchases                                    user_purchases[]
+  user_settings                                     user_settings?
+
+  @@index([deletedAt], map: "idx_users_deleted")
+  @@map("users")
+}
+
+model PlayerStats {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  gamesPlayed    Int      @default(0)
+  gamesWon       Int      @default(0)
+  totalScore     BigInt   @default(0)
+  bestScore      Int      @default(0)
+  totalMatches   Int      @default(0)
+  perfectMatches Int      @default(0)
+  maxCombo       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_player_stats_user_id")
+  @@map("player_stats")
+}
+
+model Inventory {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  ownedPacks    String[] @default([])
+  ownedFrames   String[] @default([])
+  ownedSkins    String[] @default([])
+  ownedBoards   String[] @default([])
+  equippedPack  String   @default("frutas")
+  equippedFrame String   @default("basic")
+  equippedSkin  String   @default("classic")
+  equippedBoard String   @default("default")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_inventories_user_id")
+  @@map("inventories")
+}
+
+model Match {
+  id        String    @id @default(uuid())
+  userId    String
+  mode      String
+  level     Int?
+  score     Int
+  accuracy  Int?
+  combo     Int?
+  timeLeft  Int?
+  won       Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([deletedAt], map: "idx_matches_deleted")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_matches_user_date")
+  @@map("matches")
+}
+
+model Announcement {
+  id        String    @id @default(uuid())
+  title     String
+  message   String
+  type      String    @default("info")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([isActive])
+  @@map("announcements")
+}
+
+model AdminLog {
+  id        String   @id @default(uuid())
+  adminId   String
+  action    String
+  targetId  String?
+  details   String?
+  createdAt DateTime @default(now())
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+model Promotion {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String
+  value       Float
+  isActive    Boolean  @default(true)
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([isActive])
+  @@map("promotions")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model achievements {
+  id                String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  achievementId     String              @unique
+  name              String
+  description       String
+  icon              String
+  xpReward          Int?                @default(0)
+  category          String
+  createdAt         DateTime            @default(now())
+  user_achievements user_achievements[]
+
+  @@index([category], map: "idx_achievements_category")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model boss_defeats {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId     String
+  bossType   String
+  universe   String
+  timeTaken  Int
+  attempts   Int?     @default(1)
+  xpGained   Int?     @default(200)
+  defeatedAt DateTime @default(now())
+  users      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_boss_defeats_user")
+
+  @@index([bossType], map: "idx_boss_defeats_boss")
+  @@index([bossType, universe], map: "idx_boss_defeats_boss_universe")
+  @@index([defeatedAt(sort: Desc)], map: "idx_boss_defeats_defeated_at")
+  @@index([userId], map: "idx_boss_defeats_user")
+}
+
+model daily_missions {
+  id                  String                @id @default(dbgenerated("(gen_random_uuid())::text"))
+  missionId           String                @unique
+  name                String
+  description         String
+  missionType         String
+  target              Int
+  xpReward            Int?                  @default(0)
+  coinReward          Int?                  @default(0)
+  isActive            Boolean?              @default(true)
+  createdAt           DateTime?             @default(now())
+  user_daily_missions user_daily_missions[]
+
+  @@index([isActive], map: "idx_daily_missions_active")
+  @@index([missionId], map: "idx_daily_missions_mission_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model friend_requests {
+  id                                      String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  senderId                                String
+  receiverId                              String
+  status                                  String?   @default("pending")
+  createdAt                               DateTime? @default(now())
+  respondedAt                             DateTime?
+  users_friend_requests_receiverIdTousers User      @relation("friend_requests_receiverIdTousers", fields: [receiverId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_friend_requests_receiver")
+  users_friend_requests_senderIdTousers   User      @relation("friend_requests_senderIdTousers", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_friend_requests_sender")
+
+  @@unique([senderId, receiverId], map: "uq_friend_request")
+  @@index([receiverId], map: "idx_friend_requests_receiver")
+  @@index([senderId], map: "idx_friend_requests_sender")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model friendships {
+  id                                String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId                            String
+  friendId                          String
+  status                            String
+  createdAt                         DateTime? @default(now())
+  acceptedAt                        DateTime?
+  users_friendships_friendIdTousers User      @relation("friendships_friendIdTousers", fields: [friendId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_friendships_friend")
+  users_friendships_userIdTousers   User      @relation("friendships_userIdTousers", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_friendships_user")
+
+  @@unique([userId, friendId], map: "uq_friendship")
+  @@index([friendId], map: "idx_friendships_friend")
+  @@index([userId], map: "idx_friendships_user")
+}
+
+model game_events {
+  id            String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId        String?
+  sessionId     String?
+  eventType     String
+  eventData     Json?
+  createdAt     DateTime?      @default(now())
+  game_sessions game_sessions? @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_game_events_session")
+  users         User?          @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "fk_game_events_user")
+
+  @@index([createdAt(sort: Desc)], map: "idx_game_events_created")
+  @@index([sessionId], map: "idx_game_events_session")
+  @@index([eventType], map: "idx_game_events_type")
+  @@index([userId], map: "idx_game_events_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model game_sessions {
+  id           String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId       String
+  gameMode     String
+  universe     String?
+  levelReached Int?
+  score        Int           @default(0)
+  maxCombo     Int?          @default(0)
+  timePlayed   Int
+  xpGained     Int?          @default(0)
+  result       String
+  startedAt    DateTime      @default(now())
+  endedAt      DateTime?
+  game_events  game_events[]
+  users        User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_game_sessions_user")
+
+  @@index([gameMode], map: "idx_game_sessions_mode")
+  @@index([startedAt(sort: Desc)], map: "idx_game_sessions_started")
+  @@index([userId], map: "idx_game_sessions_user")
+  @@index([userId, gameMode], map: "idx_game_sessions_user_mode")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model leaderboard_entries {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId          String
+  leaderboardType String
+  score           BigInt
+  rank            Int?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  users           User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_leaderboard_user")
+
+  @@index([leaderboardType, rank], map: "idx_leaderboard_type_rank")
+  @@index([leaderboardType, score(sort: Desc)], map: "idx_leaderboard_type_score")
+  @@index([userId], map: "idx_leaderboard_user")
+}
+
+model notifications {
+  id               String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId           String
+  notificationType String
+  title            String
+  message          String
+  data             Json?
+  isRead           Boolean?  @default(false)
+  createdAt        DateTime? @default(now())
+  readAt           DateTime?
+  users            User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notifications_user")
+
+  @@index([createdAt(sort: Desc)], map: "idx_notifications_created")
+  @@index([isRead], map: "idx_notifications_read")
+  @@index([userId], map: "idx_notifications_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model room_players {
+  id       String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  roomId   String
+  userId   String
+  teamId   Int
+  score    Int?      @default(0)
+  isReady  Boolean?  @default(false)
+  joinedAt DateTime? @default(now())
+  leftAt   DateTime?
+  rooms    rooms     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room_players_room")
+  users    User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room_players_user")
+
+  @@index([roomId], map: "idx_room_players_room")
+  @@index([roomId, teamId], map: "idx_room_players_room_team")
+  @@index([userId], map: "idx_room_players_user")
+}
+
+model rooms {
+  id           String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name         String
+  code         String         @unique
+  creatorId    String
+  maxPlayers   Int?           @default(10)
+  isStarted    Boolean?       @default(false)
+  isFinished   Boolean?       @default(false)
+  currentRound Int?           @default(1)
+  currentTeam  Int?           @default(1)
+  createdAt    DateTime?      @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  room_players room_players[]
+  users        User           @relation(fields: [creatorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rooms_creator")
+
+  @@index([code], map: "idx_rooms_code")
+  @@index([creatorId], map: "idx_rooms_creator")
+  @@index([isStarted], map: "idx_rooms_started")
+}
+
+model shop_items {
+  id             String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  itemId         String           @unique
+  name           String
+  description    String
+  itemType       String
+  priceCoins     Int?             @default(0)
+  priceGems      Int?             @default(0)
+  isAvailable    Boolean?         @default(true)
+  createdAt      DateTime?        @default(now())
+  user_purchases user_purchases[]
+
+  @@index([isAvailable], map: "idx_shop_items_available")
+  @@index([itemId], map: "idx_shop_items_item_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model unlocked_items {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId     String
+  itemType   String
+  itemId     String
+  unlockedAt DateTime @default(now())
+  users      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_unlocked_items_user")
+
+  @@unique([userId, itemType, itemId], map: "uq_user_item")
+  @@index([itemType], map: "idx_unlocked_items_type")
+  @@index([userId], map: "idx_unlocked_items_user")
+  @@index([userId, itemType], map: "idx_unlocked_items_user_type")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model user_achievements {
+  id            String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId        String
+  achievementId String
+  progress      Int?         @default(0)
+  target        Int
+  isCompleted   Boolean?     @default(false)
+  completedAt   DateTime?
+  achievements  achievements @relation(fields: [achievementId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_achievements_achievement")
+  users         User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_achievements_user")
+
+  @@unique([userId, achievementId], map: "uq_user_achievement")
+  @@index([achievementId], map: "idx_user_achievements_achievement")
+  @@index([isCompleted], map: "idx_user_achievements_completed")
+  @@index([userId], map: "idx_user_achievements_user")
+}
+
+model user_currency {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId    String    @unique
+  coins     Int?      @default(0)
+  gems      Int?      @default(0)
+  updatedAt DateTime? @default(now())
+  users     User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_currency_user")
+
+  @@index([userId], map: "idx_user_currency_user")
+}
+
+model user_daily_missions {
+  id             String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId         String
+  missionId      String
+  progress       Int?           @default(0)
+  isCompleted    Boolean?       @default(false)
+  isClaimed      Boolean?       @default(false)
+  assignedAt     DateTime?      @default(now())
+  completedAt    DateTime?
+  claimedAt      DateTime?
+  daily_missions daily_missions @relation(fields: [missionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_daily_missions_mission")
+  users          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_daily_missions_user")
+
+  @@unique([userId, missionId, assignedAt], map: "uq_user_mission_date")
+  @@index([missionId], map: "idx_user_daily_missions_mission")
+  @@index([userId], map: "idx_user_daily_missions_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_purchases {
+  id           String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId       String
+  itemId       String
+  pricePaid    Int
+  currencyType String
+  purchasedAt  DateTime?  @default(now())
+  shop_items   shop_items @relation(fields: [itemId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_purchases_item")
+  users        User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_purchases_user")
+
+  @@index([itemId], map: "idx_user_purchases_item")
+  @@index([userId], map: "idx_user_purchases_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_settings {
+  id                   String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId               String    @unique
+  soundEnabled         Boolean?  @default(true)
+  musicEnabled         Boolean?  @default(true)
+  soundVolume          Int?      @default(50)
+  musicVolume          Int?      @default(50)
+  notificationsEnabled Boolean?  @default(true)
+  language             String?   @default("es")
+  theme                String?   @default("dark")
+  selectedSkin         String?   @default("clasico")
+  selectedEffect       String?   @default("basico")
+  updatedAt            DateTime? @default(now())
+  users                User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_settings_user")
+
+  @@index([userId], map: "idx_user_settings_user")
+}

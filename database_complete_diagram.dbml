@@ -1,0 +1,493 @@
+// ============================================
+// DIAGRAMA COMPLETO DE BASE DE DATOS - MEMORIZE GAME
+// Basado en el diseño en papel
+// Usa este código en https://dbdiagram.io/
+// ============================================
+
+// ============================================
+// TABLA PRINCIPAL: USERS
+// ============================================
+Table Users {
+  id String [pk, note: 'UUID']
+  email String [unique, not null]
+  username String
+  password_hash String [not null]
+  role String [default: 'player', note: 'player, admin']
+  level Int [default: 1]
+  xp Int [default: 0]
+  coins Int [default: 0]
+  gems Int [default: 0]
+  avatar String [default: 'default']
+  is_banned Boolean [default: false]
+  banned_until DateTime
+  ban_reason String
+  verified Boolean [default: false]
+  verification_code String
+  created_at DateTime [default: `now()`]
+  updated_at DateTime [default: `now()`]
+  last_login DateTime
+  
+  Note: 'Tabla principal de usuarios del juego'
+}
+
+// ============================================
+// RELACIÓN 1:1 - ESTADÍSTICAS DEL JUGADOR
+// ============================================
+Table Estadisticas_Players {
+  id String [pk, note: 'UUID']
+  user_id String [unique, not null, ref: - Users.id]
+  games_played Int [default: 0]
+  games_won Int [default: 0]
+  total_score Int [default: 0]
+  best_score Int [default: 0]
+  total_matches Int [default: 0]
+  perfect_matches Int [default: 0]
+  max_combo Int [default: 0]
+  total_time_played Int [default: 0, note: 'En segundos']
+  favorite_mode String
+  win_rate Float [default: 0]
+  average_score Float [default: 0]
+  created_at DateTime [default: `now()`]
+  updated_at DateTime [default: `now()`]
+  
+  Note: 'Estadísticas del jugador - Relación 1:1 con Users'
+}
+
+// ============================================
+// RELACIÓN 1:N - SESIONES DE JUEGO
+// ============================================
+Table Game_Sessions {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  mode String [not null, note: 'classic, infinite, challenge, boss, multiplayer']
+  level Int
+  score Int [not null]
+  accuracy Int
+  combo Int
+  time_left Int
+  won Boolean [default: false]
+  game_mode_variant String [note: 'classic, connections, triads']
+  matchmaking_rating Int
+  started_at DateTime [default: `now()`]
+  ended_at DateTime
+  duration Int [note: 'En segundos']
+  
+  Indexes {
+    user_id
+    started_at
+    mode
+  }
+  
+  Note: 'Historial de sesiones de juego - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN 1:N - SALAS MULTIJUGADOR
+// ============================================
+Table Rooms {
+  id String [pk, note: 'UUID']
+  room_code String [unique, not null]
+  name String [not null]
+  host_id String [not null, ref: > Users.id]
+  max_players Int [default: 4]
+  current_players Int [default: 1]
+  game_mode String [note: 'classic, connections, triads']
+  card_count Int [default: 4]
+  is_active Boolean [default: true]
+  is_started Boolean [default: false]
+  is_private Boolean [default: false]
+  password String
+  created_at DateTime [default: `now()`]
+  started_at DateTime
+  ended_at DateTime
+  
+  Indexes {
+    room_code
+    host_id
+    is_active
+  }
+  
+  Note: 'Salas de juego multijugador - Relación 1:N con Users (host)'
+}
+
+// ============================================
+// RELACIÓN N:N - JUGADORES EN SALAS
+// ============================================
+Table Room_Players {
+  id String [pk, note: 'UUID']
+  room_id String [not null, ref: > Rooms.id]
+  user_id String [not null, ref: > Users.id]
+  team_id Int
+  is_ready Boolean [default: false]
+  score Int [default: 0]
+  position Int
+  joined_at DateTime [default: `now()`]
+  left_at DateTime
+  
+  Indexes {
+    room_id
+    user_id
+    (room_id, user_id) [unique]
+  }
+  
+  Note: 'Tabla intermedia N:N - Jugadores en salas'
+}
+
+// ============================================
+// RELACIÓN 1:N - BOSS DEFEATS (DERROTAS DE JEFES)
+// ============================================
+Table Boss_Defeats {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  boss_type String [not null, note: 'naturaleza, ciencia, humano, ecosistema, tecnologia']
+  level Int [not null]
+  score Int [not null]
+  time_taken Int [note: 'En segundos']
+  accuracy Int
+  perfect Boolean [default: false]
+  defeated_at DateTime [default: `now()`]
+  
+  Indexes {
+    user_id
+    boss_type
+    defeated_at
+  }
+  
+  Note: 'Registro de derrotas de jefes - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN N:N - LOGROS Y USUARIOS
+// ============================================
+Table Achievements {
+  id String [pk, note: 'UUID']
+  name String [unique, not null]
+  description String [not null]
+  icon String
+  category String [note: 'gameplay, social, collection, mastery']
+  rarity String [default: 'common', note: 'common, rare, epic, legendary']
+  points Int [default: 10]
+  requirement_type String [note: 'games_played, score, combo, etc']
+  requirement_value Int
+  reward_coins Int [default: 0]
+  reward_gems Int [default: 0]
+  is_hidden Boolean [default: false]
+  created_at DateTime [default: `now()`]
+  
+  Note: 'Catálogo de logros disponibles'
+}
+
+Table User_Achievements {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  achievement_id String [not null, ref: > Achievements.id]
+  progress Int [default: 0]
+  completed Boolean [default: false]
+  unlocked_at DateTime
+  
+  Indexes {
+    user_id
+    achievement_id
+    (user_id, achievement_id) [unique]
+  }
+  
+  Note: 'Tabla intermedia N:N - Logros de usuarios'
+}
+
+// ============================================
+// RELACIÓN 1:N - ITEMS DESBLOQUEABLES
+// ============================================
+Table Unlocked_Items {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  item_id String [not null, ref: > Shop_Items.id]
+  item_type String [note: 'pack, frame, skin, board']
+  unlocked_at DateTime [default: `now()`]
+  is_equipped Boolean [default: false]
+  
+  Indexes {
+    user_id
+    item_id
+    (user_id, item_id) [unique]
+  }
+  
+  Note: 'Items desbloqueados por usuario - Relación 1:N'
+}
+
+// ============================================
+// TABLA INDEPENDIENTE - TIENDA
+// ============================================
+Table Shop_Items {
+  id String [pk, note: 'UUID']
+  name String [unique, not null]
+  description String
+  type String [not null, note: 'pack, frame, skin, board']
+  rarity String [default: 'common']
+  price_coins Int [default: 0]
+  price_gems Int [default: 0]
+  is_available Boolean [default: true]
+  is_premium Boolean [default: false]
+  preview_url String
+  requirements String [note: 'JSON con requisitos']
+  created_at DateTime [default: `now()`]
+  
+  Indexes {
+    type
+    is_available
+  }
+  
+  Note: 'Catálogo de items de la tienda'
+}
+
+// ============================================
+// RELACIÓN 1:N - HISTORIAL DE COMPRAS
+// ============================================
+Table User_Purchases {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  item_id String [not null, ref: > Shop_Items.id]
+  amount Int [default: 1]
+  price_paid_coins Int [default: 0]
+  price_paid_gems Int [default: 0]
+  payment_type String [note: 'coins, gems, promotion']
+  purchased_at DateTime [default: `now()`]
+  
+  Indexes {
+    user_id
+    purchased_at
+  }
+  
+  Note: 'Historial de compras - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN 1:N - MONEDAS DEL USUARIO
+// ============================================
+Table User_Currency {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  transaction_type String [note: 'earn, spend, gift, purchase']
+  currency_type String [note: 'coins, gems']
+  amount Int [not null]
+  balance_after Int [not null]
+  reason String
+  reference_id String [note: 'ID de compra, partida, etc']
+  created_at DateTime [default: `now()`]
+  
+  Indexes {
+    user_id
+    created_at
+    transaction_type
+  }
+  
+  Note: 'Historial de transacciones de monedas - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN N:N - AMISTADES
+// ============================================
+Table Friendships {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  friend_id String [not null, ref: > Users.id]
+  status String [default: 'pending', note: 'pending, accepted, blocked']
+  created_at DateTime [default: `now()`]
+  accepted_at DateTime
+  
+  Indexes {
+    user_id
+    friend_id
+    (user_id, friend_id) [unique]
+  }
+  
+  Note: 'Sistema de amistades - Relación N:N (auto-referencial)'
+}
+
+// ============================================
+// RELACIÓN 1:N - SOLICITUDES DE AMISTAD
+// ============================================
+Table Friend_Requests {
+  id String [pk, note: 'UUID']
+  sender_id String [not null, ref: > Users.id]
+  receiver_id String [not null, ref: > Users.id]
+  status String [default: 'pending', note: 'pending, accepted, rejected']
+  message String
+  created_at DateTime [default: `now()`]
+  responded_at DateTime
+  
+  Indexes {
+    sender_id
+    receiver_id
+    status
+  }
+  
+  Note: 'Solicitudes de amistad - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN 1:N - RANKING/LEADERBOARD
+// ============================================
+Table Leaderboard_Entries {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  leaderboard_type String [note: 'global, weekly, monthly, mode_specific']
+  mode String [note: 'classic, infinite, boss, etc']
+  rank Int [not null]
+  score Int [not null]
+  games_played Int [default: 0]
+  win_rate Float [default: 0]
+  period_start DateTime
+  period_end DateTime
+  updated_at DateTime [default: `now()`]
+  
+  Indexes {
+    user_id
+    leaderboard_type
+    rank
+    (leaderboard_type, mode, rank) [unique]
+  }
+  
+  Note: 'Tabla de clasificación - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN 1:N - NOTIFICACIONES
+// ============================================
+Table Notifications {
+  id String [pk, note: 'UUID']
+  user_id String [not null, ref: > Users.id]
+  type String [note: 'friend_request, achievement, gift, announcement']
+  title String [not null]
+  message String [not null]
+  icon String
+  is_read Boolean [default: false]
+  action_url String
+  reference_id String
+  created_at DateTime [default: `now()`]
+  read_at DateTime
+  
+  Indexes {
+    user_id
+    is_read
+    created_at
+  }
+  
+  Note: 'Notificaciones de usuario - Relación 1:N'
+}
+
+// ============================================
+// RELACIÓN 1:N - CONFIGURACIÓN DE USUARIO
+// ============================================
+Table Users_Settings {
+  id String [pk, note: 'UUID']
+  user_id String [unique, not null, ref: - Users.id]
+  music_volume Int [default: 50]
+  sfx_volume Int [default: 50]
+  notifications_enabled Boolean [default: true]
+  friend_requests_enabled Boolean [default: true]
+  show_online_status Boolean [default: true]
+  language String [default: 'es']
+  theme String [default: 'dark']
+  accessibility_mode Boolean [default: false]
+  updated_at DateTime [default: `now()`]
+  
+  Note: 'Configuración de usuario - Relación 1:1'
+}
+
+// ============================================
+// TABLA INDEPENDIENTE - ANUNCIOS
+// ============================================
+Table Announcements {
+  id String [pk, note: 'UUID']
+  title String [not null]
+  message String [not null]
+  type String [default: 'info', note: 'info, warning, success, error']
+  priority Int [default: 0]
+  is_active Boolean [default: true]
+  target_audience String [note: 'all, players, admins']
+  created_by String [ref: > Users.id]
+  created_at DateTime [default: `now()`]
+  expires_at DateTime
+  
+  Indexes {
+    is_active
+    priority
+  }
+  
+  Note: 'Anuncios del sistema'
+}
+
+// ============================================
+// RELACIÓN 1:N - LOGS ADMINISTRATIVOS
+// ============================================
+Table Admin_Logs {
+  id String [pk, note: 'UUID']
+  admin_id String [not null, ref: > Users.id]
+  action String [not null, note: 'ban, unban, delete, give_currency, etc']
+  target_id String
+  target_type String [note: 'user, item, announcement']
+  details String [note: 'JSON con detalles']
+  ip_address String
+  created_at DateTime [default: `now()`]
+  
+  Indexes {
+    admin_id
+    created_at
+    action
+  }
+  
+  Note: 'Registro de acciones administrativas - Relación 1:N'
+}
+
+// ============================================
+// TABLA INDEPENDIENTE - PROMOCIONES
+// ============================================
+Table Promotions {
+  id String [pk, note: 'UUID']
+  name String [not null]
+  description String [not null]
+  type String [not null, note: 'coins_multiplier, gems_bonus, discount']
+  value Float [not null]
+  is_active Boolean [default: true]
+  start_date DateTime [default: `now()`]
+  end_date DateTime [not null]
+  created_at DateTime [default: `now()`]
+  
+  Indexes {
+    is_active
+    start_date
+    end_date
+  }
+  
+  Note: 'Promociones activas'
+}
+
+// ============================================
+// RESUMEN DE RELACIONES
+// ============================================
+// 1:1 (Uno a Uno)
+//   - Users ←→ Estadisticas_Players
+//   - Users ←→ Users_Settings
+//
+// 1:N (Uno a Muchos)
+//   - Users → Game_Sessions
+//   - Users → Rooms (como host)
+//   - Users → Boss_Defeats
+//   - Users → Unlocked_Items
+//   - Users → User_Purchases
+//   - Users → User_Currency
+//   - Users → Leaderboard_Entries
+//   - Users → Notifications
+//   - Users → Admin_Logs
+//   - Shop_Items → User_Purchases
+//   - Shop_Items → Unlocked_Items
+//   - Achievements → User_Achievements
+//
+// N:N (Muchos a Muchos)
+//   - Users ←→ Rooms (a través de Room_Players)
+//   - Users ←→ Achievements (a través de User_Achievements)
+//   - Users ←→ Users (Friendships - auto-referencial)
+//
+// Sin Relaciones Directas
+//   - Announcements (referencia opcional a Users)
+//   - Promotions

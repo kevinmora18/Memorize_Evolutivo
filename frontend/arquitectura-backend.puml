@@ -1,0 +1,157 @@
+@startuml
+title Arquitectura de Software - Memorize (Backend)
+hide stereotype
+skinparam backgroundColor #0b0f1a
+skinparam componentBackgroundColor #111a2c
+skinparam componentBorderColor #3b4f77
+skinparam componentFontColor #e5e7eb
+skinparam interfaceBackgroundColor #1a1030
+skinparam interfaceBorderColor #7c5cff
+skinparam interfaceFontColor #e5e7eb
+skinparam packageBackgroundColor #0e1626
+skinparam packageBorderColor #3b4f77
+skinparam packageFontColor #93c5fd
+skinparam databaseBackgroundColor #111a2c
+skinparam databaseBorderColor #3b4f77
+skinparam databaseFontColor #e5e7eb
+skinparam actorBorderColor #3b4f77
+skinparam actorFontColor #e5e7eb
+skinparam arrowColor #94a3b8
+skinparam arrowFontColor #cbd5e1
+skinparam arrowFontSize 11
+skinparam defaultFontName Consolas
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam nodesep 14
+skinparam ranksep 26
+
+actor "Navegador\n(React SPA)" as SPA
+
+package "1. Transporte / Entrada" #0e2038 {
+  component "Express HTTP\nsrc/index.ts + routes/" as HTTP
+  component "Socket.IO\nsrc/socket/SocketManager.ts" as SIO
+}
+
+package "2. Controladores (DI por interfaz)" #10203a {
+  component "AuthController" as AuthC
+  component "UserController" as UserC
+  component "RoomController" as RoomC
+  component "MatchController" as MatchC
+  component "AdminController" as AdminC
+  component "LeaderboardController" as LeadC
+  component "BaseController\n(errores HTTP)" as BaseC
+}
+
+package "3. Servicios (reglas de negocio)" #2a1a0e {
+  component "AuthService" as AuthS
+  component "UserService" as UserS
+  component "MatchService" as MatchS
+  component "AdminService\n(fachada)" as AdminS
+  component "AdminUserService" as AdminUS
+  component "AdminContentService" as AdminCS
+  component "AdminAnalyticsService" as AdminAS
+  component "AuditLogService" as AuditS
+  component "LeaderboardService" as LeadS
+  component "BaseService\n(logging)" as BaseS
+}
+
+package "4. Motor de juego / Dominio" #10203a {
+  component "RoomCommandHandler\n(Patron Command)" as Cmd
+  component "GameEngine\n(motor autoritativo)" as Engine
+  component "TurnTimer\n(reloj del servidor)" as Timer
+  component "DeckGenerator\n(mazo con hash)" as Deck
+  component "RoomManager\n(Singleton)" as RM
+  component "GameRoom" as GR
+  component "Player" as P
+  component "GameModeFactory\n+ 7 estrategias" as Factory
+}
+
+package "5. Repositorios (acceso a datos)" #1a1030 {
+  interface "IRepository.ts\n(contratos IUser/IMatch/...)" as IRepos
+  component "UserRepository" as UserR
+  component "MatchRepository" as MatchR
+  component "RoomRepository" as RoomR
+  component "InventoryRepository" as InvR
+  component "AnalyticsRepository" as AnaR
+  component "AdminLogRepository" as LogR
+  component "BaseRepository\n(CRUD generico)" as BaseR
+}
+
+database "PostgreSQL\n(Prisma Client)" as DB
+
+package "6. Infraestructura transversal" #0b0f1a {
+  component "Container\n(inyeccion de dependencias)" as DI
+  component "logger / requestId" as Log
+}
+
+SPA --> HTTP : REST /api/*
+SPA --> SIO : WebSocket
+
+HTTP --> AuthC
+HTTP --> UserC
+HTTP --> RoomC
+HTTP --> MatchC
+HTTP --> AdminC
+HTTP --> LeadC
+
+SIO --> Cmd : comandos
+Cmd --> RM : valida y muta
+Cmd --> Engine : delega la partida
+Engine --> Timer
+Engine --> Deck
+Engine --> GR
+Engine --> Factory
+RM --> GR : contiene
+GR *-- P
+RM --> RoomR : persiste
+
+AuthC --> AuthS
+UserC --> UserS
+RoomC --> RM
+MatchC --> MatchS
+AdminC --> AdminS
+LeadC --> LeadS
+AdminS --> AdminUS
+AdminS --> AdminCS
+AdminS --> AdminAS
+AdminS --> AuditS
+
+AuthS --> IRepos
+UserS --> IRepos
+MatchS --> IRepos
+LeadS --> IRepos
+AdminUS --> IRepos
+AdminAS --> IRepos
+
+IRepos <|.. UserR
+IRepos <|.. MatchR
+IRepos <|.. RoomR
+IRepos <|.. InvR
+IRepos <|.. AnaR
+IRepos <|.. LogR
+UserR --|> BaseR
+MatchR --|> BaseR
+UserR --> DB
+MatchR --> DB
+RoomR --> DB
+InvR --> DB
+AnaR --> DB
+LogR --> DB
+BaseR --> DB
+
+DI ..> HTTP : ensambla
+DI ..> SIO : ensambla
+DI ..> AdminS : inyecta
+DI ..> DB
+
+legend right
+  Direccion de dependencias: alta -> baja.
+  Los Servicios dependen de INTERFACES (IRepos), no
+  de implementaciones -> Inversion de Dependencias (DIP).
+  El motor NO conoce Socket.IO: devuelve CommandOutcome
+  que SocketManager aplica.
+endlegend
+
+@enduml

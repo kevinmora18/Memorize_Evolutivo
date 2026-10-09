@@ -1,0 +1,145 @@
+// Diagrama de Base de Datos - Memorize Game
+// Usa este código en https://dbdiagram.io/
+
+Table users {
+  id String [pk, note: 'UUID']
+  email String [unique, not null]
+  username String
+  role String [default: 'player', note: 'player o admin']
+  level Int [default: 1]
+  xp Int [default: 0]
+  coins Int [default: 0]
+  gems Int [default: 0]
+  isBanned Boolean [default: false]
+  bannedUntil DateTime
+  banReason String
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime [default: `now()`]
+  
+  Note: 'Tabla principal de usuarios del juego'
+}
+
+Table player_stats {
+  id String [pk, note: 'UUID']
+  userId String [unique, not null, ref: - users.id]
+  gamesPlayed Int [default: 0]
+  gamesWon Int [default: 0]
+  totalScore Int [default: 0]
+  bestScore Int [default: 0]
+  totalMatches Int [default: 0]
+  perfectMatches Int [default: 0]
+  maxCombo Int [default: 0]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime [default: `now()`]
+  
+  Note: 'Estadísticas del jugador - Relación 1:1 con User'
+}
+
+Table inventories {
+  id String [pk, note: 'UUID']
+  userId String [unique, not null, ref: - users.id]
+  ownedPacks String[] [note: 'Array de packs comprados']
+  ownedFrames String[] [note: 'Array de marcos comprados']
+  ownedSkins String[] [note: 'Array de skins comprados']
+  ownedBoards String[] [note: 'Array de tableros comprados']
+  equippedPack String [default: 'frutas']
+  equippedFrame String [default: 'basic']
+  equippedSkin String [default: 'classic']
+  equippedBoard String [default: 'default']
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime [default: `now()`]
+  
+  Note: 'Inventario del jugador - Relación 1:1 con User'
+}
+
+Table matches {
+  id String [pk, note: 'UUID']
+  userId String [not null, ref: > users.id]
+  mode String [note: 'classic, infinite, challenge, boss, multiplayer']
+  level Int
+  score Int [not null]
+  accuracy Int
+  combo Int
+  timeLeft Int
+  won Boolean [default: false]
+  createdAt DateTime [default: `now()`]
+  
+  Indexes {
+    userId
+    createdAt
+  }
+  
+  Note: 'Historial de partidas - Relación 1:N (Un usuario tiene muchas partidas)'
+}
+
+Table announcements {
+  id String [pk, note: 'UUID']
+  title String [not null]
+  message String [not null]
+  type String [default: 'info', note: 'info, warning, success, error']
+  isActive Boolean [default: true]
+  createdAt DateTime [default: `now()`]
+  expiresAt DateTime
+  
+  Indexes {
+    isActive
+  }
+  
+  Note: 'Anuncios del sistema - Sin relaciones directas'
+}
+
+Table admin_logs {
+  id String [pk, note: 'UUID']
+  adminId String [not null, ref: > users.id]
+  action String [not null, note: 'ban_user, unban_user, delete_user, etc.']
+  targetId String [note: 'ID del usuario o recurso afectado']
+  details String [note: 'JSON con detalles adicionales']
+  createdAt DateTime [default: `now()`]
+  
+  Indexes {
+    adminId
+    createdAt
+  }
+  
+  Note: 'Registro de acciones administrativas - Relación 1:N (Un admin tiene muchos logs)'
+}
+
+Table promotions {
+  id String [pk, note: 'UUID']
+  name String [not null]
+  description String [not null]
+  type String [not null, note: 'coins_multiplier, gems_bonus, discount']
+  value Float [not null, note: 'Multiplicador o descuento']
+  isActive Boolean [default: true]
+  startDate DateTime [default: `now()`]
+  endDate DateTime [not null]
+  createdAt DateTime [default: `now()`]
+  
+  Indexes {
+    isActive
+  }
+  
+  Note: 'Promociones activas - Sin relaciones directas'
+}
+
+// ============================================
+// RESUMEN DE RELACIONES
+// ============================================
+
+// 1:1 (Uno a Uno)
+// - User ←→ PlayerStats (Un usuario tiene una estadística)
+// - User ←→ Inventory (Un usuario tiene un inventario)
+
+// 1:N (Uno a Muchos)
+// - User → Matches (Un usuario tiene muchas partidas)
+// - User → AdminLogs (Un admin tiene muchos logs)
+
+// N:N (Muchos a Muchos)
+// - No hay relaciones N:N en este esquema actual
+// - Si quisieras agregar una, por ejemplo:
+//   * Users ←→ Achievements (Muchos usuarios pueden tener muchos logros)
+//   * Necesitarías una tabla intermedia: user_achievements
+
+// Sin Relaciones
+// - Announcements (Tabla independiente)
+// - Promotions (Tabla independiente)

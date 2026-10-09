@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagrama de Clases — Memorize (Backend)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:#0b0f1a; }
+  body {
+    font-family:"Segoe UI", system-ui, sans-serif;
+    color:#e5e7eb;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #1e1b4b55, transparent 60%),
+      linear-gradient(160deg, #0b0f1a, #0a0f1c);
+    padding:26px 28px 60px;
+  }
+
+  header, .legend, .band, .rel-band, .figure, .note { max-width:1180px; margin-left:auto; margin-right:auto; }
+  h1 { font-size:26px; background:linear-gradient(90deg,#22d3ee,#a78bfa); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:#94a3b8; font-size:14px; margin-top:6px; line-height:1.6; }
+
+  .legend { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px 18px; font-size:12px; color:#b6c2d4; }
+  .legend .lg { display:flex; align-items:center; gap:7px; }
+  .chip { width:16px; height:14px; border-radius:4px; display:inline-block; border:1px solid #26324a; }
+
+  .figure { margin-top:20px; background:#0e1626; border:1px solid #26324a; border-radius:12px; padding:14px; text-align:center; }
+  .figure img { max-width:100%; border-radius:8px; }
+  .figure .cap { color:#94a3b8; font-size:12px; margin-top:9px; }
+
+  .band { margin-top:22px; }
+  .band-title { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-weight:700; font-size:15px; letter-spacing:.4px; }
+  .band-title .dot { width:10px; height:10px; border-radius:3px; }
+
+  .grid { display:grid; gap:12px; }
+  .g6 { grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); }
+  .g8 { grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
+
+  .uml {
+    background:#111a2c; border:1px solid #26324a; border-radius:10px; overflow:hidden;
+    font-family:"Cascadia Code", Consolas, monospace; font-size:12px; line-height:1.55;
+    transition:.15s;
+  }
+  .uml:hover { border-color:#3b4f77; transform:translateY(-2px); }
+  .uml .head {
+    padding:7px 11px; font-weight:700; border-bottom:1px solid #26324a;
+    display:flex; align-items:center; gap:7px; font-size:13px;
+  }
+  .uml .body { padding:8px 11px 9px; color:#cbd5e1; }
+  .uml .body div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .uml .body .is { color:#67e8f9; }
+  .uml .body .m { color:#f9a8d4; }
+  .uml .body .t { color:#fbbf24; }
+  .uml .body .abs { color:#a78bfa; font-style:italic; }
+
+  .c-base .head { color:#a78bfa; } .c-base .hbar { background:rgba(167,139,250,.12); }
+  .c-dom  .head { color:#22d3ee; } .c-dom  .hbar { background:rgba(34,211,238,.12); }
+  .c-eng  .head { color:#f472b6; } .c-eng  .hbar { background:rgba(244,114,182,.12); }
+  .c-iface .head { color:#7c5cff; } .c-iface .hbar { background:rgba(124,92,255,.14); }
+  .c-strat .head { color:#fbbf24; } .c-strat .hbar { background:rgba(251,191,36,.12); }
+  .c-svc  .head { color:#34d399; } .c-svc  .hbar { background:rgba(52,211,153,.12); }
+
+  .tag { font-size:10px; font-weight:800; letter-spacing:.5px; padding:2px 7px; border-radius:5px; color:#0b0f1a; }
+  .tag-abs { background:#a78bfa; } .tag-dom { background:#22d3ee; } .tag-eng { background:#f472b6; }
+  .tag-str { background:#fbbf24; } .tag-svc { background:#34d399; }
+
+  .rel { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+  .rel-item { background:#0f1526; border:1px solid #26324a; border-radius:9px; padding:9px 13px; font-size:12.5px; display:flex; align-items:center; gap:9px; line-height:1.5; }
+  .arrow { font-weight:900; white-space:nowrap; }
+  .arrow.her { color:#a78bfa; } .arrow.comp { color:#fbbf24; } .arrow.dep { color:#34d399; } .arrow.impl { color:#7c5cff; }
+  .rel-item code { color:#67e8f9; }
+
+  .note { margin-top:24px; font-size:12.5px; color:#64748b; line-height:1.75; }
+  .note b { color:#94a3b8; }
+  p { color:#cbd5e1; font-size:12.5px; line-height:1.6; }
+  @media print { body { padding:10px; background:#fff; } .uml,.figure { background:#fff; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 Diagrama de Clases — Memorize (Backend)</h1>
+  <div class="sub">
+    Módulo central: <b>Multijugador + Motor de juego</b>. Clases, interfaces y relaciones tal como
+    existen en el código real del servidor. Los cuatro pilares de la POO y los principios SOLID
+    se evidencian en la jerarquía de abstracciones, la composición y el polimorfismo de estrategias.
+  </div>
+</header>
+
+<div class="figure">
+  <img src="diagrama-clases.png" alt="Diagrama de clases UML del backend de Memorize">
+  <div class="cap">Fuente: <code>diagrama-clases.puml</code> — renderizado con PlantUML.</div>
+</div>
+
+<div class="legend">
+  <span class="lg"><span class="chip" style="background:rgba(167,139,250,.25)"></span> Clase abstracta base</span>
+  <span class="lg"><span class="chip" style="background:rgba(34,211,238,.2)"></span> Entidad de dominio</span>
+  <span class="lg"><span class="chip" style="background:rgba(244,114,182,.25)"></span> Motor / Manager</span>
+  <span class="lg"><span class="chip" style="background:rgba(124,92,255,.25)"></span> Interfaz</span>
+  <span class="lg"><span class="chip" style="background:rgba(251,191,36,.25)"></span> Estrategia</span>
+  <span class="lg"><span style="color:#a78bfa">◁─</span> Herencia</span>
+  <span class="lg"><span style="color:#7c5cff">┄▷</span> Implementa</span>
+  <span class="lg"><span style="color:#fbbf24">♦─</span> Composición</span>
+  <span class="lg"><span style="color:#34d399">..►</span> Dependencia</span>
+</div>
+
+<!-- ================= ABSTRACCIONES BASE ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#a78bfa"></span>1 · Abstracciones base (<code>src/core/</code>) <span class="tag tag-abs">ABSTRACCIÓN · HERENCIA · ENCAPSULAMIENTO</span></div>
+  <div class="grid g6">
+    <div class="uml c-base">
+      <div class="head hbar">&lt;&lt;abstract&gt;&gt; BaseEntity&lt;TData&gt;</div>
+      <div class="body">
+        <div><span class="abs">#</span> <span class="is">readonly id</span>: string</div>
+        <div><span class="abs">#</span> <span class="is">readonly createdAt</span>: Date</div>
+        <div><span class="abs">#</span> <span class="is">_updatedAt?</span>: Date</div>
+        <div class="m">+ get updatedAt(): Date</div>
+        <div class="m"># touch(): void</div>
+        <div class="abs">+ {abstract} toJSON(): TData</div>
+      </div>
+    </div>
+    <div class="uml c-base">
+      <div class="head hbar">&lt;&lt;abstract&gt;&gt; BaseService</div>
+      <div class="body">
+        <div><span class="abs">#</span> <span class="is">serviceName</span>: string</div>
+        <div class="m"># log(msg, level): void</div>
+        <div class="m"># handleError(e, ctx): never</div>
+        <div class="abs">+ {abstract} initialize(): Promise&lt;void&gt;</div>
+      </div>
+    </div>
+    <div class="uml c-base">
+      <div class="head hbar">&lt;&lt;abstract&gt;&gt; BaseRepository&lt;T, ID&gt;</div>
+      <div class="body">
+        <div><span class="abs">#</span> <span class="is">prisma</span>: PrismaClient</div>
+        <div><span class="abs">#</span> <span class="is">modelName</span>: string</div>
+        <div class="abs">+ {abstract} findById(id): Promise&lt;T&gt;</div>
+        <div class="abs">+ {abstract} create(data): Promise&lt;T&gt;</div>
+        <div class="abs">+ {abstract} update(id, d): Promise&lt;T&gt;</div>
+        <div class="abs">+ {abstract} delete(id): Promise&lt;void&gt;</div>
+        <div class="abs">+ {abstract} findAll(o?): Promise&lt;T[]&gt;</div>
+        <div class="m"># log(msg): void</div>
+      </div>
+    </div>
+    <div class="uml c-base">
+      <div class="head hbar">&lt;&lt;abstract&gt;&gt; BaseController</div>
+      <div class="body">
+        <div><span class="abs">#</span> <span class="is">controllerName</span>: string</div>
+        <div class="m"># sendSuccess(res, d, code?): void</div>
+        <div class="m"># sendCreated(res, d): void</div>
+        <div class="m"># sendError(res, msg, code?): void</div>
+        <div class="m"># handleHttpError(res, e, msg?): void</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DOMINIO ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#22d3ee"></span>2 · Entidades de dominio (<code>src/models/domain/</code>) <span class="tag tag-dom">ENCAPSULAMIENTO</span></div>
+  <div class="grid g6">
+    <div class="uml c-dom">
+      <div class="head hbar">👤 User extends BaseEntity</div>
+      <div class="body">
+        <div><span class="is">- _username</span>: string | null</div>
+        <div><span class="is">- _role</span>: UserRole</div>
+        <div><span class="is">- _level · _xp · _coins · _gems</span></div>
+        <div><span class="is">- _isBanned · _bannedUntil · _banReason</span></div>
+        <div><span class="is">- _passwordHash</span>: string | null</div>
+        <div class="m">+ setPasswordHash(hash) · isAdmin()</div>
+        <div class="m">+ applyBan(reason, dur?) · removeBan()</div>
+        <div class="m">+ addXp(n): number · levelUp()</div>
+        <div class="m">+ canAfford(c, g?) · purchase(c, g?)</div>
+        <div class="m">+ setCurrency(c?, g?)</div>
+      </div>
+    </div>
+    <div class="uml c-dom">
+      <div class="head hbar">📊 PlayerStats extends BaseEntity</div>
+      <div class="body">
+        <div><span class="is">- _gamesPlayed · _gamesWon</span></div>
+        <div><span class="is">- _totalScore · _bestScore</span></div>
+        <div><span class="is">- _totalMatches · _perfectMatches</span></div>
+        <div><span class="is">- _maxCombo</span></div>
+        <div class="m">+ recordGame(...): void</div>
+        <div class="m">+ getWinRate() · getAverageScore()</div>
+        <div class="m">+ getPerfectMatchRate()</div>
+        <div class="m">+ getSkillLevel(): string</div>
+        <div class="m">+ checkAchievements(): string[]</div>
+      </div>
+    </div>
+    <div class="uml c-dom">
+      <div class="head hbar">🏁 Match extends BaseEntity</div>
+      <div class="body">
+        <div>+ <span class="is">readonly userId</span>: string</div>
+        <div>+ <span class="is">readonly mode</span>: string</div>
+        <div>+ <span class="is">readonly score</span>: number</div>
+        <div>+ <span class="is">readonly won</span>: boolean</div>
+        <div>+ <span class="is">readonly accuracy? · combo?</span></div>
+        <div class="m">+ calculateXpEarned(): number</div>
+        <div class="m">+ calculateCoinsEarned(): number</div>
+      </div>
+    </div>
+    <div class="uml c-dom">
+      <div class="head hbar">🧩 Player (composición)</div>
+      <div class="body">
+        <div>+ <span class="is">readonly id</span>: string</div>
+        <div><span class="is">- _socketId · _name · _level</span></div>
+        <div><span class="is">- _isReady · _score · _matches</span></div>
+        <div><span class="is">- _isConnected</span></div>
+        <div class="m">+ setReady(r) · addScore(p)</div>
+        <div class="m">+ addMatch() · resetGameStats()</div>
+        <div class="m">+ disconnect() · reconnect(id)</div>
+        <div class="m">+ toJSON(): IPlayer</div>
+      </div>
+    </div>
+    <div class="uml c-dom">
+      <div class="head hbar">🏠 GameRoom extends BaseEntity</div>
+      <div class="body">
+        <div>+ <span class="is">readonly code</span>: string</div>
+        <div><span class="is">- _hostId · _hostName · _mode</span></div>
+        <div><span class="is">- _maxPlayers · _cardCount · _difficulty</span></div>
+        <div><span class="is">- _isPrivate · _deckSeed</span></div>
+        <div><span class="is">- players</span>: Map&lt;string, Player&gt;</div>
+        <div><span class="is">- gameState</span>: IGameState</div>
+        <div class="m">+ addPlayer(p) · getPlayers()</div>
+        <div class="m">+ setPlayerReady(id, r)</div>
+        <div class="m">+ startGame(deck, bypass?)</div>
+        <div class="m">+ flipCard(p, idx) · checkMatch()</div>
+        <div class="m">+ registerMatch(p, idx) · nextTurn()</div>
+        <div class="m">+ isGameFinished() · finishGame()</div>
+        <div class="m">+ validatePassword(pw) · getPublicGameState()</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= INTERFACES ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#7c5cff"></span>3 · Interfaces (<code>src/core/interfaces/</code>) <span class="tag tag-abs">DIP · ISP</span></div>
+  <div class="grid g6">
+    <div class="uml c-iface">
+      <div class="head hbar">&lt;&lt;interface&gt;&gt; IGameModeStrategy</div>
+      <div class="body">
+        <div>+ modeName: string</div>
+        <div class="m">+ getRequiredFlipsCount(): number</div>
+        <div class="m">+ checkMatch(flipped, idx)</div>
+        <div class="m">+ calculateXp(score, won): number</div>
+        <div class="m">+ calculateCoins(score, won): number</div>
+      </div>
+    </div>
+    <div class="uml c-iface">
+      <div class="head hbar">&lt;&lt;interface&gt;&gt; ICrudRepository&lt;T, ID&gt;</div>
+      <div class="body">
+        <div class="m">+ findById(id): Promise&lt;T&gt;</div>
+        <div class="m">+ findAll(opts?): Promise&lt;T[]&gt;</div>
+        <div class="m">+ create(data): Promise&lt;T&gt;</div>
+        <div class="m">+ update(id, data): Promise&lt;T&gt;</div>
+        <div class="m">+ delete(id): Promise&lt;void&gt;</div>
+        <div class="t">→ separada en IRead + IWrite (ISP)</div>
+      </div>
+    </div>
+    <div class="uml c-iface">
+      <div class="head hbar">&lt;&lt;interface&gt;&gt; IRoomManager</div>
+      <div class="body">
+        <div class="m">+ createRoom(data): GameRoom</div>
+        <div class="m">+ getRoom(idOrCode): GameRoom</div>
+        <div class="m">+ joinRoom(id, p, pw?) · leaveRoom()</div>
+        <div class="m">+ getAvailableRooms(filters?)</div>
+        <div class="m">+ persistRoom(room) · persistFinal()</div>
+        <div class="m">+ recoverActiveRooms(): Promise&lt;void&gt;</div>
+      </div>
+    </div>
+    <div class="uml c-iface">
+      <div class="head hbar">&lt;&lt;interface&gt;&gt; IRoomRepository</div>
+      <div class="body">
+        <div class="m">+ save(room): Promise&lt;void&gt;</div>
+        <div class="m">+ saveFinal(room, winnerId)</div>
+        <div class="m">+ findByCodeOrId(search)</div>
+        <div class="m">+ findActiveRooms()</div>
+        <div class="t">→ RoomManager no conoce Prisma</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MOTOR ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#f472b6"></span>4 · Motor de juego y manager (<code>src/engine/</code>, <code>src/managers/</code>) <span class="tag tag-eng">POLIMORFISMO · SRP</span></div>
+  <div class="grid g6">
+    <div class="uml c-eng">
+      <div class="head hbar">🎮 RoomCommandHandler</div>
+      <div class="body">
+        <div><span class="is">- roomManager</span>: IRoomManager</div>
+        <div><span class="is">- engine</span>: GameEngine</div>
+        <div class="m">+ handle(socket, command, payload)</div>
+        <div><span class="is">-</span> join · leave · ready · start · flip</div>
+        <div><span class="is">-</span> emote · rematch · chat · reconnect</div>
+        <div class="t">→ Patrón Command: única puerta de mutación</div>
+      </div>
+    </div>
+    <div class="uml c-eng">
+      <div class="head hbar">⚙️ GameEngine (autoritativo)</div>
+      <div class="body">
+        <div><span class="is">- turnTimer</span>: TurnTimer</div>
+        <div><span class="is">- evaluating</span>: Set&lt;string&gt;</div>
+        <div><span class="is">- pendingResolve</span>: Map</div>
+        <div class="m">+ startGame(room, mode, count)</div>
+        <div class="m">+ flipCard(room, p, idx)</div>
+        <div class="m">+ resolveTurn(room) · expireTurn(id)</div>
+        <div class="m">+ shutdown()</div>
+        <div class="t">→ devuelve CommandOutcome, no conoce Socket.IO</div>
+      </div>
+    </div>
+    <div class="uml c-eng">
+      <div class="head hbar">⏱ TurnTimer</div>
+      <div class="body">
+        <div><span class="is">- timers</span>: Map&lt;string, Timeout&gt;</div>
+        <div class="m">+ start(roomId, sec, onExpire)</div>
+        <div class="m">+ stop(roomId) · has(roomId)</div>
+        <div class="m">+ stopAll()</div>
+        <div class="t">→ el reloj vive en el servidor</div>
+      </div>
+    </div>
+    <div class="uml c-eng">
+      <div class="head hbar">&lt;&lt;module&gt;&gt; DeckGenerator</div>
+      <div class="body">
+        <div class="m">+ generateDeck(seed, mode, count)</div>
+        <div class="m">+ cardKey(seed, faceId): string</div>
+        <div class="t">→ mazo con barajado determinístico y claves hash</div>
+      </div>
+    </div>
+    <div class="uml c-eng">
+      <div class="head hbar">🗂 RoomManager &lt;&lt;Singleton&gt;&gt;</div>
+      <div class="body">
+        <div><span class="is">- {static} instance</span>: RoomManager</div>
+        <div><span class="is">- rooms</span>: Map&lt;string, GameRoom&gt;</div>
+        <div><span class="is">- repo?</span>: IRoomRepository</div>
+        <div class="m">+ {static} getInstance(repo?)</div>
+        <div class="m">+ createRoom · getRoom · deleteRoom</div>
+        <div class="m">+ joinRoom · leaveRoom · getStats</div>
+        <div class="m">+ persistRoom · recoverActiveRooms</div>
+        <div class="t">♦ compone GameRoom (que compone Player)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STRATEGY ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#fbbf24"></span>5 · Patrón Strategy + Factory (<code>src/models/strategies/</code>) <span class="tag tag-str">OCP · LSP</span></div>
+  <div class="grid g8">
+    <div class="uml c-strat">
+      <div class="head hbar">&lt;&lt;abstract&gt;&gt; BaseGameModeStrategy</div>
+      <div class="body">
+        <div class="abs">+ {abstract} modeName</div>
+        <div class="abs">+ {abstract} requiredFlips</div>
+        <div class="abs">+ {abstract} baseExp</div>
+        <div class="m">+ getRequiredFlipsCount()</div>
+        <div class="m">+ checkMatch(flipped, idx)</div>
+        <div class="m">+ calculateXp(score, won)</div>
+        <div class="m">+ calculateCoins(score, won)</div>
+      </div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">PairsModeStrategy</div>
+      <div class="body"><div>modeName = 'classic'</div><div>requiredFlips = 2</div><div>baseExp = 50</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">TriadsModeStrategy</div>
+      <div class="body"><div>modeName = 'triads'</div><div>requiredFlips = 3</div><div>baseExp = 75</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">InfiniteModeStrategy</div>
+      <div class="body"><div>modeName = 'infinite'</div><div>requiredFlips = 2</div><div>baseExp = 100</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">ChallengeModeStrategy</div>
+      <div class="body"><div>modeName = 'challenge'</div><div>requiredFlips = 2</div><div>baseExp = 75</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">BossModeStrategy</div>
+      <div class="body"><div>modeName = 'boss'</div><div>requiredFlips = 2</div><div>baseExp = 250</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">MultiplayerModeStrategy</div>
+      <div class="body"><div>modeName = 'multiplayer'</div><div>requiredFlips = 2</div><div>baseExp = 100</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">AiFriendsModeStrategy</div>
+      <div class="body"><div>modeName = 'ai-friends'</div><div>requiredFlips = 2</div><div>baseExp = 50</div></div>
+    </div>
+    <div class="uml c-strat">
+      <div class="head hbar">GameModeFactory &lt;&lt;Factory&gt;&gt;</div>
+      <div class="body">
+        <div><span class="is">- {static} strategies</span>: Map</div>
+        <div class="m">+ {static} getStrategy(mode)</div>
+        <div class="m">+ {static} registerStrategy(name, s)</div>
+        <div class="t">→ nuevo modo sin tocar GameRoom</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SERVICIOS ================= -->
+<div class="band">
+  <div class="band-title"><span class="dot" style="background:#34d399"></span>6 · Servicios y repositorios <span class="tag tag-svc">SRP · DIP</span></div>
+  <div class="grid g6">
+    <div class="uml c-svc">
+      <div class="head hbar">Servicios (extends BaseService)</div>
+      <div class="body">
+        <div>AuthService · UserService · MatchService</div>
+        <div>LeaderboardService</div>
+        <div>AdminService &lt;&lt;Facade&gt;&gt;</div>
+        <div>AdminUserService · AdminContentService</div>
+        <div>AdminAnalyticsService · AuditLogService</div>
+        <div class="t">→ AdminService delegó responsabilidades (SRP)</div>
+      </div>
+    </div>
+    <div class="uml c-svc">
+      <div class="head hbar">Repositorios (extends BaseRepository)</div>
+      <div class="body">
+        <div>UserRepository · MatchRepository</div>
+        <div>PlayerStatsRepository · RoomRepository</div>
+        <div>InventoryRepository · AnalyticsRepository</div>
+        <div>AdminLogRepository</div>
+        <div class="t">→ único lugar que importa Prisma</div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:10px">
+    Los servicios dependen de las <b>interfaces</b> de <code>IRepository.ts</code> y no de las clases
+    concretas: <code>LeaderboardService</code> usa <code>IUserRepository</code>,
+    <code>AdminAnalyticsService</code> usa <code>IAnalyticsRepository</code>. El <code>Container</code>
+    es quien decide qué implementación inyectar (Inversión de Dependencias).
+  </p>
+</div>
+
+<!-- ================= RELACIONES ================= -->
+<div class="rel-band">
+  <div class="band-title"><span class="dot" style="background:#a78bfa"></span>Relaciones clave</div>
+  <div class="rel">
+    <div class="rel-item"><span class="arrow her">◁─</span> <code>User</code>, <code>PlayerStats</code>, <code>Match</code> y <code>GameRoom</code> heredan de <code>BaseEntity</code> — Herencia (Pilar 3)</div>
+    <div class="rel-item"><span class="arrow abs" style="color:#a78bfa">#</span> Campos <code>_privados</code> con getters/métodos — Encapsulamiento (Pilar 2)</div>
+    <div class="rel-item"><span class="arrow impl">┄▷</span> <code>BaseGameModeStrategy</code> y las 7 estrategias realizan <code>IGameModeStrategy</code> — Polimorfismo (Pilar 4) y LSP</div>
+    <div class="rel-item"><span class="arrow comp">♦─</span> <code>RoomManager</code> compone <code>GameRoom</code>, que compone <code>Player</code> — Composición</div>
+    <div class="rel-item"><span class="arrow dep">..►</span> <code>RoomCommandHandler</code> → <code>GameEngine</code> / <code>IRoomManager</code> — Command + DIP</div>
+    <div class="rel-item"><span class="arrow dep">..►</span> <code>GameEngine</code> → <code>IRoomManager</code> (interfaz, no <code>SocketManager</code>) — DIP</div>
+    <div class="rel-item"><span class="arrow dep">..►</span> <code>GameRoom</code> → <code>GameModeFactory</code> → <code>IGameModeStrategy</code> — OCP</div>
+    <div class="rel-item"><span class="arrow dep">..►</span> <code>RoomManager</code> → <code>IRoomRepository</code> (persistencia desacoplada) — DIP</div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Cómo leerlo:</b> <code>GameRoom</code> es el agregado del dominio: guarda jugadores y estado
+  de partida con campos privados y expone operaciones seguras (<code>flipCard</code>,
+  <code>checkMatch</code>, <code>finishGame</code>). El <code>GameEngine</code> orquesta el reloj y la
+  resolución de manos, pero <b>no</b> conoce Socket.IO: entrega <code>CommandOutcome</code> que el
+  <code>SocketManager</code> aplica (DIP). Las reglas por modo viven en estrategias intercambiables
+  (OCP/LSP) y la factoría las resuelve por nombre. Así, añadir un modo nuevo es crear una clase y
+  registrarla, sin modificar <code>GameRoom</code> ni <code>Match</code>.
+</div>
+
+</body>
+</html>

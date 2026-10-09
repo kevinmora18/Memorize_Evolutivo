@@ -1,0 +1,466 @@
+// Memorize Evolutivo - Database Schema
+// Copia y pega este código en https://dbdiagram.io/
+
+// ============================================
+// AUTENTICACIÓN Y USUARIOS
+// ============================================
+
+Table users {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  email varchar(255) [unique, not null]
+  username varchar(50) [unique, not null]
+  password_hash varchar(255) [not null]
+  verification_code varchar(6) [null]
+  is_verified boolean [default: false]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  last_login timestamp [null]
+  
+  indexes {
+    email
+    username
+  }
+}
+
+// ============================================
+// PROGRESIÓN Y ESTADÍSTICAS
+// ============================================
+
+Table player_stats {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null, unique]
+  xp integer [default: 0, not null]
+  level integer [default: 1, not null]
+  rank_id integer [default: 1, not null]
+  games_played integer [default: 0]
+  games_won integer [default: 0]
+  total_score bigint [default: 0]
+  highest_combo integer [default: 0]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    (xp, rank_id)
+  }
+  
+  Note: '''
+  Rangos:
+  1 = Mente Básica (0-1000 XP)
+  2 = Sinapsis Activa (1000-3000 XP)
+  3 = Neuro Maestro (3000-7000 XP)
+  4 = Cerebro Evolutivo (7000-15000 XP)
+  5 = Memoria Suprema (15000+ XP)
+  '''
+}
+
+// ============================================
+// HISTORIAL DE PARTIDAS
+// ============================================
+
+Table game_sessions {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  game_mode varchar(20) [not null]
+  universe varchar(20) [null]
+  level_reached integer [null]
+  score integer [default: 0]
+  max_combo integer [default: 0]
+  time_played integer [not null]
+  xp_gained integer [default: 0]
+  result varchar(20) [not null]
+  started_at timestamp [default: `now()`]
+  ended_at timestamp [null]
+  
+  indexes {
+    user_id
+    game_mode
+    started_at
+  }
+  
+  Note: '''
+  game_mode: classic, infinite, challenge, boss, multiplayer, ai-friends
+  universe: volcania, frostheim, neural, verdalis, lunaris
+  result: won, lost, abandoned
+  '''
+}
+
+// ============================================
+// BOSSES
+// ============================================
+
+Table boss_defeats {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  boss_type varchar(20) [not null]
+  universe varchar(20) [not null]
+  time_taken integer [not null]
+  attempts integer [default: 1]
+  xp_gained integer [default: 200]
+  defeated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    boss_type
+    (boss_type, universe)
+  }
+  
+  Note: '''
+  boss_type: caos, congelante, ilusion, neural, parasito
+  universe: volcania, frostheim, neural, verdalis, lunaris
+  '''
+}
+
+// ============================================
+// MULTIJUGADOR - SALAS
+// ============================================
+
+Table rooms {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  name varchar(100) [not null]
+  code varchar(6) [unique, not null]
+  creator_id uuid [ref: > users.id, not null]
+  max_players integer [default: 10]
+  is_started boolean [default: false]
+  is_finished boolean [default: false]
+  current_round integer [default: 1]
+  current_team integer [default: 1]
+  created_at timestamp [default: `now()`]
+  started_at timestamp [null]
+  finished_at timestamp [null]
+  
+  indexes {
+    code
+    creator_id
+    is_started
+  }
+}
+
+Table room_players {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  room_id uuid [ref: > rooms.id, not null]
+  user_id uuid [ref: > users.id, not null]
+  team_id integer [not null]
+  score integer [default: 0]
+  is_ready boolean [default: false]
+  joined_at timestamp [default: `now()`]
+  left_at timestamp [null]
+  
+  indexes {
+    room_id
+    user_id
+    (room_id, team_id)
+  }
+  
+  Note: 'team_id: 1 o 2'
+}
+
+// ============================================
+// DESBLOQUEOS Y COLECCIONABLES
+// ============================================
+
+Table unlocked_items {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  item_type varchar(20) [not null]
+  item_id varchar(50) [not null]
+  unlocked_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    item_type
+    (user_id, item_type, item_id) [unique]
+  }
+  
+  Note: '''
+  item_type: skin, effect, power, boss
+  
+  Skins: clasico, electrico, maestro, evolutivo, supremo
+  Effects: basico, chispas, aura, particulas, legendario
+  Powers: tiempo_extra, vision, escudo, combo_infinito
+  Bosses: caos, congelante, ilusion, neural, parasito
+  '''
+}
+
+// ============================================
+// LOGROS (ACHIEVEMENTS)
+// ============================================
+
+Table achievements {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  achievement_id varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text [not null]
+  icon varchar(10) [not null]
+  xp_reward integer [default: 0]
+  category varchar(20) [not null]
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    achievement_id
+    category
+  }
+  
+  Note: 'category: progression, skill, collection, social'
+}
+
+Table user_achievements {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  achievement_id uuid [ref: > achievements.id, not null]
+  progress integer [default: 0]
+  target integer [not null]
+  is_completed boolean [default: false]
+  completed_at timestamp [null]
+  
+  indexes {
+    user_id
+    achievement_id
+    (user_id, achievement_id) [unique]
+  }
+}
+
+// ============================================
+// LEADERBOARDS (RANKINGS)
+// ============================================
+
+Table leaderboard_entries {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  leaderboard_type varchar(30) [not null]
+  score bigint [not null]
+  rank integer [null]
+  metadata jsonb [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    (leaderboard_type, score)
+    (leaderboard_type, rank)
+  }
+  
+  Note: '''
+  leaderboard_type: 
+  - global_xp: Ranking por XP total
+  - classic_score: Mejor puntuación modo clásico
+  - infinite_score: Mejor puntuación modo infinito
+  - boss_time: Mejor tiempo derrotando bosses
+  - weekly_xp: XP ganado esta semana
+  '''
+}
+
+// ============================================
+// SISTEMA SOCIAL - AMIGOS
+// ============================================
+
+Table friendships {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  friend_id uuid [ref: > users.id, not null]
+  status varchar(20) [not null]
+  created_at timestamp [default: `now()`]
+  accepted_at timestamp [null]
+  
+  indexes {
+    user_id
+    friend_id
+    (user_id, friend_id) [unique]
+  }
+  
+  Note: 'status: pending, accepted, blocked'
+}
+
+Table friend_requests {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  sender_id uuid [ref: > users.id, not null]
+  receiver_id uuid [ref: > users.id, not null]
+  status varchar(20) [default: 'pending']
+  created_at timestamp [default: `now()`]
+  responded_at timestamp [null]
+  
+  indexes {
+    sender_id
+    receiver_id
+    (sender_id, receiver_id) [unique]
+  }
+  
+  Note: 'status: pending, accepted, rejected'
+}
+
+// ============================================
+// CONFIGURACIÓN DE USUARIO
+// ============================================
+
+Table user_settings {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null, unique]
+  sound_enabled boolean [default: true]
+  music_enabled boolean [default: true]
+  sound_volume integer [default: 50]
+  music_volume integer [default: 50]
+  notifications_enabled boolean [default: true]
+  language varchar(5) [default: 'es']
+  theme varchar(10) [default: 'dark']
+  selected_skin varchar(50) [default: 'clasico']
+  selected_effect varchar(50) [default: 'basico']
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+  }
+  
+  Note: '''
+  sound_volume y music_volume: 0-100
+  language: es, en, pt, etc.
+  theme: dark, light, auto
+  '''
+}
+
+// ============================================
+// EVENTOS Y ANALYTICS
+// ============================================
+
+Table game_events {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, null]
+  session_id uuid [ref: > game_sessions.id, null]
+  event_type varchar(50) [not null]
+  event_data jsonb [null]
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    session_id
+    event_type
+    created_at
+  }
+  
+  Note: '''
+  event_type: match, combo, bomb, shuffle, glitch, etc.
+  event_data: JSON con detalles del evento
+  Útil para analytics y debugging
+  '''
+}
+
+// ============================================
+// MISIONES DIARIAS (OPCIONAL - FUTURO)
+// ============================================
+
+Table daily_missions {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  mission_id varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text [not null]
+  mission_type varchar(30) [not null]
+  target integer [not null]
+  xp_reward integer [default: 0]
+  coin_reward integer [default: 0]
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  
+  Note: '''
+  mission_type: play_games, win_games, defeat_boss, reach_combo, etc.
+  Ejemplo: "Juega 5 partidas", "Derrota 2 bosses", "Alcanza combo de 10"
+  '''
+}
+
+Table user_daily_missions {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  mission_id uuid [ref: > daily_missions.id, not null]
+  progress integer [default: 0]
+  is_completed boolean [default: false]
+  is_claimed boolean [default: false]
+  assigned_at timestamp [default: `now()`]
+  completed_at timestamp [null]
+  claimed_at timestamp [null]
+  
+  indexes {
+    user_id
+    mission_id
+    (user_id, mission_id, assigned_at) [unique]
+  }
+}
+
+// ============================================
+// TIENDA Y MONEDAS (OPCIONAL - FUTURO)
+// ============================================
+
+Table user_currency {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null, unique]
+  coins integer [default: 0]
+  gems integer [default: 0]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+  }
+  
+  Note: '''
+  coins: Moneda gratis ganada jugando
+  gems: Moneda premium (opcional para monetización)
+  '''
+}
+
+Table shop_items {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  item_id varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text [not null]
+  item_type varchar(20) [not null]
+  price_coins integer [default: 0]
+  price_gems integer [default: 0]
+  is_available boolean [default: true]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'item_type: skin, effect, power, boost'
+}
+
+Table user_purchases {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  item_id uuid [ref: > shop_items.id, not null]
+  price_paid integer [not null]
+  currency_type varchar(10) [not null]
+  purchased_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id
+    item_id
+  }
+  
+  Note: 'currency_type: coins, gems'
+}
+
+// ============================================
+// NOTIFICACIONES
+// ============================================
+
+Table notifications {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  notification_type varchar(30) [not null]
+  title varchar(100) [not null]
+  message text [not null]
+  data jsonb [null]
+  is_read boolean [default: false]
+  created_at timestamp [default: `now()`]
+  read_at timestamp [null]
+  
+  indexes {
+    user_id
+    is_read
+    created_at
+  }
+  
+  Note: '''
+  notification_type: 
+  - friend_request
+  - achievement_unlocked
+  - rank_up
+  - daily_mission
+  - room_invite
+  '''
+}

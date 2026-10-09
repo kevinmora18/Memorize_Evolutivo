@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memorize Evolutivo — POO + SOLID</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --bg2: #111827;
+    --panel: #151c2e;
+    --border: #26324a;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --cyan: #22d3ee;
+    --violet: #a78bfa;
+    --amber: #fbbf24;
+    --green: #34d399;
+    --red: #f87171;
+    --pink: #f472b6;
+    --code-bg: #0d1424;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #1e1b4b55, transparent 60%),
+                radial-gradient(900px 500px at 90% 110%, #164e6355, transparent 60%),
+                linear-gradient(160deg, #0b0f1a, #0a0f1c 60%, #0f1526);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .deck { height:100%; display:flex; flex-direction:column; }
+  .stage { flex:1; position:relative; }
+  .slide {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding: 40px 90px;
+    opacity:0; pointer-events:none;
+    transform: translateX(40px) scale(.985);
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .slide.active { opacity:1; pointer-events:auto; transform:translateX(0) scale(1); }
+  .slide-inner { width:100%; max-width:1200px; max-height:100%; overflow:auto; }
+
+  /* top bar */
+  .bar {
+    display:flex; align-items:center; gap:14px;
+    padding: 14px 22px; border-bottom:1px solid var(--border);
+    background: rgba(13,20,36,.7); backdrop-filter: blur(6px);
+  }
+  .bar .logo { font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:10px; }
+  .bar .logo span { font-size:22px; }
+  .bar .sep { color: var(--muted); }
+  .bar .crumb { color:var(--muted); font-size:13px; }
+  .spacer { flex:1; }
+  .bar .counter { font-variant-numeric: tabular-nums; color:var(--cyan); font-weight:600; font-size:13px; }
+
+  /* controls */
+  .controls { display:flex; align-items:center; gap:18px; padding:12px 22px; }
+  .dots { display:flex; gap:8px; flex-wrap:wrap; }
+  .dot {
+    width:11px; height:11px; border-radius:50%;
+    background:#2b3a55; border:0; cursor:pointer; transition:.2s;
+  }
+  .dot.on { background: var(--cyan); transform:scale(1.25); box-shadow:0 0 10px var(--cyan); }
+  .dot.seen { background: var(--violet); }
+  .navbtn {
+    background: var(--panel); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:7px 16px; cursor:pointer; font-size:14px; transition:.15s;
+  }
+  .navbtn:hover { border-color:var(--cyan); color:var(--cyan); }
+  .navbtn:disabled { opacity:.35; cursor:default; }
+  .controls .hint { color:var(--muted); font-size:12px; margin-left:auto; }
+
+  /* typography */
+  h1 { font-size: clamp(30px, 4.5vw, 52px); line-height:1.1; font-weight:800;
+       background: linear-gradient(90deg, #22d3ee, #a78bfa, #f472b6);
+       -webkit-background-clip: text; background-clip:text; color:transparent; }
+  h2 { font-size: clamp(24px, 3vw, 36px); font-weight:800; margin-bottom:14px; }
+  h3 { font-size:20px; color:var(--cyan); margin-bottom:10px; font-weight:700; }
+  .sub { color:var(--muted); font-size:18px; margin-top:14px; }
+  .accent { color:var(--cyan); }
+  .kicker { font-size:14px; letter-spacing:2.5px; text-transform:uppercase; color:var(--violet); font-weight:700; margin-bottom:8px; }
+  .lead { font-size:17px; line-height:1.6; color:#d7dee9; max-width:70ch; }
+
+  /* grid */
+  .grid { display:grid; gap:18px; margin-top:22px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+
+  .card {
+    background: var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding: 20px; transition:.2s;
+  }
+  .card:hover { border-color:#3b4f77; transform:translateY(-2px); }
+  .card .ico { font-size:26px; }
+  .card h4 { font-size:16px; margin:8px 0 6px; }
+  .card p { color:var(--muted); font-size:13.5px; line-height:1.55; }
+
+  /* code */
+  .codeblock { position:relative; margin-top:16px; }
+  .codeblock .fname {
+    font-family: Consolas, monospace; font-size:12px; color:var(--cyan);
+    background: var(--code-bg); border:1px solid var(--border); border-bottom:0;
+    border-radius:10px 10px 0 0; padding:8px 14px; letter-spacing:.3px;
+  }
+  .codeblock pre {
+    font-family: "Cascadia Code", Consolas, monospace; font-size:13.5px; line-height:1.65;
+    background: var(--code-bg); border:1px solid var(--border); border-radius:0 10px 10px 10px;
+    padding:18px 20px; overflow-x:auto; color:#cbd5e1;
+  }
+  .codeblock pre.complete { border-radius:10px; border-top:1px solid var(--border); }
+  .tok-k { color:#c084fc; }     /* keyword */
+  .tok-c { color:#5b6b8c; font-style:italic; } /* comment */
+  .tok-s { color:#6ee7b7; }     /* string */
+  .tok-t { color:#67e8f9; }     /* types/classes */
+  .tok-n { color:#fbbf24; }     /* numbers */
+  .tok-p { color:#f9a8d4; }     /* properties/annotations */
+
+  ul.clean { list-style:none; margin-top:16px; }
+  ul.clean li { position:relative; padding-left:26px; margin:10px 0; font-size:15.5px; line-height:1.55; }
+  ul.clean li::before { content:"▹"; position:absolute; left:0; color:var(--cyan); font-weight:700; }
+  ul.clean b { color:var(--cyan); }
+
+  .pill { display:inline-block; background:#1e293b; border:1px solid var(--border);
+          color:var(--cyan); font-size:12px; font-weight:700; border-radius:99px; padding:3px 12px; margin:4px 6px 0 0; }
+
+  .letter {
+    font-family: "Consolas", monospace; font-weight:800; font-size:60px;
+    background: linear-gradient(135deg,#22d3ee,#a78bfa); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .bigS { font-size:26px; font-weight:800; color:var(--amber);
+          background:var(--panel); border:1px solid var(--border); width:52px; height:52px;
+          display:flex; align-items:center; justify-content:center; border-radius:12px; margin-bottom:10px; }
+
+  .tag { font-size:12px; font-weight:700; padding:3px 10px; border-radius:6px; letter-spacing:.5px; }
+  .tag.pilar { background:rgba(34,211,238,.15); color:var(--cyan); border:1px solid rgba(34,211,238,.4); }
+  .tag.solid { background:rgba(167,139,250,.15); color:var(--violet); border:1px solid rgba(167,139,250,.4); }
+  .tag.code { background:rgba(251,191,36,.12); color:var(--amber); border:1px solid rgba(251,191,36,.35); font-family:Consolas,monospace; }
+
+  blockquote { border-left:3px solid var(--violet); padding:10px 18px; margin-top:18px;
+               background:rgba(167,139,250,.07); border-radius:0 10px 10px 0; color:#d4ddf0; font-size:15.5px; line-height:1.6; }
+
+  .legend-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--muted); margin-top:10px; }
+  .sw { width:14px; height:14px; border-radius:4px; display:inline-block; }
+
+  .ok { color:var(--green); }
+  .bad { color:var(--red); }
+
+  .minidiag { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .box {
+    background:var(--code-bg); border:1px solid var(--border); border-left:3px solid var(--cyan);
+    border-radius:8px; padding:8px 12px; font-size:12px; line-height:1.5; font-family:Consolas,monospace; color:#cbd5e1;
+  }
+  .box b { color:var(--cyan); }
+  .rel { font-size:11px; color:var(--muted); text-align:center; }
+
+  @media (max-width: 900px) {
+    .slide { padding:20px 24px; }
+    .g2,.g3,.g4 { grid-template-columns:1fr; }
+    .grid { gap:12px; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <div class="bar">
+    <div class="logo"><span>🧠</span> Memorize Evolutivo</div>
+      <div class="sep">•</div>
+      <div class="crumb">POO &amp; SOLID aplicados al proyecto</div>
+      <div class="spacer"></div>
+      <div class="counter" id="counter">1 / 18</div>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <!-- ============ 1. PORTADA ============ -->
+    <section class="slide active">
+      <div class="slide-inner">
+        <div class="kicker">Ingeniería de Software · Programación Orientada a Objetos</div>
+        <h1>Los 4 Pilares de la POO<br>y los principios SOLID</h1>
+        <p class="sub">Demostrados con código real de <b style="color:#e5e7eb">Memorize Evolutivo</b> — juego de memoria multijugador. Nos centramos en el <span class="accent">módulo Multijugador + Motor de juego</span> del backend (<span class="accent">Node + TypeScript</span>), donde viven las clases, la herencia y las estrategias.</p>
+        <div class="legend-row" style="margin-top:26px; font-size:13px;">
+          <span class="tag pilar">PILAR</span> Abstracción · Encapsulamiento · Herencia · Polimorfismo
+          <span style="width:16px"></span>
+          <span class="tag solid">SOLID</span> S · O · L · I · D
+          <span style="width:16px"></span>
+          <span class="tag code">backend/src/…</span> Archivos reales del repositorio
+        </div>
+        <p class="lead" style="margin-top:34px; color:#8b98ad; font-size:13.5px;">Usa ← → (o las flechas, clic en los puntos) para navegar.</p>
+      </div>
+    </section>
+
+    <!-- ============ 2. AGENDA ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Agenda</div>
+        <h2>¿Qué veremos?</h2>
+        <div class="grid g2">
+          <div class="card">
+            <span class="tag pilar">1</span>
+            <h4>El contexto del proyecto</h4>
+            <p>Qué es Memorize Evolutivo y cómo está organizado su código.</p>
+          </div>
+          <div class="card">
+            <span class="tag pilar">2</span>
+            <h4>Los 4 Pilares de la POO</h4>
+            <p>Abstracción, Encapsulamiento, Herencia y Polimorfismo, cada uno con su ejemplo real.</p>
+          </div>
+          <div class="card">
+            <span class="tag solid">3</span>
+            <h4>Los principios SOLID</h4>
+            <p>Single Responsibility, Open/Closed, Liskov, Interface Segregation y Dependency Inversion.</p>
+          </div>
+          <div class="card">
+            <span class="tag solid">4</span>
+            <h4>Conclusiones</h4>
+            <p>Beneficios concretos que estas buenas prácticas aportan al proyecto.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3. CONTEXTO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Contexto</div>
+        <h2>¿Qué es Memorize Evolutivo?</h2>
+        <p class="lead">Un juego de memoria con <b>modos de juego</b> (Clásico, Tríadas, Bosses, Infinito, Multijugador…), <b>salas en tiempo real</b> por Socket.IO y un <b>motor de juego autoritativo</b> en el servidor. El código está organizado en capas con POO explícita.</p>
+        <div class="grid g2" style="margin-top:22px;">
+          <div class="codeblock">
+            <div class="fname">Estructura del backend (módulo Multijugador + Motor)</div>
+            <pre class="complete"><code>backend/src/
+├── <span class="tok-t">Container.ts</span>      ← inyección de dependencias (DI)
+├── core/           ← clases base y contratos
+│   ├── BaseEntity.ts / BaseService.ts
+│   ├── BaseRepository.ts / BaseController.ts
+│   └── interfaces/ (IRepository, IServices, IGameModeStrategy)
+├── models/
+│   ├── domain/     ← User, PlayerStats, Match, GameRoom, Player
+│   └── strategies/ ← 7 modos + GameModeFactory
+├── engine/         ← GameEngine, RoomCommandHandler, TurnTimer, DeckGenerator
+├── managers/       ← RoomManager (Singleton de salas)
+├── services/       ← Auth, User, Match, Leaderboard, Admin...
+├── repositories/   ← acceso a datos con Prisma
+├── controllers/    ← capa HTTP
+└── socket/         ← SocketManager (transporte Socket.IO)</code></pre>
+          </div>
+          <div class="card" style="align-self:start;">
+            <span class="ico">⚙️</span>
+            <h4>Stack tecnológico</h4>
+            <p><span class="pill">Node + Express</span><span class="pill">TypeScript</span><span class="pill">Socket.IO</span><span class="pill">Prisma</span><span class="pill">PostgreSQL</span><span class="pill">Vitest</span></p>
+            <p style="margin-top:14px;">El servidor es la <b>única fuente de verdad</b>: genera el mazo, valida los volteos y posee el reloj de turno. Es ahí donde se ve la POO (clases con herencia, encapsulamiento y estrategias).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 4. PILARES INTRO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Parte I · Programación Orientada a Objetos</div>
+        <h2>Los 4 Pilares de la POO</h2>
+        <p class="lead">La POO modela el mundo real como <b>objetos</b> con <b>estado</b> (propiedades) y <b>comportamiento</b> (métodos). Cuatro pilares la sostienen:</p>
+        <div class="grid g4">
+          <div class="card">
+            <div class="ico">🎭</div><h4>Abstracción</h4>
+            <p>Modelar solo lo esencial, ocultando la complejidad.</p>
+          </div>
+          <div class="card">
+            <div class="ico">🔒</div><h4>Encapsulamiento</h4>
+            <p>Proteger el estado interno y exponer una API pública.</p>
+          </div>
+          <div class="card">
+            <div class="ico">🧬</div><h4>Herencia</h4>
+            <p>Reutilizar comportamiento a partir de una clase base.</p>
+          </div>
+          <div class="card">
+            <div class="ico">🔀</div><h4>Polimorfismo</h4>
+            <p>Un mismo contrato, muchas implementaciones.</p>
+          </div>
+        </div>
+        <p class="sub" style="font-size:14px;">En TypeScript se aplican con <b>interfaces</b>, <b>miembros privados</b>, <b>extends</b> e <b>implements</b>. Veamos cada uno en el código del backend.</p>
+      </div>
+    </section>
+
+    <!-- ============ 5. ENCAPSULAMIENTO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag pilar">PILAR 1</span> · Backend &amp; Sockets</div>
+        <h2>🔒 Encapsulamiento</h2>
+        <p class="lead"><code>SocketManager</code> y <code>GameRoom</code> protegen su estado interno con miembros <b>privados</b> e <b>invariantes de negocio</b>. El cliente de red nunca puede mutar las salas ni las cartas directamente.</p>
+        <div class="codeblock">
+          <div class="fname">backend/src/models/domain/GameRoom.model.ts &amp; SocketManager.ts</div>
+          <pre><code><span class="tok-k">export class</span> <span class="tok-t">GameRoom</span> <span class="tok-k">extends</span> <span class="tok-t">BaseEntity</span>&lt;<span class="tok-t">any</span>&gt; {
+  <span class="tok-k">private</span> players: <span class="tok-t">Map</span>&lt;<span class="tok-t">string</span>, <span class="tok-t">Player</span>&gt;;      <span class="tok-c">// 👈 estado interno protegido</span>
+  <span class="tok-k">private</span> gameState: <span class="tok-t">IGameState</span>;              <span class="tok-c">// 👈 no accesible desde fuera</span>
+
+  <span class="tok-c">// Invariante: solo se voltea si es tu turno y no superas el límite</span>
+  <span class="tok-k">public</span> <span class="tok-p">flipCard</span>(playerId: <span class="tok-t">string</span>, cardIndex: <span class="tok-t">number</span>): <span class="tok-t">void</span> {
+    <span class="tok-k">if</span> (<span class="tok-k">this</span>.gameState.currentTurn !== playerId) <span class="tok-k">throw new</span> <span class="tok-t">Error</span>(<span class="tok-s">'No es tu turno'</span>);
+    <span class="tok-k">const</span> required = <span class="tok-k">this</span>.<span class="tok-p">getRequiredFlipsCount</span>();
+    <span class="tok-k">if</span> (<span class="tok-k">this</span>.gameState.flippedCards.length &gt;= required) <span class="tok-k">throw new</span> <span class="tok-t">Error</span>(<span class="tok-s">'Límite alcanzado'</span>);
+    <span class="tok-k">this</span>.gameState.flippedCards.<span class="tok-p">push</span>(cardIndex);
+  }
+}</code></pre>
+        </div>
+        <ul class="clean">
+          <li><b>Estado interno oculto</b>: en <code>GameRoom</code>, <code>players</code> y <code>gameState</code> son <code>private</code>; en <code>GameEngine</code> lo son <code>turnTimer</code>, <code>evaluating</code> y <code>pendingResolve</code>. Nada se muta desde fuera.</li>
+          <li><b>Validación de reglas en el dominio</b>: cuando el socket recibe <code>game:flip-card</code>, no hace un <code>push</code> directo; invoca <code>room.flipCard()</code> que valida turnos.</li>
+          <li><b>Lectura segura por copia</b>: <code>room.getGameState()</code> devuelve una copia superficial (<code>{ ...this.gameState }</code>) para evitar mutaciones externas involuntarias.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 6. ABSTRACCIÓN ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag pilar">PILAR 2</span> · Backend &amp; Sockets</div>
+        <h2>🎭 Abstracción</h2>
+        <p class="lead">Definir <b>contratos e interfaces</b> que aíslan la comunicación en tiempo real de los detalles de almacenamiento o base de datos. <code>SocketManager</code> solo conoce el <i>qué</i>, no el <i>cómo</i>.</p>
+        <div class="grid g2" style="margin-top:18px;">
+          <div class="codeblock">
+            <div class="fname">backend/src/core/interfaces/IServices.ts — el contrato</div>
+            <pre class="complete"><code><span class="tok-k">export interface</span> <span class="tok-t">IRoomManager</span> {
+  <span class="tok-p">getRoom</span>(roomId: <span class="tok-t">string</span>): <span class="tok-t">GameRoom</span> | <span class="tok-k">undefined</span>;
+  <span class="tok-p">joinRoom</span>(roomId: <span class="tok-t">string</span>, player: <span class="tok-t">IPlayer</span>): <span class="tok-t">GameRoom</span>;
+  <span class="tok-p">leaveRoom</span>(roomId: <span class="tok-t">string</span>, playerId: <span class="tok-t">string</span>): <span class="tok-t">void</span>;
+  <span class="tok-p">deleteRoom</span>(roomId: <span class="tok-t">string</span>): <span class="tok-t">boolean</span>;
+}</code></pre>
+          </div>
+          <div class="codeblock">
+            <div class="fname">backend/src/socket/SocketManager.ts — uso de los contratos</div>
+            <pre class="complete"><code><span class="tok-k">export class</span> <span class="tok-t">SocketManager</span> {
+  <span class="tok-c">// Depende de ABSTRACCIONES, no de las clases concretas</span>
+  <span class="tok-k">private</span> roomManager: <span class="tok-t">IRoomManager</span>;
+  <span class="tok-k">private</span> matchService: <span class="tok-t">IMatchService</span>;
+  <span class="tok-k">private</span> engine: <span class="tok-t">GameEngine</span>;
+
+  <span class="tok-k">constructor</span>(io: <span class="tok-t">Server</span>, roomManager: <span class="tok-t">IRoomManager</span>, matchService: <span class="tok-t">IMatchService</span>) {
+    <span class="tok-k">this</span>.roomManager = roomManager;
+    <span class="tok-k">this</span>.engine = <span class="tok-k">new</span> <span class="tok-t">GameEngine</span>(roomManager, o =&gt; <span class="tok-k">this</span>.applyOutcome(o));
+  }
+}</code></pre>
+          </div>
+        </div>
+        <ul class="clean">
+          <li><b>Desacoplamiento total</b>: a <code>SocketManager</code> no le interesa si las salas residen en un <code>Map</code> en RAM, en Redis o en PostgreSQL; solo invoca <code>this.roomManager.getRoom(id)</code>.</li>
+          <li><b>Abstracción de seguridad</b>: <code>authenticateHandshake</code> abstrae la verificación criptográfica del token JWT sin contaminar la lógica de eventos del juego.</li>
+          <li><b>Testeabilidad inmediata</b>: al depender de <code>IRoomManager</code>, podemos testear los sockets con un Mock sin levantar base de datos ni servidores complejos.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 7. HERENCIA ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag pilar">PILAR 3</span> · Backend &amp; Sockets</div>
+        <h2>🧬 Herencia</h2>
+        <p class="lead">Reutilizar comportamiento de identidad y ciclo de vida mediante <code>extends</code>. <code>GameRoom</code> hereda de <code>BaseEntity</code>, unificando la auditoría de todas las entidades del sistema.</p>
+        <div class="codeblock">
+          <div class="fname">backend/src/core/BaseEntity.ts ➔ backend/src/models/domain/GameRoom.model.ts</div>
+          <pre><code><span class="tok-c">// 1. Clase base abstracta que centraliza identidad y timestamps</span>
+<span class="tok-k">export abstract class</span> <span class="tok-t">BaseEntity</span>&lt;<span class="tok-t">TData</span> = <span class="tok-t">any</span>&gt; {
+  <span class="tok-k">readonly</span> id: <span class="tok-t">string</span>;
+  <span class="tok-k">readonly</span> createdAt: <span class="tok-t">Date</span>;
+  <span class="tok-k">protected</span> _updatedAt?: <span class="tok-t">Date</span>;
+
+  <span class="tok-k">constructor</span>(id: <span class="tok-t">string</span>, createdAt = <span class="tok-k">new</span> <span class="tok-t">Date</span>(), updatedAt?: <span class="tok-t">Date</span>) { ... }
+  <span class="tok-k">get</span> updatedAt(): <span class="tok-t">Date</span> | <span class="tok-k">undefined</span> { <span class="tok-k">return this</span>._updatedAt; }
+  <span class="tok-k">protected</span> <span class="tok-p">touch</span>(): <span class="tok-t">void</span> { <span class="tok-k">this</span>._updatedAt = <span class="tok-k">new</span> <span class="tok-t">Date</span>(); }
+
+  <span class="tok-k">abstract</span> <span class="tok-p">toJSON</span>(): <span class="tok-t">TData</span>; <span class="tok-c">// 👈 contrato que cada entidad implementa</span>
+}
+
+<span class="tok-c">// 2. GameRoom reutiliza la base mediante Herencia</span>
+<span class="tok-k">export class</span> <span class="tok-t">GameRoom</span> <span class="tok-k">extends</span> <span class="tok-t">BaseEntity</span>&lt;<span class="tok-t">any</span>&gt; {
+  <span class="tok-k">constructor</span>(data: <span class="tok-t">IGameRoomData</span>) {
+    <span class="tok-k">super</span>(data.id, data.createdAt); <span class="tok-c">// 👈 reutiliza el constructor padre</span>
+  }
+}</code></pre>
+        </div>
+        <ul class="clean">
+          <li><b>Reutilización de código</b>: <code>GameRoom</code>, <code>User</code> y <code>Match</code> heredan automáticamente <code>id</code>, <code>createdAt</code> y <code>updatedAt</code> sin duplicar código en cada archivo.</li>
+          <li><b>Jerarquía de Estrategias</b>: los modos de juego (<code>PairsModeStrategy</code>, <code>TriadsModeStrategy</code>) heredan el algoritmo base de match y XP de <code>BaseGameModeStrategy</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 8. POLIMORFISMO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag pilar">PILAR 4</span> · Backend &amp; Sockets</div>
+        <h2>🔀 Polimorfismo</h2>
+        <p class="lead">El motor consulta <code>room.getRequiredFlipsCount()</code> y <code>room.checkMatch()</code> sin saber qué modo está activo: cada <b>estrategia</b> responde distinto (2 cartas en Clásico, 3 en Tríadas, bonus en Boss…). Ni un solo <code>if/switch</code>.</p>
+        <div class="codeblock">
+          <div class="fname">backend/src/engine/GameEngine.ts &amp; backend/src/models/domain/GameRoom.model.ts</div>
+          <pre><code><span class="tok-c">// GameEngine NO sabe cuántas cartas se requieren (¿2 en Clásico? ¿3 en Tríadas?)</span>
+<span class="tok-k">const</span> required = room.<span class="tok-p">getRequiredFlipsCount</span>(); <span class="tok-c">// 👈 Polimórfico</span>
+<span class="tok-k">if</span> (state.flippedCards.length &gt;= required) {
+  this.<span class="tok-p">scheduleResolve</span>(room); <span class="tok-c">// resuelve la mano en el servidor</span>
+}
+
+<span class="tok-c">// resolveTurn(): delega en la estrategia activa (PairsModeStrategy o TriadsModeStrategy)</span>
+<span class="tok-k">const</span> { isMatch, cardIndexes } = room.<span class="tok-p">checkMatch</span>();
+<span class="tok-k">if</span> (isMatch) {
+  room.<span class="tok-p">registerMatch</span>(handOwner, cardIndexes);
+}</code></pre>
+        </div>
+        <div class="grid g2" style="margin-top:14px;">
+          <div class="card">
+            <h4>Estrategia Clásica (Pairs)</h4>
+            <p><code>requiredFlips = 2</code> · Evalúa coincidencias de 2 cartas y otorga 50 XP base.</p>
+          </div>
+          <div class="card">
+            <h4>Estrategia Tríadas (Triads)</h4>
+            <p><code>requiredFlips = 3</code> · Evalúa coincidencia de 3 cartas idénticas y otorga 75 XP base.</p>
+          </div>
+        </div>
+        <p class="sub" style="font-size:13.5px; margin-top:10px;"><b>Principio Open/Closed (OCP):</b> Si agregamos un modo de 4 cartas (Cuartetos), solo creamos una estrategia nueva y la registramos; no tocamos <code>GameEngine</code> ni <code>GameRoom</code>.</p>
+      </div>
+    </section>
+
+    <!-- ============ 8B. LOS 4 PILARES EN EL MOTOR DE JUEGO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag pilar">MOTOR DE JUEGO</span> · backend/src/engine</div>
+        <h2>⚙️ Los 4 Pilares en el Motor (server-authoritative)</h2>
+        <p class="lead">El motor (<code>GameEngine</code>, <code>RoomCommandHandler</code>, <code>GameRoom</code>, <code>TurnTimer</code>, <code>DeckGenerator</code>) concentra las reglas y aplica los 4 pilares sin acoplarse a Socket.IO:</p>
+        <div class="grid g4" style="margin-top:16px;">
+          <div class="card">
+            <div class="ico">🔒</div><h4>Encapsulamiento</h4>
+            <p><code>GameEngine</code> guarda <code>turnTimer</code>, <code>evaluating</code> y <code>pendingResolve</code> como <code>private</code>; nadie muta el turno desde fuera.</p>
+            <div class="tag code" style="margin-top:8px;">GameEngine privados</div>
+          </div>
+          <div class="card">
+            <div class="ico">🎭</div><h4>Abstracción</h4>
+            <p>El motor depende de <code>IRoomManager</code> y de un callback <code>onOutcome</code>; no conoce <code>SocketManager</code> ni la base de datos.</p>
+            <div class="tag code" style="margin-top:8px;">RoomCommandHandler</div>
+          </div>
+          <div class="card">
+            <div class="ico">🧬</div><h4>Herencia</h4>
+            <p><code>GameRoom extends BaseEntity</code> reutilizando identidad y timestamps; <code>TurnTimer</code> encapsula el reloj de turno.</p>
+            <div class="tag code" style="margin-top:8px;">BaseEntity &lt;|-- GameRoom</div>
+          </div>
+          <div class="card">
+            <div class="ico">🔀</div><h4>Polimorfismo</h4>
+            <p><code>room.getRequiredFlipsCount()</code> y <code>checkMatch()</code> delegan en <code>IGameModeStrategy</code> (2 vs 3 cartas) sin <code>if/switch</code>.</p>
+            <div class="tag code" style="margin-top:8px;">Strategy polimórfica</div>
+          </div>
+        </div>
+        <div class="codeblock" style="margin-top:16px;">
+          <div class="fname">backend/src/engine/GameEngine.ts — el motor emite resultados abstractos, no eventos de Socket.IO</div>
+          <pre><code><span class="tok-c">// Contrato de salida del motor: qué pasó, no cómo se transmite</span>
+<span class="tok-k">export interface</span> <span class="tok-t">CommandOutcome</span> { type: <span class="tok-t">string</span>; room?: <span class="tok-t">GameRoom</span>; payload?: <span class="tok-t">any</span>; }
+
+<span class="tok-c">// El command handler valida y aplica la jugada sobre el dominio</span>
+<span class="tok-k">const</span> room = <span class="tok-k">this</span>.roomManager.<span class="tok-p">getRoom</span>(roomId);
+room.<span class="tok-p">flipCard</span>(userId, cardIndex); <span class="tok-c">// ← GameRoom valida turno y cartas volteadas</span>
+
+<span class="tok-c">// Y el transporte (SocketManager) es quien traduce el outcome a eventos</span>
+<span class="tok-k">private</span> <span class="tok-p">applyOutcome</span>(o: <span class="tok-t">CommandOutcome</span>): <span class="tok-t">void</span> { ... }</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 9. SOLID INTRO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Parte II · Principios SOLID</div>
+        <h2>SOLID</h2>
+        <p class="lead">Los <b>5 principios de diseño</b> (Robert C. Martin) que hacen el software <b>fácil de mantener</b>, <b>extender</b> y <b>probar</b>. Las siglas:</p>
+        <div class="grid g2" style="margin-top:22px;">
+          <div class="card" style="display:flex; gap:16px; align-items:center;">
+            <div class="bigS">S</div>
+            <div><h4 style="margin:0 0 4px;">Single Responsibility</h4><p style="margin:0">Responsabilidad Única</p></div>
+          </div>
+          <div class="card" style="display:flex; gap:16px; align-items:center;">
+            <div class="bigS">O</div>
+            <div><h4 style="margin:0 0 4px;">Open / Closed</h4><p style="margin:0">Abierto a extensión, cerrado a modificación</p></div>
+          </div>
+          <div class="card" style="display:flex; gap:16px; align-items:center;">
+            <div class="bigS">L</div>
+            <div><h4 style="margin:0 0 4px;">Liskov Substitution</h4><p style="margin:0">Sustitución de Liskov</p></div>
+          </div>
+          <div class="card" style="display:flex; gap:16px; align-items:center;">
+            <div class="bigS">I</div>
+            <div><h4 style="margin:0 0 4px;">Interface Segregation</h4><p style="margin:0">Segregación de interfaces</p></div>
+          </div>
+          <div class="card" style="grid-column: 1 / -1; display:flex; gap:16px; align-items:center;">
+            <div class="bigS">D</div>
+            <div><h4 style="margin:0 0 4px;">Dependency Inversion</h4><p style="margin:0">Inversión de dependencias</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 10. S ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag solid">SOLID · S</span></div>
+        <h2>S — Responsabilidad Única</h2>
+        <p class="lead">Cada clase tiene <b>un solo motivo para cambiar</b>. En Memorize Evolutivo, cada servicio tiene una única responsabilidad claramente definida:</p>
+        <div class="grid g3" style="margin-top:16px;">
+          <div class="card"><div class="ico">🔐</div><h4><code>AuthService</code></h4><p>Solo autenticación: <code>loginOrRegister()</code>, <code>validateAccess()</code>, <code>isAdmin()</code>.</p></div>
+          <div class="card"><div class="ico">👤</div><h4><code>UserService</code></h4><p>Solo perfil y progresión: <code>getUserProfile()</code>, <code>addXpToUser()</code>, <code>rewardCoins()</code>.</p></div>
+          <div class="card"><div class="ico">🗄️</div><h4><code>repositories/</code></h4><p>Solo acceso a datos. Prisma vive aquí, nunca en servicios.</p></div>
+        </div>
+        <div class="codeblock" style="margin-top:16px;">
+          <div class="fname">backend/src/services/AuthService.ts — ejemplo real del proyecto</div>
+          <pre><code><span class="tok-k">export class</span> <span class="tok-t">AuthService</span> <span class="tok-k">extends</span> <span class="tok-t">BaseService</span> {
+  <span class="tok-k">private</span> userRepository: <span class="tok-t">UserRepository</span>;
+
+  <span class="tok-c">// ✅ Responsabilidad: login/registro</span>
+  <span class="tok-k">async</span> <span class="tok-p">loginOrRegister</span>(email: <span class="tok-t">string</span>): <span class="tok-t">Promise</span>&lt;<span class="tok-t">User</span>&gt; {
+    <span class="tok-k">if</span> (!email || !email.<span class="tok-p">includes</span>(<span class="tok-s">'@'</span>)) <span class="tok-k">throw new</span> <span class="tok-t">Error</span>(<span class="tok-s">'Email inválido'</span>);
+    
+    <span class="tok-k">let</span> user = <span class="tok-k">await this</span>.userRepository.<span class="tok-p">findByEmail</span>(email);
+    <span class="tok-k">if</span> (!user) user = <span class="tok-k">await this</span>.userRepository.<span class="tok-p">create</span>({ email });
+    
+    <span class="tok-k">if</span> (user.<span class="tok-p">isCurrentlyBanned</span>()) <span class="tok-k">throw new</span> <span class="tok-t">Error</span>(<span class="tok-s">'Usuario baneado'</span>);
+    <span class="tok-k">return</span> user;
+  }
+
+  <span class="tok-c">// ✅ Responsabilidad: validar acceso</span>
+  <span class="tok-k">async</span> <span class="tok-p">validateAccess</span>(userId: <span class="tok-t">string</span>): <span class="tok-t">Promise</span>&lt;<span class="tok-t">boolean</span>&gt; {
+    <span class="tok-k">const</span> user = <span class="tok-k">await this</span>.userRepository.<span class="tok-p">findById</span>(userId);
+    <span class="tok-k">return</span> user ? !user.<span class="tok-p">isCurrentlyBanned</span>() : <span class="tok-k">false</span>;
+  }
+}</code></pre>
+        </div>
+        <p class="sub" style="margin-top:14px; font-size:13.5px;"><b>Refactor Admin:</b> <code>AdminService</code> (1 clase haciendo todo) → <code>AdminUserService</code> + <code>AdminContentService</code> + <code>AdminAnalyticsService</code> + <code>AuditLogService</code> (4 clases cohesivas). Cada una con <b>1 razón para cambiar</b>.</p>
+      </div>
+    </section>
+
+    <!-- ============ 11. O ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag solid">SOLID · O</span></div>
+        <h2>O — Abierto a extensión, cerrado a modificación</h2>
+        <p class="lead">Añadir un <b>modo de juego nuevo</b> no obliga a tocar el motor: se crea una <b>estrategia</b> nueva y se registra. El código existente queda cerrado a modificación.</p>
+        <div class="grid g2" style="margin-top:18px;">
+          <div class="codeblock">
+            <div class="fname">backend/src/models/strategies/GameModeStrategy.ts — Factory extensible</div>
+            <pre class="complete"><code><span class="tok-k">export class</span> <span class="tok-t">GameModeFactory</span> {
+  <span class="tok-k">private static</span> strategies = <span class="tok-k">new</span> <span class="tok-t">Map</span>&lt;<span class="tok-t">string</span>, <span class="tok-t">IGameModeStrategy</span>&gt;([
+    [<span class="tok-s">'classic'</span>, <span class="tok-k">new</span> <span class="tok-t">PairsModeStrategy</span>()],
+    [<span class="tok-s">'triads'</span>,  <span class="tok-k">new</span> <span class="tok-t">TriadsModeStrategy</span>()],
+    [<span class="tok-s">'boss'</span>,    <span class="tok-k">new</span> <span class="tok-t">BossModeStrategy</span>()],
+    <span class="tok-c">// ... 7 modos en total</span>
+  ]);
+
+  <span class="tok-k">static</span> <span class="tok-p">getStrategy</span>(mode: <span class="tok-t">string</span>): <span class="tok-t">IGameModeStrategy</span> { ... }
+  <span class="tok-k">static</span> <span class="tok-p">registerStrategy</span>(name: <span class="tok-t">string</span>, s: <span class="tok-t">IGameModeStrategy</span>): <span class="tok-t">void</span> { ... } <span class="tok-c">// ← abierto</span>
+}</code></pre>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:14px;">
+              <h4>Nuevo modo = nueva clase + registrar</h4>
+              <p>Crear un modo <code>Cuartetos</code> (4 cartas) es escribir una subclase de <code>BaseGameModeStrategy</code> y registrarla. <code>GameEngine</code>, <code>GameRoom</code> y <code>MatchService</code> <b>no cambian</b>.</p>
+            </div>
+            <div class="card">
+              <h4>Tableros y reglas extensibles</h4>
+              <p>Las 7 estrategias comparten la base y definen solo sus reglas (<code>checkMatch</code>, <code>getRequiredFlipsCount</code>). También los repositorios se sustituyen sin tocar a quien los consume.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 12. L ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag solid">SOLID · L</span></div>
+        <h2>L — Sustitución de Liskov</h2>
+        <p class="lead">Cualquier subclase de <code>BaseGameModeStrategy</code> debe poder <b>reemplazar</b> a la base sin romper el motor. El motor solo usa el contrato, nunca el tipo concreto.</p>
+        <div class="grid g2" style="margin-top:18px;">
+          <div class="codeblock">
+            <div class="fname">backend/src/models/domain/GameRoom.model.ts — estrategia sustituible en runtime</div>
+            <pre class="complete"><code><span class="tok-c">// GameRoom guarda cualquier IGameModeStrategy, no un modo concreto:</span>
+<span class="tok-k">private</span> strategy: <span class="tok-t">IGameModeStrategy</span>;
+
+<span class="tok-p">checkMatch</span>() { <span class="tok-k">return this</span>.strategy.<span class="tok-p">checkMatch</span>(<span class="tok-k">this</span>._cards, <span class="tok-k">this</span>.state.flippedIndexes); }
+<span class="tok-p">getRequiredFlipsCount</span>() { <span class="tok-k">return this</span>.strategy.<span class="tok-p">getRequiredFlipsCount</span>(); }
+
+<span class="tok-c">// PairsModeStrategy, TriadsModeStrategy, BossModeStrategy... todas cumplen el contrato</span></code></pre>
+          </div>
+          <div class="codeblock">
+            <div class="fname">backend/src/core/BaseRepository.ts — repositorios intercambiables</div>
+            <pre class="complete"><code><span class="tok-c">// LeaderboardService depende de IUserRepository;</span>
+<span class="tok-c">// da igual si detrás está Prisma o un mock de test</span>
+<span class="tok-k">const</span> top = <span class="tok-k">await</span> <span class="tok-k">this</span>.userRepository.<span class="tok-p">findTopByField</span>(<span class="tok-s">'xp'</span>, limit);
+
+<span class="tok-c">// Cualquier IUserRepository válido es un sustituto correcto</span></code></pre>
+          </div>
+        </div>
+        <ul class="clean">
+          <li><b>Estrategias</b>: las 7 subclases respetan el contrato de <code>IGameModeStrategy</code> → el motor las trata a todas igual.</li>
+          <li><b>Repositorios</b>: <code>UserRepository</code>, <code>InventoryRepository</code>, <code>AnalyticsRepository</code>… son sustituibles tras su interfaz, lo que hace el servicio testeable con dobles.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 13. I ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag solid">SOLID · I</span></div>
+        <h2>I — Segregación de Interfaces</h2>
+        <p class="lead">Ningún consumidor debe depender de métodos que no usa. Los repositorios se parten en contratos pequeños y algunos no heredan el CRUD completo.</p>
+        <div class="grid g2" style="margin-top:18px;">
+          <div class="codeblock">
+            <div class="fname">backend/src/core/interfaces/IRepository.ts — contratos pequeños</div>
+            <pre class="complete"><code><span class="tok-k">export interface</span> <span class="tok-t">IReadRepository</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">ID</span>&gt;  { findById; findAll; }
+<span class="tok-k">export interface</span> <span class="tok-t">IWriteRepository</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">ID</span>&gt; { create; update; delete; }
+<span class="tok-k">export interface</span> <span class="tok-t">ICrudRepository</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">ID</span>&gt;
+  <span class="tok-k">extends</span> <span class="tok-t">IReadRepository</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">ID</span>&gt;, <span class="tok-t">IWriteRepository</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">ID</span>&gt; {}</code></pre>
+          </div>
+          <div class="codeblock">
+            <div class="fname">Solo los métodos que cada repositorio necesita</div>
+            <pre class="complete"><code><span class="tok-c">// Registro de auditoría: solo escribe y consulta</span>
+<span class="tok-k">interface</span> <span class="tok-t">IAdminLogRepository</span> { createLog(...); findAll(...); }
+
+<span class="tok-c">// Inventario y salas exponen solo su contrato específico</span>
+<span class="tok-k">interface</span> <span class="tok-t">IInventoryRepository</span> { findByUserId; upsert; }
+<span class="tok-k">interface</span> <span class="tok-t">IRoomRepository</span>      { persist; findActive; remove; }</code></pre>
+          </div>
+        </div>
+        <ul class="clean">
+          <li><b>IRead / IWrite / ICrud</b>: quien solo lee no arrastra <code>delete</code> ni <code>update</code>.</li>
+          <li><b>Sin jerarquías forzadas</b>: <code>IAdminLogRepository</code>, <code>IInventoryRepository</code> y <code>IRoomRepository</code> <b>no</b> extienden <code>BaseRepository</code>; declaran únicamente lo que usan.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 14. D ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker"><span class="tag solid">SOLID · D</span></div>
+        <h2>D — Inversión de Dependencias</h2>
+        <p class="lead">Los servicios de alto nivel no deben depender de Prisma ni de clases concretas, sino de <b>interfaces</b>. Todas las dependencias se ensamblan en un único lugar: el <code>Container</code>.</p>
+        <div class="codeblock">
+          <div class="fname">backend/src/Container.ts — inyección por constructor</div>
+          <pre><code><span class="tok-c">// LeaderboardService ya NO recibe un PrismaClient</span>
+<span class="tok-k">const</span> leaderboardService = <span class="tok-k">new</span> <span class="tok-t">LeaderboardService</span>(
+  <span class="tok-k">this</span>.userRepository,   <span class="tok-c">// IUserRepository</span>
+  <span class="tok-k">this</span>.statsRepository,  <span class="tok-c">// IPlayerStatsRepository</span>
+  <span class="tok-k">this</span>.matchRepository   <span class="tok-c">// IMatchRepository</span>
+);
+
+<span class="tok-c">// AdminService es ahora una fachada sobre 4 servicios cohesivos</span>
+<span class="tok-k">this</span>.adminService = <span class="tok-k">new</span> <span class="tok-t">AdminService</span>(
+  <span class="tok-k">this</span>.adminUserService, <span class="tok-k">this</span>.adminContentService,
+  <span class="tok-k">this</span>.adminAnalyticsService, <span class="tok-k">this</span>.auditLogService
+);</code></pre>
+        </div>
+        <div class="grid g3" style="margin-top:14px;">
+          <div class="card"><h4>Antes</h4><p><code>LeaderboardService</code> y <code>AdminService</code> importaban e instanciaban <code>PrismaClient</code> directamente.</p></div>
+          <div class="card"><h4>Después</h4><p>Dependen de <code>IUserRepository</code>, <code>IPlayerStatsRepository</code> e <code>IAnalyticsRepository</code>. Prisma queda encerrado en <code>repositories/</code>.</p></div>
+          <div class="card"><h4>Ensamblaje único</h4><p><code>Container</code> decide qué implementación concreta se inyecta; cambiar de ORM afectaría solo a los repositorios.</p></div>
+        </div>
+        <blockquote>Ni los servicios ni el motor conocen detalles de infraestructura: <code>RoomManager</code> recibe <code>IRoomRepository</code>, <code>SocketManager</code> recibe <code>IRoomManager</code>. Todo depende de <b>abstracciones</b>, y las abstracciones se inyectan.</blockquote>
+      </div>
+    </section>
+
+    <!-- ============ 15. RESULTADO ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Impacto en el proyecto</div>
+        <h2>¿Qué logró aplicar POO + SOLID?</h2>
+        <div class="grid g2" style="margin-top:22px;">
+          <div class="card"><div class="ico">🧩</div><h4>Refactor SRP medible</h4><p><code>AdminService</code> pasó de concentrar todo el panel a ser una <b>fachada</b> sobre 4 servicios cohesivos.</p></div>
+          <div class="card"><div class="ico">🔁</div><h4>Inversión de dependencias real</h4><p><code>LeaderboardService</code>, <code>AdminService</code> y <code>RoomManager</code> ya no crean su propia capa de datos: la reciben por constructor (D).</p></div>
+          <div class="card"><div class="ico">🛡️</div><h4>Estado protegido</h4><p><code>GameRoom</code> y <code>GameEngine</code> encapsulan turnos, mazo y temporizador: el socket no puede corromper el estado (E).</p></div>
+          <div class="card"><div class="ico">🧪</div><h4>Fácil de probar y cambiar</h4><p>12 tests en <b>Vitest</b> cubren el motor y la evolución. Al depender de interfaces, los servicios se testean con dobles (D, I).</p></div>
+        </div>
+        <blockquote style="margin-top:22px;"><b>En una frase:</b> los 4 pilares definen <i>cómo</i> se modela el dominio (GameRoom, estrategias, entidades), y SOLID define <i>cómo</i> se conectan las capas para que el juego crezca sin volver el código un laberinto.</blockquote>
+      </div>
+    </section>
+
+    <!-- ============ 16. MAPA GENERAL ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Resumen</div>
+        <h2>Mapa del código</h2>
+        <div class="grid g2" style="margin-top:18px;">
+          <div class="card">
+            <h4>Los 4 Pilares</h4>
+            <ul class="clean" style="margin-top:6px;">
+              <li><b>Abstracción</b> → <code>IRepository</code>, <code>IServices</code>, <code>IGameModeStrategy</code> (core/interfaces)</li>
+              <li><b>Encapsulamiento</b> → <code>GameRoom</code> (<code>private players/gameState</code>), <code>GameEngine</code> (turnTimer, evaluating)</li>
+              <li><b>Herencia</b> → <code>GameRoom extends BaseEntity</code>; <code>BaseService</code>, <code>BaseRepository</code></li>
+              <li><b>Polimorfismo</b> → <code>IGameModeStrategy</code> + 7 estrategias vía <code>GameModeFactory</code></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>SOLID</h4>
+            <ul class="clean" style="margin-top:6px;">
+              <li><b>S</b> → 1 servicio = 1 responsabilidad; <code>AdminService</code> → 4 servicios</li>
+              <li><b>O</b> → <code>GameModeFactory.registerStrategy()</code> añade modos sin tocar el motor</li>
+              <li><b>L</b> → las 7 estrategias sustituyen a <code>BaseGameModeStrategy</code>; repos tras su interfaz</li>
+              <li><b>I</b> → <code>IRead/IWrite/ICrud</code> + <code>IAdminLogRepository</code>/<code>IInventoryRepository</code>/<code>IRoomRepository</code></li>
+              <li><b>D</b> → <code>Container</code> inyecta interfaces; servicios sin Prisma, motor sin Socket.IO</li>
+            </ul>
+          </div>
+        </div>
+        <p class="sub">Archivos clave: <span class="pill">backend/src/core/interfaces/IRepository.ts</span><span class="pill">backend/src/core/BaseEntity.ts</span><span class="pill">backend/src/engine/GameEngine.ts</span><span class="pill">backend/src/models/strategies/GameModeStrategy.ts</span><span class="pill">backend/src/Container.ts</span><span class="pill">backend/src/services/AdminService.ts</span></p>
+      </div>
+    </section>
+
+    <!-- ============ 17. DIAGRAMA DE CLASES ============ -->
+    <section class="slide">
+      <div class="slide-inner">
+        <div class="kicker">Anexo · UML</div>
+        <h2>Mapa de Clases — Memorize Evolutivo</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button onclick="openDiagram('diagrama-clases.html')" class="navbtn" style="font-size:14px;">📊 Abrir diagrama completo (interactivo)</button>
+          <button onclick="openDiagram('exposicion-poo-solid.html#diagram-help')" class="navbtn" style="display:none;"></button>
+        </div>
+        <div class="grid g3" style="margin-top:18px;">
+          <div class="card">
+            <span class="tag pilar">CLASES BASE → ENTIDADES</span>
+            <div class="minidiag">
+              <div class="box"><b>BaseEntity</b> <span style="color:#64748b;">&lt;&lt;abstract&gt;&gt;</span><br><i>#id #createdAt #_updatedAt</i><br>+toJSON()</div>
+              <div class="rel">◁─ hereda</div>
+              <div class="box" style="border-left:3px solid var(--violet);"><b style="color:var(--cyan);">GameRoom</b> · <b>User</b> · <b>Match</b><br><i>-players -gameState -strategy</i><br>+flipCard() +checkMatch()</div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="tag pilar">INTERFACES (CONTRATOS)</span>
+            <p style="margin-top:8px; font-size:13px; line-height:2; font-family:Consolas,monospace; color:#cbd5e1;">
+            &lt;&lt;interface&gt;&gt; <b>IRepository</b> (Read/Write/Crud)<br>
+            &lt;&lt;interface&gt;&gt; <b>IRoomRepository</b> · <b>IInventoryRepository</b><br>
+            &lt;&lt;interface&gt;&gt; <b>IServices</b> · <b>IUserService</b> · <b>IRoomManager</b><br>
+            &lt;&lt;interface&gt;&gt; <b>IAnalyticsRepository</b><br>
+            &lt;&lt;interface&gt;&gt; <b>IGameModeStrategy</b></p>
+          </div>
+          <div class="card">
+            <span class="tag solid">MOTOR &amp; ESTRATEGIAS</span>
+            <p style="margin-top:8px; font-size:13px; line-height:2; font-family:Consolas,monospace; color:#cbd5e1;">
+            <b>GameModeFactory</b> → 7 × <b>BaseGameModeStrategy</b><br>
+            <b>GameEngine</b> · <b>RoomCommandHandler</b><br>
+            <b>TurnTimer</b> · <b>DeckGenerator</b><br>
+            <b>RoomManager</b> &lt;&lt;singleton&gt;&gt; · <b>SocketManager</b></p>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <h4 style="margin-top:0;">Relaciones principales</h4>
+          <div class="legend-row" style="font-size:12.5px; color:#cbd5e1; line-height:1.9;">
+            <span><b style="color:var(--amber);">Composición (♦):</b> <code>GameRoom</code> posee <code>Player[]</code> y su mazo/gameState.</span><br>
+            <span><b style="color:var(--pink);">Polimorfismo (..►):</b> <code>GameRoom.strategy: IGameModeStrategy</code> → 7 estrategias sustituibles vía <code>GameModeFactory</code>.</span><br>
+            <span><b style="color:var(--green);">Dependencia (..►):</b> <code>GameEngine</code> depende de <code>IRoomManager</code>; <code>SocketManager</code> de <code>IRoomManager</code>/<code>IMatchService</code>.</span><br>
+            <span><b style="color:var(--amber);">Herencia (◁):</b> <code>BaseEntity</code>, <code>BaseService</code>, <code>BaseRepository</code>, <code>BaseController</code> y <code>BaseGameModeStrategy</code>.</span>
+          </div>
+        </div>
+        <p class="sub" style="font-size:12.5px; margin-top:12px;">Nota: el diagrama UML documenta el módulo Multijugador + Motor del backend. El frontend React consume esa API por <code>socketBus</code> y <code>api.ts</code>, pero no define las entidades de dominio.</p>
+      </div>
+    </section>
+
+    <!-- ============ 18. GRACIAS ============ -->
+    <section class="slide">
+      <div class="slide-inner" style="text-align:center;">
+        <div class="kicker">Cierre</div>
+        <h1 style="font-size:clamp(34px,5vw,60px);">Gracias</h1>
+        <p class="lead" style="margin:20px auto; max-width:60ch;">Los 4 pilares y SOLID <b>ya están aplicados</b> en <b>Memorize Evolutivo</b>: modelado de objetos, protección de estado, reutilización y arquitectura extensible.</p>
+        <blockquote style="max-width:60ch; margin:22px auto; text-align:left;">«La diferencia entre un programa que funciona y un sistema que evoluciona está en la calidad de sus abstracciones.»</blockquote>
+        <p class="sub" style="margin-top:26px;">¿Preguntas?</p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="controls">
+    <button class="navbtn" id="prev">← Anterior</button>
+    <button class="navbtn" id="next">Siguiente →</button>
+    <div class="dots" id="dots"></div>
+    <div class="hint">Navega con ← / → · espacio · o clic en los puntos</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+  const counter = document.getElementById('counter');
+  let current = 0;
+  let visited = new Set([0]);
+
+  const dots = slides.map((_, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot';
+    b.title = 'Diapositiva ' + (i + 1);
+    b.addEventListener('click', () => go(i));
+    dotsWrap.appendChild(b);
+    return b;
+  });
+
+  function go(i) {
+    if (i < 0) i = 0;
+    if (i >= slides.length) i = slides.length - 1;
+    slides[current].classList.remove('active');
+    current = i;
+    visited.add(i);
+    slides[current].classList.add('active');
+    update();
+  }
+  function update() {
+    dots.forEach((d, i) => {
+      d.classList.toggle('on', i === current);
+      d.classList.toggle('seen', visited.has(i) && i !== current);
+    });
+    prev.disabled = current === 0;
+    next.disabled = current === slides.length - 1;
+    counter.textContent = (current + 1) + ' / ' + slides.length;
+  }
+  prev.addEventListener('click', () => go(current - 1));
+  next.addEventListener('click', () => go(current + 1));
+
+  window.openDiagram = (file) => { window.open(file, '_blank'); };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(current - 1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
