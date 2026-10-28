@@ -184,15 +184,19 @@ export class UserService extends BaseService implements IUserService {
       const levelsGained = user.addXp(gameData.xpEarned);
       user.addCoins(gameData.coinsEarned);
 
-      // Guardar cambios
-      const [updatedUser, updatedStats] = await Promise.all([
-        this.userRepository.update(userId, {
+      // Guardar cambios en UNA transacción ACID (todo o nada):
+      // antes era Promise.all con 2 transacciones separadas — si fallaba
+      // la segunda, la primera ya quedaba guardada. Ahora si algo falla,
+      // Prisma deshace ambas automáticamente (atomicidad).
+      const [updatedUser, updatedStats] = await this.userRepository.transaction(async (tx) => {
+        const u = await this.userRepository.update(userId, {
           xp: user.xp,
           level: user.level,
           coins: user.coins,
-        }),
-        this.statsRepository.update(stats.id, stats.toJSON()),
-      ]);
+        }, tx);
+        const s = await this.statsRepository.update(stats.id, stats.toJSON(), tx);
+        return [u, s] as const;
+      });
 
       this.log(`Partida registrada. Niveles ganados: ${levelsGained}`);
 

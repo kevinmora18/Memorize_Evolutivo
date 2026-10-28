@@ -1,13 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/AuthService';
+import { loginSchema, registerSchema } from '../core/validation/schemas';
+import { ValidationError } from '../core/errors/AppError';
 
 /**
  * AuthController - Controlador para rutas de autenticación
- * 
+ *
  * EXPLICACIÓN POO:
  * - SRP: Solo maneja peticiones HTTP de autenticación
  * - DEPENDENCY INJECTION: Recibe el servicio como dependencia
  * - SEPARACIÓN DE RESPONSABILIDADES: No contiene lógica de negocio
+ *
+ * SEGURIDAD:
+ * - Validación de entrada con zod antes de tocar el servicio
+ * - Los errores tipados (AppError) los serializa el middleware global
  */
 export class AuthController {
   private authService: AuthService;
@@ -17,27 +23,44 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/register
+   * Crear cuenta con email + contraseña
+   */
+  register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw new ValidationError(parsed.error.issues[0]?.message || 'Datos inválidos');
+      }
+
+      const { user, token } = await this.authService.register(
+        parsed.data.email,
+        parsed.data.password,
+        parsed.data.username
+      );
+
+      res.status(201).json({ token, user: user.toJSON() });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * POST /api/auth/login
-   * Login o registro automático
+   * Iniciar sesión con email + contraseña
    */
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { email } = req.body;
-
-      if (!email || !email.includes('@')) {
-        res.status(400).json({ error: 'Email válido requerido' });
-        return;
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw new ValidationError(parsed.error.issues[0]?.message || 'Datos inválidos');
       }
 
-      const user = await this.authService.loginOrRegister(email);
+      const { user, token } = await this.authService.login(parsed.data.email, parsed.data.password);
 
-      res.json(user.toJSON());
-    } catch (error: any) {
-      if (error.message.includes('baneado')) {
-        res.status(403).json({ error: error.message });
-      } else {
-        next(error);
-      }
+      res.json({ token, user: user.toJSON() });
+    } catch (error) {
+      next(error);
     }
   };
 

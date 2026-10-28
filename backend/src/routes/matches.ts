@@ -1,69 +1,92 @@
 import { Router } from 'express';
 import { prisma } from '../index';
+import { requireAuth } from '../core/middleware/auth';
 
 const router = Router();
 
-// POST /api/matches - Guardar resultado de partida
-router.post('/', async (req, res) => {
+const ALLOWED_MODES = ['classic', 'infinite', 'challenge', 'boss', 'multiplayer', 'ai-friends'];
+
+/**
+ * POST /api/matches - Guardar resultado de partida
+ * SEGURIDAD: requiere token; el userId SIEMPRE se toma del token (no del body)
+ * y los valores numéricos se limitan a rangos razonables.
+ */
+router.post('/', requireAuth, async (req, res) => {
   try {
-    const { userId, mode, level, score, accuracy, combo, timeLeft, won } = req.body;
+    const userId = req.auth!.userId;
+    const { mode, level, score, accuracy, combo, timeLeft, won } = req.body;
+
+    if (!ALLOWED_MODES.includes(mode)) {
+      return res.status(400).json({ error: 'Modo de juego inválido' });
+    }
+
+    const asNumber = (value: unknown, min: number, max: number): number => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return min;
+      return Math.min(Math.max(parsed, min), max);
+    };
+
+    const safeScore = asNumber(score, 0, 100_000);
+    const safeLevel = asNumber(level, 1, 9999);
+    const safeAccuracy = asNumber(accuracy, 0, 100);
+    const safeCombo = asNumber(combo, 0, 1000);
+    const safeTimeLeft = asNumber(timeLeft, 0, 60 * 60 * 24);
+    const safeWon = won === true;
 
     // Crear partida
     const match = await prisma.match.create({
       data: {
         userId,
         mode,
-        level,
-        score,
-        accuracy,
-        combo,
-        timeLeft,
-        won,
+        level: safeLevel,
+        score: safeScore,
+        accuracy: safeAccuracy,
+        combo: safeCombo,
+        timeLeft: safeTimeLeft,
+        won: safeWon,
       },
     });
 
-    // Actualizar estadísticas del usuario
-    const stats = await prisma.playerStats.findUnique({
+    // Actualizar estadísticas del usuario (upsert atómico evita race conditions)
+    await prisma.playerStats.upsert({
       where: { userId },
+      create: {
+        userId,
+        gamesPlayed: 1,
+        gamesWon: safeWon ? 1 : 0,
+        totalScore: safeScore,
+        bestScore: safeScore,
+        totalMatches: 1,
+        maxCombo: safeCombo,
+      },
+      update: {
+        gamesPlayed: { increment: 1 },
+        gamesWon: { increment: safeWon ? 1 : 0 },
+        totalScore: { increment: safeScore },
+        totalMatches: { increment: 1 },
+      },
     });
 
-    if (stats) {
-      await prisma.playerStats.update({
-        where: { userId },
-        data: {
-          gamesPlayed: stats.gamesPlayed + 1,
-          gamesWon: won ? stats.gamesWon + 1 : stats.gamesWon,
-          totalScore: stats.totalScore + score,
-          bestScore: score > stats.bestScore ? score : stats.bestScore,
-          totalMatches: stats.totalMatches + 1,
-          maxCombo: combo && combo > stats.maxCombo ? combo : stats.maxCombo,
-        },
-      });
-    }
+    // bestScore y maxCombo solo pueden subir (GREATEST atómico en la BD)
+    await prisma.$executeRaw`
+      UPDATE "player_stats"
+      SET "bestScore" = GREATEST("bestScore", ${safeScore}),
+          "maxCombo" = GREATEST("maxCombo", ${safeCombo})
+      WHERE "userId" = ${userId}
+    `;
 
-    // Calcular recompensas
-    const xpGained = calculateXP(mode, score, won);
-    const coinsGained = calculateCoins(mode, score, won);
+    // Recompensas calculadas en servidor
+    const xpGained = calculateXP(mode, safeScore, safeWon);
+    const coinsGained = calculateCoins(mode, safeScore, safeWon);
 
-    // Actualizar usuario
-    const user = await prisma.user.findUnique({
+    // Acreditar XP/monedas de forma atómica
+    await prisma.user.update({
       where: { id: userId },
+      data: {
+        xp: { increment: xpGained },
+        coins: { increment: coinsGained },
+      },
     });
-
-    if (user) {
-      const newXP = user.xp + xpGained;
-      const newLevel = Math.floor(Math.sqrt(newXP / 100));
-      const newCoins = user.coins + coinsGained;
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          xp: newXP,
-          level: newLevel,
-          coins: newCoins,
-        },
-      });
-    }
 
     res.json({
       match,

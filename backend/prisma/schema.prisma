@@ -22,6 +22,7 @@ model User {
   bannedUntil                                       DateTime?
   isBanned                                          Boolean               @default(false)
   deletedAt                                         DateTime?
+  passwordHash                                      String?
   adminLogs                                         AdminLog[]
   boss_defeats                                      boss_defeats[]
   friend_requests_friend_requests_receiverIdTousers friend_requests[]     @relation("friend_requests_receiverIdTousers")

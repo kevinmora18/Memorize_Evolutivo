@@ -438,7 +438,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
   
   // Equipped items
   const [equippedPack, setEquippedPack] = useState<string>(() => {
-    return localStorage.getItem('equippedPack') || 'frutas';
+    return localStorage.getItem('equippedPack') || 'archivo';
   });
   const [equippedFrame, setEquippedFrame] = useState<string>(() => {
     return localStorage.getItem('equippedFrame') || 'basic';
@@ -591,7 +591,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
     <div 
       className="min-h-screen text-white p-8 relative overflow-hidden"
       style={{
-        backgroundImage: "url('/fonlobby.png')",
+        backgroundImage: "url('/classic/map-hero-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

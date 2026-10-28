@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Container } from '../Container';
+import { requireAdmin, requireSelfOrAdmin } from '../core/middleware/auth';
 
 /**
  * User Routes - Usando arquitectura POO
@@ -9,6 +10,10 @@ import { Container } from '../Container';
  * - El controlador maneja HTTP
  * - El servicio maneja lógica de negocio
  * - Los repositorios manejan datos
+ *
+ * SEGURIDAD:
+ * - Mutaciones de economía/XP solo para admin
+ * - game-result solo para el dueño del perfil (o admin)
  */
 
 const router = Router();
@@ -19,22 +24,22 @@ const userController = container.userController;
 router.get('/top', userController.getTopPlayers);
 
 // GET /api/users/banned - Usuarios baneados (solo admin)
-router.get('/banned', userController.getBannedUsers);
+router.get('/banned', requireAdmin, userController.getBannedUsers);
 
 // GET /api/users/:userId - Obtener perfil
 router.get('/:userId', userController.getProfile);
 
-// POST /api/users/:userId/xp - Añadir XP
-router.post('/:userId/xp', userController.addXp);
+// POST /api/users/:userId/xp - Añadir XP (solo admin)
+router.post('/:userId/xp', requireAdmin, userController.addXp);
 
-// PUT /api/users/:userId/currency - Actualizar monedas/gemas
-router.put('/:userId/currency', userController.updateCurrency);
+// PUT /api/users/:userId/currency - Actualizar monedas/gemas (solo admin)
+router.put('/:userId/currency', requireAdmin, userController.updateCurrency);
 
-// POST /api/users/:userId/reward - Dar recompensa
-router.post('/:userId/reward', userController.rewardCoins);
+// POST /api/users/:userId/reward - Dar recompensa (solo admin)
+router.post('/:userId/reward', requireAdmin, userController.rewardCoins);
 
-// POST /api/users/:userId/game-result - Registrar resultado de partida
-router.post('/:userId/game-result', userController.recordGame);
+// POST /api/users/:userId/game-result - Registrar resultado de partida (dueño del perfil)
+router.post('/:userId/game-result', requireSelfOrAdmin, userController.recordGame);
 
 // GET /api/users/:userId/achievements - Obtener logros
 router.get('/:userId/achievements', userController.getAchievements);
@@ -43,9 +48,9 @@ router.get('/:userId/achievements', userController.getAchievements);
 router.get('/:userId/ranking', userController.getRanking);
 
 // POST /api/users/:userId/ban - Banear usuario (admin)
-router.post('/:userId/ban', userController.banUser);
+router.post('/:userId/ban', requireAdmin, userController.banUser);
 
 // POST /api/users/:userId/unban - Desbanear usuario (admin)
-router.post('/:userId/unban', userController.unbanUser);
+router.post('/:userId/unban', requireAdmin, userController.unbanUser);
 
 export default router;

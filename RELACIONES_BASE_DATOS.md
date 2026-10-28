@@ -199,11 +199,11 @@ User ────────── UserAchievements ─────────
 3. Pégalo en el editor
 4. El diagrama se generará automáticamente
 
-### Regenerar el schema de Prisma:
+### Regenerar el cliente de Prisma:
 ```bash
 cd backend
 npx prisma generate
-npx prisma db push
+npm run prisma:deploy   # Aplicar migraciones versionadas
 ```
 
 ---

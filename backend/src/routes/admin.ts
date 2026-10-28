@@ -1,32 +1,16 @@
 import { Router } from 'express';
 import { prisma } from '../index';
+import { requireAdmin } from '../core/middleware/auth';
+import { clampLimit, clampPage } from '../core/validation/schemas';
 
 const router = Router();
 
-// Middleware para verificar rol de admin
-const requireAdmin = async (req: any, res: any, next: any) => {
-  try {
-    const { adminId } = req.body;
+// Todas las rutas de admin exigen JWT con rol admin.
+// La identidad se toma del token firmado, NUNCA del body (evita suplantación).
+router.use(requireAdmin);
 
-    if (!adminId) {
-      return res.status(401).json({ error: 'ID de administrador requerido' });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: adminId },
-    });
-
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acceso denegado: se requiere rol de administrador' });
-    }
-
-    req.admin = user;
-    next();
-  } catch (error) {
-    console.error('Error verificando admin:', error);
-    res.status(500).json({ error: 'Error en el servidor' });
-  }
-};
+// Helper: id del admin autenticado (para logs de auditoría)
+const getAdminId = (req: any): string => req.auth?.userId;
 
 // ============================================
 // GESTIÓN DE USUARIOS
@@ -35,9 +19,11 @@ const requireAdmin = async (req: any, res: any, next: any) => {
 // GET /api/admin/users - Listar todos los usuarios
 router.get('/users', async (req, res) => {
   try {
-    const { page = 1, limit = 50, search, role, banned } = req.query;
+    const { search, role, banned } = req.query;
+    const page = clampPage(req.query.page);
+    const limit = clampLimit(req.query.limit, 50, 100);
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const skip = (page - 1) * limit;
     const where: any = {};
 
     // Filtro de búsqueda
@@ -62,7 +48,7 @@ router.get('/users', async (req, res) => {
       prisma.user.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           stats: true,
@@ -78,9 +64,9 @@ router.get('/users', async (req, res) => {
       users,
       pagination: {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit)),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -121,10 +107,11 @@ router.get('/users/:id', async (req, res) => {
 });
 
 // PUT /api/admin/users/:id/role - Cambiar rol de usuario
-router.put('/users/:id/role', requireAdmin, async (req, res) => {
+router.put('/users/:id/role', async (req, res) => {
   try {
     const { id } = req.params;
-    const { role, adminId } = req.body;
+    const { role } = req.body;
+    const adminId = getAdminId(req);
 
     if (!['player', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Rol inválido' });
@@ -153,10 +140,11 @@ router.put('/users/:id/role', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:id/currency - Modificar monedas/gemas
-router.put('/users/:id/currency', requireAdmin, async (req, res) => {
+router.put('/users/:id/currency', async (req, res) => {
   try {
     const { id } = req.params;
-    const { coins, gems, adminId } = req.body;
+    const { coins, gems } = req.body;
+    const adminId = getAdminId(req);
 
     const user = await prisma.user.update({
       where: { id },
@@ -184,10 +172,11 @@ router.put('/users/:id/currency', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:id/ban - Banear usuario
-router.put('/users/:id/ban', requireAdmin, async (req, res) => {
+router.put('/users/:id/ban', async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason, duration, adminId } = req.body; // duration en horas, null = permanente
+    const { reason, duration } = req.body; // duration en horas, null = permanente
+    const adminId = getAdminId(req);
 
     let bannedUntil = null;
     if (duration) {
@@ -222,10 +211,10 @@ router.put('/users/:id/ban', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:id/unban - Desbanear usuario
-router.put('/users/:id/unban', requireAdmin, async (req, res) => {
+router.put('/users/:id/unban', async (req, res) => {
   try {
     const { id } = req.params;
-    const { adminId } = req.body;
+    const adminId = getAdminId(req);
 
     const user = await prisma.user.update({
       where: { id },
@@ -254,10 +243,10 @@ router.put('/users/:id/unban', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/admin/users/:id - Eliminar usuario
-router.delete('/users/:id', requireAdmin, async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { adminId } = req.body;
+    const adminId = getAdminId(req);
 
     await prisma.user.delete({
       where: { id },
@@ -345,9 +334,11 @@ router.get('/stats', async (req, res) => {
 // GET /api/admin/matches - Listar todas las partidas
 router.get('/matches', async (req, res) => {
   try {
-    const { page = 1, limit = 50, mode, userId } = req.query;
+    const { mode, userId } = req.query;
+    const page = clampPage(req.query.page);
+    const limit = clampLimit(req.query.limit, 50, 100);
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const skip = (page - 1) * limit;
     const where: any = {};
 
     if (mode) {
@@ -362,7 +353,7 @@ router.get('/matches', async (req, res) => {
       prisma.match.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
@@ -382,9 +373,9 @@ router.get('/matches', async (req, res) => {
       matches,
       pagination: {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit)),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -430,9 +421,10 @@ router.get('/announcements', async (req, res) => {
 });
 
 // POST /api/admin/announcements - Crear anuncio
-router.post('/announcements', requireAdmin, async (req, res) => {
+router.post('/announcements', async (req, res) => {
   try {
-    const { title, message, type, expiresAt, adminId } = req.body;
+    const { title, message, type, expiresAt } = req.body;
+    const adminId = getAdminId(req);
 
     if (!title || !message) {
       return res.status(400).json({ error: 'Título y mensaje requeridos' });
@@ -466,7 +458,7 @@ router.post('/announcements', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/announcements/:id/toggle - Activar/desactivar anuncio
-router.put('/announcements/:id/toggle', requireAdmin, async (req, res) => {
+router.put('/announcements/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -484,7 +476,7 @@ router.put('/announcements/:id/toggle', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/admin/announcements/:id - Eliminar anuncio
-router.delete('/announcements/:id', requireAdmin, async (req, res) => {
+router.delete('/announcements/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -518,9 +510,10 @@ router.get('/promotions', async (req, res) => {
 });
 
 // POST /api/admin/promotions - Crear promoción
-router.post('/promotions', requireAdmin, async (req, res) => {
+router.post('/promotions', async (req, res) => {
   try {
-    const { name, description, type, value, startDate, endDate, adminId } = req.body;
+    const { name, description, type, value, startDate, endDate } = req.body;
+    const adminId = getAdminId(req);
 
     if (!name || !type || !value || !endDate) {
       return res.status(400).json({ error: 'Datos incompletos' });
@@ -556,7 +549,7 @@ router.post('/promotions', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/admin/promotions/:id - Eliminar promoción
-router.delete('/promotions/:id', requireAdmin, async (req, res) => {
+router.delete('/promotions/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -679,9 +672,10 @@ router.get('/analytics', async (req, res) => {
 // ============================================
 
 // POST /api/admin/give-currency-all - Dar monedas/gemas a todos los usuarios
-router.post('/give-currency-all', requireAdmin, async (req, res) => {
+router.post('/give-currency-all', async (req, res) => {
   try {
-    const { coins, gems, adminId } = req.body;
+    const { coins, gems } = req.body;
+    const adminId = getAdminId(req);
 
     if (!coins && !gems) {
       return res.status(400).json({ error: 'Debe especificar coins o gems' });
@@ -721,9 +715,11 @@ router.post('/give-currency-all', requireAdmin, async (req, res) => {
 // GET /api/admin/logs - Obtener logs administrativos
 router.get('/logs', async (req, res) => {
   try {
-    const { page = 1, limit = 50, action, adminId } = req.query;
+    const { action, adminId } = req.query;
+    const page = clampPage(req.query.page);
+    const limit = clampLimit(req.query.limit, 50, 100);
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const skip = (page - 1) * limit;
     const where: any = {};
 
     if (action) {
@@ -738,7 +734,7 @@ router.get('/logs', async (req, res) => {
       prisma.adminLog.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           admin: {
@@ -757,9 +753,9 @@ router.get('/logs', async (req, res) => {
       logs,
       pagination: {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit)),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {

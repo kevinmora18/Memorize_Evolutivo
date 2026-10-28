@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users, Trophy, BarChart3, Trash2, Shield, Coins, Gem, Ban, Megaphone, TrendingUp, Gift } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -85,7 +86,6 @@ interface Analytics {
 }
 
 export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
-  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5175';
   const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'matches' | 'bans' | 'announcements' | 'economy' | 'analytics'>('stats');
   const [users, setUsers] = useState<User[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -104,26 +104,44 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     setLoading(true);
     try {
       if (activeTab === 'users') {
-        const res = await fetch(`${API_BASE}/api/admin/users`);
-        if (res.ok) setUsers(await res.json());
+        const data = await apiFetch<any>('/api/admin/users');
+        setUsers(Array.isArray(data) ? data : (data.users ?? []));
       } else if (activeTab === 'matches') {
-        const res = await fetch(`${API_BASE}/api/admin/matches`);
-        if (res.ok) setMatches(await res.json());
+        const data = await apiFetch<any>('/api/admin/matches');
+        setMatches(Array.isArray(data) ? data : (data.matches ?? []));
       } else if (activeTab === 'stats') {
-        const res = await fetch(`${API_BASE}/api/admin/stats`);
-        if (res.ok) setStats(await res.json());
+        const data = await apiFetch<any>('/api/admin/stats');
+        // El backend devuelve { overview, matchesByMode, topPlayers };
+        // adaptarlo a lo que renderiza StatsTab.
+        setStats({
+          totalUsers: data.totalUsers ?? data.overview?.totalUsers ?? 0,
+          totalMatches: data.totalMatches ?? data.overview?.totalMatches ?? 0,
+          totalGamesWon: data.totalGamesWon ?? data.overview?.activeUsers ?? 0,
+          avgScore: data.avgScore ?? 0,
+          topScores: data.topScores ?? (data.topPlayers ?? []).map((u: any) => ({
+            score: u.xp ?? 0,
+            mode: 'xp',
+            user: { username: u.username, email: u.email },
+          })),
+        });
       } else if (activeTab === 'bans') {
-        const res = await fetch(`${API_BASE}/api/admin/banned-users`);
-        if (res.ok) setBannedUsers(await res.json());
+        setBannedUsers(await apiFetch<any>('/api/admin/banned-users'));
       } else if (activeTab === 'announcements') {
-        const res = await fetch(`${API_BASE}/api/admin/announcements`);
-        if (res.ok) setAnnouncements(await res.json());
+        setAnnouncements(await apiFetch<any>('/api/admin/announcements'));
       } else if (activeTab === 'economy') {
-        const res = await fetch(`${API_BASE}/api/admin/promotions`);
-        if (res.ok) setPromotions(await res.json());
+        setPromotions(await apiFetch<any>('/api/admin/promotions'));
       } else if (activeTab === 'analytics') {
-        const res = await fetch(`${API_BASE}/api/admin/analytics`);
-        if (res.ok) setAnalytics(await res.json());
+        const data = await apiFetch<any>('/api/admin/analytics');
+        // El backend devuelve { metrics, modeDistribution };
+        // adaptarlo a lo que renderiza AnalyticsTab.
+        setAnalytics({
+          activeUsersCount: data.activeUsersCount ?? data.metrics?.activeUsers ?? 0,
+          modeStats: data.modeStats ?? (data.modeDistribution ?? []).map((m: any) => ({
+            mode: m.mode,
+            _count: { mode: m._count?.mode ?? 0 },
+          })),
+          usersPerDay: data.usersPerDay ?? [],
+        });
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -135,13 +153,9 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        alert('Usuario eliminado');
-        loadData();
-      }
+      await apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      alert('Usuario eliminado');
+      loadData();
     } catch (error) {
       console.error('Error deleting user:', error);
     }
@@ -151,15 +165,12 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     const newRole = currentRole === 'admin' ? 'player' : 'admin';
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
+      await apiFetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
       });
-      if (res.ok) {
-        alert(`Rol actualizado a ${newRole}`);
-        loadData();
-      }
+      alert(`Rol actualizado a ${newRole}`);
+      loadData();
     } catch (error) {
       console.error('Error updating role:', error);
     }
@@ -172,18 +183,15 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     if (coins === null && gems === null) return;
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/currency`, {
+      await apiFetch(`/api/admin/users/${userId}/currency`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           coins: coins ? parseInt(coins) : undefined,
           gems: gems ? parseInt(gems) : undefined
         })
       });
-      if (res.ok) {
-        alert('Monedas actualizadas');
-        loadData();
-      }
+      alert('Monedas actualizadas');
+      loadData();
     } catch (error) {
       console.error('Error updating currency:', error);
     }
@@ -196,18 +204,15 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     const duration = prompt('Duración en días (dejar vacío para permanente):');
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/ban`, {
+      await apiFetch(`/api/admin/users/${userId}/ban`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           reason,
           duration: duration ? parseInt(duration) : null
         })
       });
-      if (res.ok) {
-        alert('Usuario baneado');
-        loadData();
-      }
+      alert('Usuario baneado');
+      loadData();
     } catch (error) {
       console.error('Error banning user:', error);
     }
@@ -217,13 +222,9 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     if (!confirm('¿Desbanear este usuario?')) return;
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/unban`, {
-        method: 'PUT'
-      });
-      if (res.ok) {
-        alert('Usuario desbaneado');
-        loadData();
-      }
+      await apiFetch(`/api/admin/users/${userId}/unban`, { method: 'PUT' });
+      alert('Usuario desbaneado');
+      loadData();
     } catch (error) {
       console.error('Error unbanning user:', error);
     }
@@ -239,15 +240,12 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     const type = prompt('Tipo (info/warning/success/error):', 'info');
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/announcements`, {
+      await apiFetch('/api/admin/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, message, type })
       });
-      if (res.ok) {
-        alert('Anuncio creado');
-        loadData();
-      }
+      alert('Anuncio creado');
+      loadData();
     } catch (error) {
       console.error('Error creating announcement:', error);
     }
@@ -257,26 +255,21 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     if (!confirm('¿Eliminar este anuncio?')) return;
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        alert('Anuncio eliminado');
-        loadData();
-      }
+      await apiFetch(`/api/admin/announcements/${id}`, { method: 'DELETE' });
+      alert('Anuncio eliminado');
+      loadData();
     } catch (error) {
       console.error('Error deleting announcement:', error);
     }
   };
 
-  const handleToggleAnnouncement = async (id: string) => {
+  const handleToggleAnnouncement = async (id: string, currentIsActive?: boolean) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/announcements/${id}/toggle`, {
-        method: 'PUT'
+      await apiFetch(`/api/admin/announcements/${id}/toggle`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive: currentIsActive === undefined ? true : !currentIsActive })
       });
-      if (res.ok) {
-        loadData();
-      }
+      loadData();
     } catch (error) {
       console.error('Error toggling announcement:', error);
     }
@@ -291,17 +284,14 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     if (!confirm(`¿Regalar ${coins || 0} monedas y ${gems || 0} gemas a TODOS los usuarios?`)) return;
     
     try {
-      const res = await fetch(`${API_BASE}/api/admin/give-currency-all`, {
+      await apiFetch('/api/admin/give-currency-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           coins: coins ? parseInt(coins) : undefined,
           gems: gems ? parseInt(gems) : undefined
         })
       });
-      if (res.ok) {
-        alert('¡Monedas regaladas a todos!');
-      }
+      alert('¡Monedas regaladas a todos!');
     } catch (error) {
       console.error('Error giving currency:', error);
     }
@@ -311,7 +301,7 @@ export function AdminPanel({ onBack, currentUserId }: AdminPanelProps) {
     <div 
       className="min-h-screen text-white p-8 relative overflow-hidden"
       style={{
-        backgroundImage: "url('/fonlobby.png')",
+        backgroundImage: "url('/classic/map-hero-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -614,7 +604,7 @@ function AnnouncementsTab({ announcements, onCreate, onDelete, onToggle }: any) 
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => onToggle(announcement.id)}
+                  onClick={() => onToggle(announcement.id, announcement.isActive)}
                   className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded"
                 >
                   {announcement.isActive ? 'Desactivar' : 'Activar'}

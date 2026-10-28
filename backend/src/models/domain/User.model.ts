@@ -19,6 +19,7 @@ export interface IUser {
   isBanned: boolean;
   bannedUntil: Date | null;
   banReason: string | null;
+  passwordHash: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,10 @@ export class User implements IUser {
   isBanned: boolean;
   bannedUntil: Date | null;
   banReason: string | null;
+  /**
+   * Hash de contraseña (bcrypt). NUNCA se expone en toJSON().
+   */
+  passwordHash: string | null;
   readonly createdAt: Date;
   updatedAt: Date;
 
@@ -58,6 +63,7 @@ export class User implements IUser {
     this.isBanned = data.isBanned;
     this.bannedUntil = data.bannedUntil;
     this.banReason = data.banReason;
+    this.passwordHash = data.passwordHash ?? null;
     this.createdAt = data.createdAt;
     this.updatedAt = data.updatedAt;
   }
@@ -165,6 +171,13 @@ export class User implements IUser {
   }
 
   /**
+   * Verifica si el usuario tiene una contraseña configurada
+   */
+  hasPassword(): boolean {
+    return typeof this.passwordHash === 'string' && this.passwordHash.length > 0;
+  }
+
+  /**
    * Aplica un baneo al usuario
    * @param reason Razón del baneo
    * @param durationMinutes Duración en minutos (undefined para permanente)
@@ -215,9 +228,10 @@ export class User implements IUser {
   }
 
   /**
-   * Convierte a objeto plano (para enviar en respuestas)
+   * Convierte a objeto plano (para enviar en respuestas).
+   * IMPORTANTE: excluye passwordHash para no filtrar credenciales.
    */
-  toJSON(): IUser {
+  toJSON(): Omit<IUser, 'passwordHash'> {
     return {
       id: this.id,
       email: this.email,

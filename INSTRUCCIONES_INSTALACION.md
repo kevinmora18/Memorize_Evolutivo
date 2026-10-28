@@ -119,6 +119,12 @@ PORT=5175
 2. Cambiar `<TU_PASSWORD_LOCAL>` por tu contraseña
 3. Guardar el archivo
 
+**Generar JWT_SECRET (obligatorio, mínimo 16 caracteres):**
+```powershell
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+Copia el resultado en `JWT_SECRET=` dentro de `backend/.env`.
+
 ---
 
 ## 🚀 PASO 3: EJECUTAR MIGRACIONES
@@ -129,21 +135,19 @@ Una vez que PostgreSQL esté corriendo y la base de datos creada:
 # Navegar al backend
 cd backend
 
-# Sincronizar el schema con la base de datos
-npx prisma db push
+# Aplicar las migraciones versionadas
+npm run prisma:deploy
 
-# Verificar que las tablas se crearon correctamente
+# Verificar el estado y ver las tablas
+npx prisma migrate status
 npx prisma studio
 ```
 
-Esto creará las 7 tablas:
-- ✅ users
-- ✅ player_stats
-- ✅ inventories
-- ✅ matches
-- ✅ announcements
-- ✅ admin_logs
-- ✅ promotions
+Esto creará las 25 tablas del sistema (ver `backend/prisma/schema.prisma`), entre ellas:
+- ✅ users, player_stats, inventories, matches
+- ✅ achievements, leaderboard_entries, boss_defeats
+- ✅ rooms, room_players, friendships, notifications
+- ✅ shop_items, user_purchases, daily_missions, ...
 
 ---
 

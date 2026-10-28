@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "project": "Memorize Evolutivo — arte de cartas",
+  "rules": [
+    "No imitar artistas, franquicias ni estilos protegidos concretos.",
+    "Un único sujeto reconocible, composición centrada, sin texto ni bordes de carta.",
+    "Los marcos, rarezas, nombre y efectos se construyen en HTML/CSS, nunca dentro de la imagen.",
+    "Los reversos de carta se crean en SVG (CardBack), nunca con IA."
+  ],
+  "style": {
+    "base": "Stylized collectible card illustration, digital painting. {subject}. Centered single subject, high contrast, soft volumetric lighting, cinematic rim light, simple dark atmospheric background in {palette}, clean silhouette readable at small size, premium game art quality, square 1:1 composition. No text, no letters, no numbers, no logo, no watermark, no card border, no frame, no UI elements.",
+    "negative": "text, letters, numbers, logo, watermark, UI, card border, frame, collage, blurry subject, low contrast, duplicate objects, cropped subject, multiple subjects, busy background"
+  },
+  "palettes": {
+    "volcania": "obsidian blacks with magma-orange and ember-red light",
+    "frostheim": "glacier blues with teal aurora and pale violet light",
+    "neural": "deep teal darkness with turquoise synapse glow",
+    "verdalis": "deep forest darkness with emerald and cyan bio-luminescence",
+    "lunaris": "midnight violet darkness with soft lavender and star-white light",
+    "anomaly": "pitch blacks with volatile magenta and toxic violet containment glow"
+  },
+  "output": {
+    "masterDir": "art-source/cards",
+    "publicDir": "public/cards",
+    "sizes": [256, 512],
+    "formats": ["webp", "avif"]
+  },
+  "cards": [
+    {
+      "id": "vlc-01",
+      "slug": "vlc-01-nucleo-de-obsidiana",
+      "universe": "volcania",
+      "subject": "a floating obsidian core with glowing magma veins suspended inside a fractured black stone casing"
+    },
+    {
+      "id": "vlc-02",
+      "slug": "vlc-02-yunque-primigenio",
+      "universe": "volcania",
+      "subject": "an ancient volcanic anvil resting on scorched basalt, ember light glowing from hairline cracks"
+    },
+    {
+      "id": "vlc-03",
+      "slug": "vlc-03-hacha-del-magma",
+      "universe": "volcania",
+      "subject": "a heavy war axe with a blade forged from molten magma veins and dark volcanic rock"
+    },
+    {
+      "id": "vlc-04",
+      "slug": "vlc-04-salamandra-de-brasas",
+      "universe": "volcania",
+      "subject": "a salamander made of living embers and glowing coal scales, trailing sparks"
+    },
+    {
+      "id": "vlc-05",
+      "slug": "vlc-05-golem-de-escoria",
+      "universe": "volcania",
+      "subject": "a hulking slag golem assembled from volcanic rock with cooling lava seams between its plates"
+    },
+    {
+      "id": "vlc-06",
+      "slug": "vlc-06-fenix-de-ceniza",
+      "universe": "volcania",
+      "subject": "a phoenix reborn from grey ash and glowing embers, wings half-spread among drifting cinders"
+    },
+    {
+      "id": "vlc-07",
+      "slug": "vlc-07-corazon-del-volcan",
+      "universe": "volcania",
+      "subject": "a crystalline volcanic heart pulsing with molten lava, floating above cracked scorched stone"
+    },
+    {
+      "id": "vlc-08",
+      "slug": "vlc-08-senor-de-la-forja",
+      "universe": "volcania",
+      "subject": "a regal forge lord wearing a crown of molten iron, sovereign of the volcano, surrounded by flying sparks"
+    },
+    {
+      "id": "frs-01",
+      "slug": "frs-01-cristal-de-escarcha",
+      "universe": "frostheim",
+      "subject": "a single tall frost crystal growing from dark ice shards, glowing teal from within"
+    },
+    {
+      "id": "frs-02",
+      "slug": "frs-02-reliquia-glacial",
+      "universe": "frostheim",
+      "subject": "an ancient carved relic frozen inside a clear block of glacier ice"
+    },
+    {
+      "id": "frs-03",
+      "slug": "frs-03-baculo-del-invierno",
+      "universe": "frostheim",
+      "subject": "a snow staff topped with a floating blue crystal, wrapped in frost mist"
+    },
+    {
+      "id": "frs-04",
+      "slug": "frs-04-zorro-de-aurora",
+      "universe": "frostheim",
+      "subject": "an arctic fox with fur like woven aurora light standing on a crystalline ice shelf"
+    },
+    {
+      "id": "frs-05",
+      "slug": "frs-05-faro-de-hielo",
+      "universe": "frostheim",
+      "subject": "a lonely lighthouse built from blue glacier slabs shining a teal beam into falling snow"
+    },
+    {
+      "id": "frs-06",
+      "slug": "frs-06-lobo-boreal",
+      "universe": "frostheim",
+      "subject": "a giant wolf formed of drifting snow and blue frost breath, standing on an icy ridge"
+    },
+    {
+      "id": "frs-07",
+      "slug": "frs-07-corazon-del-glaciar",
+      "universe": "frostheim",
+      "subject": "a deep frozen blue crystal heart encased in shattered glacial ice"
+    },
+    {
+      "id": "frs-08",
+      "slug": "frs-08-titan-de-aurora",
+      "universe": "frostheim",
+      "subject": "a colossal titan formed from glacier ice with aurora ribbons flowing around its shoulders"
+    },
+    {
+      "id": "nrl-01",
+      "slug": "nrl-01-sinapsis-primaria",
+      "universe": "neural",
+      "subject": "a glowing synapse node with branching neural fibers firing turquoise electric pulses"
+    },
+    {
+      "id": "nrl-02",
+      "slug": "nrl-02-dron-de-datos",
+      "universe": "neural",
+      "subject": "a small survey drone carrying a floating holographic data cube, hovering in place"
+    },
+    {
+      "id": "nrl-03",
+      "slug": "nrl-03-llave-de-encriptacion",
+      "universe": "neural",
+      "subject": "an encryption key fused with circuit pathways and floating holographic glyphs of light"
+    },
+    {
+      "id": "nrl-04",
+      "slug": "nrl-04-nucleo-holografico",
+      "universe": "neural",
+      "subject": "a glowing spherical holographic core with concentric turquoise wireframe rings"
+    },
+    {
+      "id": "nrl-05",
+      "slug": "nrl-05-bibliotecario-ia",
+      "universe": "neural",
+      "subject": "a robed AI librarian holding a floating book of glowing cascading code"
+    },
+    {
+      "id": "nrl-06",
+      "slug": "nrl-06-red-neuronal-viva",
+      "universe": "neural",
+      "subject": "a living neural network tree made of light synapses inside a dark server chamber"
+    },
+    {
+      "id": "nrl-07",
+      "slug": "nrl-07-oraculo-cuantico",
+      "universe": "neural",
+      "subject": "a quantum oracle mask made of turquoise holographic circuitry with a single glowing eye"
+    },
+    {
+      "id": "nrl-08",
+      "slug": "nrl-08-mente-colmena",
+      "universe": "neural",
+      "subject": "a hive mind entity with multiple holographic faces orbiting a central luminous brain core"
+    },
+    {
+      "id": "vrd-01",
+      "slug": "vrd-01-semilla-luminica",
+      "universe": "verdalis",
+      "subject": "a luminous seed pod glowing soft green from within, wrapped in delicate vines"
+    },
+    {
+      "id": "vrd-02",
+      "slug": "vrd-02-ruina-de-musgo",
+      "universe": "verdalis",
+      "subject": "a moss-covered stone relic arch overgrown with glowing vines in an ancient ruin"
+    },
+    {
+      "id": "vrd-03",
+      "slug": "vrd-03-flor-de-cristal",
+      "universe": "verdalis",
+      "subject": "a crystal flower with translucent emerald petals emitting soft cyan light"
+    },
+    {
+      "id": "vrd-04",
+      "slug": "vrd-04-zorro-de-hojas-esmeralda",
+      "universe": "verdalis",
+      "subject": "a fox spirit made of emerald leaves and soft cyan light leaping through dark undergrowth"
+    },
+    {
+      "id": "vrd-05",
+      "slug": "vrd-05-guardian-de-raices",
+      "universe": "verdalis",
+      "subject": "an ancient stone guardian overgrown with roots and bioluminescent fungi"
+    },
+    {
+      "id": "vrd-06",
+      "slug": "vrd-06-espectro-bioluminiscente",
+      "universe": "verdalis",
+      "subject": "a bioluminescent forest spirit shaped from emerald leaves and floating motes of light"
+    },
+    {
+      "id": "vrd-07",
+      "slug": "vrd-07-arbol-ancestral",
+      "universe": "verdalis",
+      "subject": "an ancient giant tree with glowing veins and floating spores inside a ruined sanctuary"
+    },
+    {
+      "id": "vrd-08",
+      "slug": "vrd-08-espiritu-del-bosque",
+      "universe": "verdalis",
+      "subject": "a majestic deer-shaped forest deity crowned with luminous antlers of blooming branches"
+    },
+    {
+      "id": "lnr-01",
+      "slug": "lnr-01-fragmento-de-luna",
+      "universe": "lunaris",
+      "subject": "a large broken crescent-moon fragment with a soft violet glow and drifting stardust"
+    },
+    {
+      "id": "lnr-02",
+      "slug": "lnr-02-reloj-de-constelaciones",
+      "universe": "lunaris",
+      "subject": "an astral clockwork with gears made of constellations and drifting star rings"
+    },
+    {
+      "id": "lnr-03",
+      "slug": "lnr-03-astrolabio-roto",
+      "universe": "lunaris",
+      "subject": "a broken astrolabe with cracked star charts and floating ring fragments"
+    },
+    {
+      "id": "lnr-04",
+      "slug": "lnr-04-polilla-onirica",
+      "universe": "lunaris",
+      "subject": "a dream moth with wings of violet nebula and scattered star specks"
+    },
+    {
+      "id": "lnr-05",
+      "slug": "lnr-05-gato-estelar",
+      "universe": "lunaris",
+      "subject": "a sleek cat with fur like a purple starfield and glowing crescent-shaped eyes"
+    },
+    {
+      "id": "lnr-06",
+      "slug": "lnr-06-orbe-de-ensueno",
+      "universe": "lunaris",
+      "subject": "an oneiric orb containing a tiny swirling galaxy suspended inside"
+    },
+    {
+      "id": "lnr-07",
+      "slug": "lnr-07-guardiana-del-eclipse",
+      "universe": "lunaris",
+      "subject": "a veiled guardian holding a floating ring of eclipsed violet light"
+    },
+    {
+      "id": "lnr-08",
+      "slug": "lnr-08-devorador-de-suenos",
+      "universe": "lunaris",
+      "subject": "an oneiric devourer with a crescent-moon head and a starfield body drifting in purple mist"
+    },
+    {
+      "id": "spc-bomb-01",
+      "slug": "spc-bomb-01-anomalia-inestable",
+      "universe": "volcania",
+      "palette": "anomaly",
+      "subject": "a cracked spherical containment reactor leaking volatile magenta energy through dark metal seams, broken seal fragments at its base"
+    }
+  ]
+}

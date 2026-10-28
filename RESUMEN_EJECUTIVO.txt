@@ -7,6 +7,10 @@ ANÁLISIS PROFESIONAL - ARQUITECTURA SENIOR (29 AÑOS EXPERIENCIA)
 Fecha: 2026-10-06 15:36
 Base de Datos: PostgreSQL 18, memorize
 
+NOTA (2026-10-17): los scripts .sql de fases y las evidencias binarias se retiraron
+del repositorio en la limpieza final. Documento histórico; el esquema vigente está en
+backend/prisma/schema.prisma + backend/prisma/migrations/.
+
 ───────────────────────────────────────────────────────────────────────────
 📊 ESTADO ACTUAL
 ───────────────────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ interface MultiplayerGameProps {
 type CardType = {
   id: number;
   symbol: string;
+  emoji: string;
   isFlipped: boolean;
   isMatched: boolean;
 };
@@ -60,7 +61,7 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
     const symbolsNeeded = cardCount / 2;
     const selectedSymbols = [...symbols].slice(0, symbolsNeeded);
     const duplicatedSymbols = [...selectedSymbols, ...selectedSymbols];
-    const shuffled = duplicatedSymbols.sort(() => Math.random() - 0.5).map((symbol, index) => ({ id: index, symbol, isFlipped: false, isMatched: false }));
+    const shuffled = duplicatedSymbols.sort(() => Math.random() - 0.5).map((symbol, index) => ({ id: index, symbol, emoji: symbol, isFlipped: false, isMatched: false }));
     setCards(shuffled);
     setFlippedCards([]);
     setRoundMatches(0);
@@ -170,7 +171,7 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(6, Math.ceil(Math.sqrt(config.cards)))}, minmax(0, 1fr))` }}>
               <AnimatePresence>
                 {cards.map((card, index) => (
-                  <MemoryCard key={card.id} card={card} index={index} glowColor={isMyTeamTurn ? '#00ff88' : '#666'} gradient="from-purple-600/20 via-pink-600/20 to-cyan-600/20" onClick={() => handleCardClick(card.id)} />
+                  <MemoryCard key={card.id} card={card} index={index} interactive={isMyTeamTurn} onClick={() => handleCardClick(card.id)} />
                 ))}
               </AnimatePresence>
             </div>

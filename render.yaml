@@ -6,8 +6,8 @@ services:
     name: memorize-backend
     env: node
     plan: free
-    branch: master
-    buildCommand: npm --prefix backend install && npm --prefix backend run build
+    branch: main
+    buildCommand: npm --prefix backend install && npm --prefix backend run build && npm --prefix backend run prisma:deploy
     startCommand: npm --prefix backend run start
     envVars:
       - key: PORT
@@ -16,12 +16,18 @@ services:
         value: production
       - key: FRONTEND_URL
         value: https://memorize-evolutivo.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
 
   - type: static_site
     name: memorize-frontend
     env: node
     plan: free
-    branch: master
+    branch: main
     buildCommand: npm --prefix frontend install && npm --prefix frontend run build
     publishPath: frontend/dist
     envVars:

@@ -37,7 +37,7 @@ export function RankedScreen({ onBack }: RankedScreenProps) {
     <div 
       className="min-h-screen text-white p-8 relative overflow-hidden"
       style={{
-        backgroundImage: "url('/fonlobby.png')",
+        backgroundImage: "url('/classic/map-hero-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

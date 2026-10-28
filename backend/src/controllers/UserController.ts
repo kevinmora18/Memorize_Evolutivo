@@ -112,6 +112,10 @@ export class UserController {
   /**
    * POST /api/users/:userId/game-result
    * Registrar resultado de partida
+   *
+   * SEGURIDAD: los valores enviados por el cliente se limitan (clamp) a rangos
+   * razonables para mitigar trampas. El cálculo autoritativo de puntaje en
+   * servidor queda como mejora pendiente (ver PLAN_SEGURIDAD_FASE1.md).
    */
   recordGame = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -124,14 +128,30 @@ export class UserController {
         return;
       }
 
+      if (typeof won !== 'boolean') {
+        res.status(400).json({ error: 'El campo won debe ser booleano' });
+        return;
+      }
+
+      const asNumber = (value: unknown): number => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      const clamp = (value: unknown, min: number, max: number): number =>
+        Math.min(Math.max(asNumber(value), min), max);
+
+      const safeMatches = clamp(matches, 0, 1000);
+      const safeScore = clamp(score, 0, 100_000);
+
       const result = await this.userService.recordGamePlayed(userId, {
-        score,
+        score: safeScore,
         won,
-        matches: matches || 0,
-        perfectMatches: perfectMatches || 0,
-        combo: combo || 0,
-        xpEarned: xpEarned || 0,
-        coinsEarned: coinsEarned || 0,
+        matches: safeMatches,
+        perfectMatches: clamp(perfectMatches, 0, safeMatches),
+        combo: clamp(combo, 0, 1000),
+        xpEarned: clamp(xpEarned, 0, 500),
+        coinsEarned: clamp(coinsEarned, 0, 2000),
       });
 
       res.json(result);

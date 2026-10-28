@@ -6,7 +6,29 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        sans: ['Sora', 'system-ui', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
       colors: {
+        an: {
+          void: 'var(--an-void)',
+          panel: 'var(--an-panel)',
+          surface: 'var(--an-surface)',
+          surface2: 'var(--an-surface-2)',
+          line: 'var(--an-line)',
+          lineStrong: 'var(--an-line-strong)',
+          ink: 'var(--an-ink)',
+          inkDim: 'var(--an-ink-dim)',
+          inkFaint: 'var(--an-ink-faint)',
+          signal: 'var(--an-signal)',
+          gold: 'var(--an-gold)',
+          danger: 'var(--an-danger)',
+          anomaly: 'var(--an-anomaly)',
+          uni: 'var(--an-universe-accent)',
+          uniSoft: 'var(--an-universe-accent-soft)',
+        },
         background: 'var(--color-background)',
         foreground: 'var(--color-foreground)',
         card: 'var(--color-card)',

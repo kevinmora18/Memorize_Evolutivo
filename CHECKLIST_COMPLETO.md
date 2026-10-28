@@ -54,7 +54,7 @@
 ### Backend
 - [x] Dependencias instaladas (`npm install`)
 - [x] Prisma Client generado
-- [ ] Migraciones ejecutadas (`npx prisma db push`)
+- [ ] Migraciones ejecutadas (`npm run prisma:deploy`)
 - [ ] Servidor iniciado (`npm run dev`)
 - [ ] Health check OK (`http://localhost:5175/health`)
 
@@ -143,7 +143,7 @@
 
 1. [ ] Instalar PostgreSQL
 2. [ ] Crear base de datos `memorize`
-3. [ ] Ejecutar `npx prisma db push`
+3. [ ] Ejecutar `npm run prisma:deploy`
 4. [ ] Iniciar backend (`npm run dev`)
 5. [ ] Iniciar frontend (`npm run dev`)
 6. [ ] Probar login

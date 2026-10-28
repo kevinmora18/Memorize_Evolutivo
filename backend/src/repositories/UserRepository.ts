@@ -1,4 +1,4 @@
-import { PrismaClient, User as PrismaUser } from '@prisma/client';
+import { PrismaClient, Prisma, User as PrismaUser } from '@prisma/client';
 import { BaseRepository } from '../core/BaseRepository';
 import { User, IUser, UserRole } from '../models/domain/User.model';
 
@@ -32,6 +32,7 @@ export class UserRepository extends BaseRepository<User, string> {
       isBanned: prismaUser.isBanned,
       bannedUntil: prismaUser.bannedUntil,
       banReason: prismaUser.banReason,
+      passwordHash: prismaUser.passwordHash,
       createdAt: prismaUser.createdAt,
       updatedAt: prismaUser.updatedAt,
     });
@@ -62,7 +63,7 @@ export class UserRepository extends BaseRepository<User, string> {
   /**
    * Implementación: Crear nuevo usuario
    */
-  async create(data: Partial<IUser>): Promise<User> {
+  async create(data: Partial<IUser> & { passwordHash?: string }): Promise<User> {
     this.log(`Creando usuario: ${data.email}`);
     const user = await this.prisma.user.create({
       data: {
@@ -73,6 +74,7 @@ export class UserRepository extends BaseRepository<User, string> {
         xp: data.xp || 0,
         coins: data.coins || 500,
         gems: data.gems || 50,
+        passwordHash: data.passwordHash,
       },
     });
     return this.toDomain(user);
@@ -80,10 +82,12 @@ export class UserRepository extends BaseRepository<User, string> {
 
   /**
    * Implementación: Actualizar usuario
+   * @param tx cliente transaccional opcional (para operaciones atómicas multi-tabla)
    */
-  async update(id: string, data: Partial<IUser>): Promise<User> {
+  async update(id: string, data: Partial<IUser>, tx?: Prisma.TransactionClient | PrismaClient): Promise<User> {
     this.log(`Actualizando usuario: ${id}`);
-    const user = await this.prisma.user.update({
+    const db = tx ?? this.prisma;
+    const user = await db.user.update({
       where: { id },
       data: {
         username: data.username,

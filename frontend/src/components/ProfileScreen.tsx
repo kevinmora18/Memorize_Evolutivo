@@ -10,7 +10,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
     <div 
       className="min-h-screen text-white p-8 relative overflow-hidden"
       style={{
-        backgroundImage: "url('/fondosin.png')",
+        backgroundImage: "url('/classic/wing-neural-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

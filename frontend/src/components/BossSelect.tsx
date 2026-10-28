@@ -21,73 +21,79 @@ interface BossInfo {
   difficulty: number;
   requiredRank: number;
   unlockMessage: string;
+  previewImage: string;
 }
 
 const BOSSES: BossInfo[] = [
   {
-    id: 'naturaleza',
-    name: 'NATURALEZA',
+    id: 'ecosistema',
+    name: 'TRÍADAS ECOSISTEMA',
     icon: Brain,
     emoji: '🌿',
-    color: '#10b981',
-    gradient: 'from-green-500 via-emerald-500 to-teal-500',
-    description: 'Relaciones naturales',
-    ability: 'Parejas de 2 - Ecosistema',
-    difficulty: 3,
+    color: '#8b5cf6',
+    gradient: 'from-purple-500 via-violet-500 to-purple-600',
+    description: 'Cadenas ecológicas vivas',
+    ability: 'Combina 3 cartas: Sol → Semilla → Árbol',
+    difficulty: 5,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
+    previewImage: '/triads/nature_triad_preview.jpg',
+  },
+  {
+    id: 'tecnologia',
+    name: 'TRÍADAS TECNOLOGÍA',
+    icon: Brain,
+    emoji: '🤖',
+    color: '#ec4899',
+    gradient: 'from-pink-500 via-rose-500 to-red-500',
+    description: 'Sistemas cuánticos e innovación',
+    ability: 'Combina 3 cartas: Chip → Núcleo → Androide',
+    difficulty: 6,
+    requiredRank: 1,
+    unlockMessage: 'Modo disponible',
+    previewImage: '/triads/tech_triad_preview.jpg',
+  },
+  {
+    id: 'elementos',
+    name: 'TRÍADAS ELEMENTOS',
+    icon: Brain,
+    emoji: '🔥',
+    color: '#f97316',
+    gradient: 'from-amber-500 via-orange-500 to-red-600',
+    description: 'Fuerzas primordiales de la naturaleza',
+    ability: 'Combina 3 cartas: Chispa → Llama → Vórtice',
+    difficulty: 6,
+    requiredRank: 1,
+    unlockMessage: 'Modo disponible',
+    previewImage: '/triads/elements_triad_preview.jpg',
   },
   {
     id: 'ciencia',
-    name: 'CIENCIA',
+    name: 'TRÍADAS CIENCIA',
     icon: Brain,
     emoji: '🔬',
     color: '#3b82f6',
     gradient: 'from-blue-500 via-cyan-500 to-sky-500',
-    description: 'Relaciones científicas',
-    ability: 'Parejas de 2 - Tecnología',
-    difficulty: 4,
+    description: 'Fronteras del cosmos y física cuántica',
+    ability: 'Combina 3 cartas: Lente → Estrella → Agujero Negro',
+    difficulty: 7,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
+    previewImage: '/triads/science_triad_preview.jpg',
   },
   {
     id: 'humano',
-    name: 'HUMANO',
-    icon: Brain,
-    emoji: '👑',
-    color: '#f59e0b',
-    gradient: 'from-amber-500 via-orange-500 to-yellow-500',
-    description: 'Relaciones humanas',
-    ability: 'Parejas de 2 - Cultura',
-    difficulty: 5,
-    requiredRank: 1,
-    unlockMessage: 'Modo disponible',
-  },
-  {
-    id: 'ecosistema',
-    name: 'ECOSISTEMA',
-    icon: Brain,
-    emoji: '🌍',
-    color: '#8b5cf6',
-    gradient: 'from-purple-500 via-violet-500 to-purple-600',
-    description: 'Cadenas ecológicas',
-    ability: 'Tríadas de 3 - Cadena vital',
-    difficulty: 6,
-    requiredRank: 1,
-    unlockMessage: 'Modo avanzado',
-  },
-  {
-    id: 'tecnologia',
-    name: 'TECNOLOGÍA',
-    icon: Brain,
-    emoji: '⚡',
-    color: '#ec4899',
-    gradient: 'from-pink-500 via-rose-500 to-red-500',
-    description: 'Sistemas tecnológicos',
-    ability: 'Tríadas de 3 - Innovación',
+    name: 'TRÍADAS CIVILIZACIÓN',
+    icon: Crown,
+    emoji: '🏛️',
+    color: '#eab308',
+    gradient: 'from-amber-500 via-yellow-500 to-orange-500',
+    description: 'Evolución humana y conquista cósmica',
+    ability: 'Combina 3 cartas: Pedernal → Hoguera → Forja',
     difficulty: 7,
     requiredRank: 1,
-    unlockMessage: 'Modo avanzado',
+    unlockMessage: 'Modo disponible',
+    previewImage: '/triads/human_triad_preview.jpg',
   },
 ];
 
@@ -113,8 +119,8 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
 
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 rounded-full blur-[120px]" />
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('/fonlobby.png')] bg-cover bg-center opacity-20 mix-blend-screen" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 rounded-full blur-[140px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-950/20 via-black to-[#050714] opacity-90" />
       </div>
 
       {/* Header */}
@@ -130,9 +136,9 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
             Volver al Lobby
           </span>
         </button>
-        <div className="bg-gray-800/50 backdrop-blur-xl px-6 py-2 rounded-full border border-gray-700">
-          <h1 className="text-xl font-bold tracking-[0.3em] uppercase text-cyan-400">
-            SELECCIONA BOSS
+        <div className="bg-gray-800/50 backdrop-blur-xl px-6 py-2 rounded-full border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+          <h1 className="text-xl font-bold tracking-[0.25em] uppercase text-purple-300">
+            MODO BOSS · CONEXIONES Y TRÍADAS
           </h1>
         </div>
         <div className="w-32" />
@@ -160,7 +166,11 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
                   } ${unlocked ? 'bg-gray-800/50' : 'bg-gray-900/50'} backdrop-blur-xl overflow-hidden`}>
                   
                   {/* Background Gradient */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${boss.gradient} opacity-10`} />
+                  <div className="absolute inset-0 z-0">
+    <img src={boss.previewImage} alt={boss.name} className="w-full h-full object-cover opacity-25 filter brightness-90 group-hover:scale-105 transition-transform duration-500" />
+    <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e17] via-[#0b0e17]/85 to-transparent" />
+    <div className={`absolute inset-0 bg-gradient-to-br ${boss.gradient} opacity-15`} />
+  </div>
 
                   <div className="relative z-10">
                     {/* Boss Icon */}

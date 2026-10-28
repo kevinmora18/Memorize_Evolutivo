@@ -25,10 +25,11 @@ import { AdminPanel } from './components/AdminPanel';
 import { ParejasConexiones } from './components/ParejasConexiones';
 import { TriadasConexiones } from './components/TriadasConexiones';
 import { loadPlayerStats, savePlayerStats, addXP } from './lib/playerEvolution';
-import socket from './lib/socket';
+import socket, { connectSocket, disconnectSocket } from './lib/socket';
+import { saveSession, clearSession, getStoredUser, getToken, apiFetch, type AuthResponse, type AuthUser } from './lib/api';
 
 export type Universe = 'volcania' | 'frostheim' | 'neural' | 'verdalis' | 'lunaris';
-export type BossType = 'naturaleza' | 'ciencia' | 'humano' | 'ecosistema' | 'tecnologia';
+export type BossType = 'naturaleza' | 'ciencia' | 'humano' | 'ecosistema' | 'tecnologia' | 'elementos';
 
 export type GameScreen = 'login' | 'register' | 'lobby' | 'roomWaiting' | 'multiplayerGame' | 'finalResults' | 'menu' | 'game' | 'boss' | 'boss-select' | 'reward' | 'classic' | 'classicLevelSelect' | 'loading' | 'infinite' | 'challenge' | 'ai-friends' | 'ai-room-lobby' | 'ai-room-waiting' | 'profile' | 'ranked' | 'tienda' | 'admin';
 
@@ -102,43 +103,47 @@ export default function App() {
     }
   }, [rooms]);
 
-  const handleLoginSuccess = (email: string) => {
+  /**
+   * Restaurar sesión al abrir la app (si hay token guardado y sigue siendo válido).
+   */
+  useEffect(() => {
+    const storedUser = getStoredUser();
+    if (!storedUser || !getToken()) return;
+
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        if (res.ok) {
-          const userData = await res.json();
-          const player: Player = { 
-            id: userData.id, 
-            email: userData.email, 
-            teamId: 0,
-            role: userData.role,  // ✅ Agregar el role del backend
-            level: userData.level,
-            xp: userData.xp,
-            coins: userData.coins,
-            gems: userData.gems
-          };
-          setCurrentUser(player);
-          setPostLoadingScreen('lobby');
-          setCurrentScreen('loading');
-        } else {
-          const player: Player = { id: Date.now().toString(), email, teamId: 0, role: 'player' };
-          setCurrentUser(player);
-          setPostLoadingScreen('lobby');
-          setCurrentScreen('loading');
+        const res = await apiFetch<{ hasAccess: boolean }>(`/api/auth/validate/${storedUser.id}`);
+        if (!res.hasAccess) {
+          throw new Error('Sesión sin acceso');
         }
-      } catch (err) {
-        console.error('Error en login:', err);
-        const player: Player = { id: Date.now().toString(), email, teamId: 0, role: 'player' };
-        setCurrentUser(player);
+        setCurrentUser(toPlayer(storedUser));
+        connectSocket();
         setPostLoadingScreen('lobby');
         setCurrentScreen('loading');
+      } catch {
+        // Token inválido/expirado o usuario baneado: limpiar sesión
+        clearSession();
       }
     })();
+  }, []);
+
+  const toPlayer = (user: AuthUser): Player => ({
+    id: user.id,
+    email: user.email,
+    teamId: 0,
+    role: user.role,
+    level: user.level,
+    xp: user.xp,
+    coins: user.coins,
+    gems: user.gems,
+  });
+
+  const handleLoginSuccess = (auth: AuthResponse) => {
+    saveSession(auth.token, auth.user);
+    setCurrentUser(toPlayer(auth.user));
+    connectSocket();
+    setPostLoadingScreen('lobby');
+    setCurrentScreen('loading');
   };
 
   const generateRoomCode = (): string => {
@@ -226,13 +231,15 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    clearSession();
+    disconnectSocket();
     setCurrentUser(null);
     setCurrentRoom(null);
     setCurrentScreen('login');
   };
 
   const handleBackToMenu = () => {
-    setCurrentScreen('menu');
+    setCurrentScreen('lobby');
     setSelectedUniverse(null);
   };
 
@@ -273,6 +280,7 @@ export default function App() {
 
       {currentScreen === 'lobby' && currentUser && (
         <LobbyScreen 
+          currentUser={currentUser}
           onStartMode={(mode) => {
             if (mode === 'classic') {
               setPostLoadingScreen('classicLevelSelect');
@@ -362,7 +370,7 @@ export default function App() {
       )}
       
       {currentScreen === 'boss' && selectedUniverse && (
-        selectedBossType === 'ecosistema' || selectedBossType === 'tecnologia' ? (
+        selectedBossType === 'ecosistema' || selectedBossType === 'tecnologia' || selectedBossType === 'elementos' || selectedBossType === 'ciencia' || selectedBossType === 'humano' ? (
           <TriadasConexiones
             universe={selectedUniverse}
             modo={selectedBossType}
@@ -372,7 +380,7 @@ export default function App() {
               savePlayerStats(newStats);
               setCurrentScreen('reward');
             }}
-            onBackToMenu={handleBackToMenu}
+            onBackToMenu={() => setCurrentScreen('boss-select')}
           />
         ) : (
           <ParejasConexiones
@@ -384,7 +392,7 @@ export default function App() {
               savePlayerStats(newStats);
               setCurrentScreen('reward');
             }}
-            onBackToMenu={handleBackToMenu}
+            onBackToMenu={() => setCurrentScreen('boss-select')}
           />
         )
       )}
@@ -424,7 +432,7 @@ export default function App() {
       {currentScreen === 'classic' && (
         <GameScreen
           initialLevel={classicLevel}
-          onBackToLobby={() => setCurrentScreen('lobby')}
+          onBackToLobby={() => setCurrentScreen('classicLevelSelect')}
         />
       )}
 

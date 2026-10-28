@@ -7,10 +7,10 @@ Colección completa de diagramas de clase UML del proyecto, generados con **Merm
 > - **VS Code**: extensión *Markdown Preview Mermaid Support* o la vista previa integrada con *Mermaid*.
 > - **Local**: `npx @mermaid-js/mermaid-cli mmdc -i DIAGRAMAS_DE_CLASE.md` para exportar a SVG/PNG.
 
-> 📄 **Diagramas UML en PlantUML:** además de este documento, el diagrama de arquitectura
-> (`frontend/arquitectura-backend.puml` → `.png` / `.html`) y el diagrama de clases del módulo
-> Multijugador + Motor (`frontend/diagrama-clases.puml` → `.png` / `.html`) están versionados y
-> renderizados con PlantUML.
+> 📄 **Diagramas UML en PlantUML:** además de este documento, las fuentes del diagrama de
+> arquitectura (`frontend/arquitectura-backend.puml`) y del diagrama de clases del módulo
+> Multijugador + Motor (`frontend/diagrama-clases.puml`) están versionadas. Las exportaciones
+> a `.png` / `.html` se generan localmente con PlantUML y no se versionan.
 
 ---
 

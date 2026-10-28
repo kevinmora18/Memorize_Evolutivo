@@ -10,7 +10,7 @@ export interface EquippedItems {
 // Obtener items equipados
 export function getEquippedItems(): EquippedItems {
   return {
-    pack: localStorage.getItem('equippedPack') || 'frutas',
+    pack: localStorage.getItem('equippedPack') || 'archivo',
     frame: localStorage.getItem('equippedFrame') || 'basic',
     skin: localStorage.getItem('equippedSkin') || 'classic',
     board: localStorage.getItem('equippedBoard') || 'default',
@@ -19,7 +19,7 @@ export function getEquippedItems(): EquippedItems {
 
 // Obtener pack equipado
 export function getEquippedPack(): string {
-  return localStorage.getItem('equippedPack') || 'frutas';
+  return localStorage.getItem('equippedPack') || 'archivo';
 }
 
 // Obtener marco equipado

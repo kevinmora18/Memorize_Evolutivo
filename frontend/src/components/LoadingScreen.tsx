@@ -30,7 +30,7 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
     <div 
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
       style={{
-        backgroundImage: "url('/fondosin.png')",
+        backgroundImage: "url('/classic/map-hero-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

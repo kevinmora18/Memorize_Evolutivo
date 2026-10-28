@@ -1,4 +1,4 @@
-import { PrismaClient, PlayerStats as PrismaPlayerStats } from '@prisma/client';
+import { PrismaClient, Prisma, PlayerStats as PrismaPlayerStats } from '@prisma/client';
 import { BaseRepository } from '../core/BaseRepository';
 import { PlayerStats, IPlayerStats } from '../models/domain/PlayerStats.model';
 
@@ -24,7 +24,10 @@ export class PlayerStatsRepository extends BaseRepository<PlayerStats, string> {
       userId: prismaStats.userId,
       gamesPlayed: prismaStats.gamesPlayed,
       gamesWon: prismaStats.gamesWon,
-      totalScore: prismaStats.totalScore,
+      // La columna es BIGINT en BD y Prisma la entrega como bigint.
+      // Se convierte a number en el borde: los puntajes del juego (< 2^31)
+      // son exactos como number y todo el dominio opera con number.
+      totalScore: Number(prismaStats.totalScore),
       bestScore: prismaStats.bestScore,
       totalMatches: prismaStats.totalMatches,
       perfectMatches: prismaStats.perfectMatches,
@@ -78,10 +81,12 @@ export class PlayerStatsRepository extends BaseRepository<PlayerStats, string> {
 
   /**
    * Actualizar estadísticas
+   * @param tx cliente transaccional opcional (para operaciones atómicas multi-tabla)
    */
-  async update(id: string, data: Partial<IPlayerStats>): Promise<PlayerStats> {
+  async update(id: string, data: Partial<IPlayerStats>, tx?: Prisma.TransactionClient | PrismaClient): Promise<PlayerStats> {
     this.log(`Actualizando estadísticas: ${id}`);
-    const stats = await this.prisma.playerStats.update({
+    const db = tx ?? this.prisma;
+    const stats = await db.playerStats.update({
       where: { id },
       data: {
         gamesPlayed: data.gamesPlayed,

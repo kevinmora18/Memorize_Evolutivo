@@ -125,80 +125,87 @@ export class GameEngine {
 
   /**
    * Programa la evaluación de una mano después de un delay
+   *
+   * FIX: el flag `evaluating` se libera en un bloque finally.
+   * Antes, si `evaluateHand` o cualquier notificación lanzaba una excepción,
+   * la sala quedaba bloqueada para siempre (nunca volvía a evaluar manos).
    */
   private async scheduleEvaluate(room: GameRoom, userId: string): Promise<void> {
     // Evitar evaluaciones múltiples simultáneas
     if (this.evaluating.get(room.id)) return;
     this.evaluating.set(room.id, true);
 
-    // Pausar el timer mientras se evalúa
-    const timer = this.turnTimers.get(room.id);
-    if (timer) {
-      timer.stop();
-    }
+    try {
+      // Pausar el timer mientras se evalúa
+      const timer = this.turnTimers.get(room.id);
+      if (timer) {
+        timer.stop();
+      }
 
-    // Esperar el delay para que los jugadores vean las cartas
-    await this.delay(this.resolveDelay);
+      // Esperar el delay para que los jugadores vean las cartas
+      await this.delay(this.resolveDelay);
 
-    // Evaluar la mano
-    const result = this.evaluateHand(room, userId);
+      // Evaluar la mano
+      const result = this.evaluateHand(room, userId);
 
-    // Aplicar el resultado
-    if (result.isMatch) {
-      // Registrar el match
-      room.registerMatch(userId, ...result.cardIndexes);
+      // Aplicar el resultado
+      if (result.isMatch) {
+        // Registrar el match
+        room.registerMatch(userId, ...result.cardIndexes);
 
-      // Notificar match encontrado
-      this.onOutcome({
-        type: 'match_found',
-        success: true,
-        room,
-        payload: {
-          playerId: userId,
-          points: result.points,
-          bonus: result.bonus,
-          cardIndexes: result.cardIndexes,
-        },
-      });
-
-      // Verificar si el juego terminó
-      if (room.isGameFinished()) {
-        const winnerId = room.finishGame();
+        // Notificar match encontrado
         this.onOutcome({
-          type: 'game_finished',
+          type: 'match_found',
           success: true,
           room,
           payload: {
-            winnerId,
-            scores: Object.fromEntries(room.getGameState().scores),
+            playerId: userId,
+            points: result.points,
+            bonus: result.bonus,
+            cardIndexes: result.cardIndexes,
           },
         });
-        this.stopTurnTimer(room.id);
+
+        // Verificar si el juego terminó
+        if (room.isGameFinished()) {
+          const winnerId = room.finishGame();
+          this.onOutcome({
+            type: 'game_finished',
+            success: true,
+            room,
+            payload: {
+              winnerId,
+              scores: Object.fromEntries(room.getGameState().scores),
+            },
+          });
+          this.stopTurnTimer(room.id);
+        } else {
+          // Continuar jugando, reiniciar timer
+          room.clearFlippedCards();
+          this.startTurnTimer(room);
+        }
       } else {
-        // Continuar jugando, reiniciar timer
+        // No hay match, cambiar turno
         room.clearFlippedCards();
+        const nextTurn = room.nextTurn();
+
+        this.onOutcome({
+          type: 'no_match',
+          success: true,
+          room,
+          payload: {
+            cardIndexes: result.cardIndexes,
+            currentTurn: nextTurn,
+          },
+        });
+
+        // Reiniciar timer para el siguiente turno
         this.startTurnTimer(room);
       }
-    } else {
-      // No hay match, cambiar turno
-      room.clearFlippedCards();
-      const nextTurn = room.nextTurn();
-
-      this.onOutcome({
-        type: 'no_match',
-        success: true,
-        room,
-        payload: {
-          cardIndexes: result.cardIndexes,
-          currentTurn: nextTurn,
-        },
-      });
-
-      // Reiniciar timer para el siguiente turno
-      this.startTurnTimer(room);
+    } finally {
+      // Siempre liberar el flag, incluso si la evaluación falla
+      this.evaluating.set(room.id, false);
     }
-
-    this.evaluating.set(room.id, false);
   }
 
   /**

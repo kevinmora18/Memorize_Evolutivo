@@ -223,7 +223,7 @@ export function ConexionesMentales({ universe, onComplete, onBackToMenu }: Conex
     <motion.div 
       className="min-h-screen relative overflow-hidden"
       style={{
-        backgroundImage: "url('/fonlobby.png')",
+        backgroundImage: "url('/classic/map-hero-1920.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

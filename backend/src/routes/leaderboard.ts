@@ -1,17 +1,21 @@
 import { Router } from 'express';
 import { prisma } from '../index';
+import { clampLimit } from '../core/validation/schemas';
 
 const router = Router();
+
+// NOTA DE SEGURIDAD: las respuestas del leaderboard son públicas y NO deben
+// incluir email u otros datos personales de los jugadores (solo username).
 
 // GET /api/leaderboard - Obtener ranking global
 router.get('/', async (req, res) => {
   try {
     const { 
       type = 'xp', 
-      limit = 100, 
       mode,
       period = 'all' 
     } = req.query;
+    const limit = clampLimit(req.query.limit, 100, 100);
 
     let orderBy: any = {};
     let where: any = {};
@@ -40,7 +44,7 @@ router.get('/', async (req, res) => {
     // Si es ranking por wins o score, usar una consulta diferente
     if (type === 'wins' || type === 'score') {
       const users = await prisma.user.findMany({
-        take: Number(limit),
+        take: limit,
         include: {
           stats: true,
         },
@@ -59,7 +63,6 @@ router.get('/', async (req, res) => {
         rank: index + 1,
         id: user.id,
         username: user.username,
-        email: user.email,
         level: user.level,
         xp: user.xp,
         coins: user.coins,
@@ -83,7 +86,7 @@ router.get('/', async (req, res) => {
     const users = await prisma.user.findMany({
       where,
       orderBy,
-      take: Number(limit),
+      take: limit,
       include: {
         stats: true,
       },
@@ -93,7 +96,6 @@ router.get('/', async (req, res) => {
       rank: index + 1,
       id: user.id,
       username: user.username,
-      email: user.email,
       level: user.level,
       xp: user.xp,
       coins: user.coins,
@@ -197,19 +199,18 @@ router.get('/user/:userId', async (req, res) => {
 router.get('/mode/:mode', async (req, res) => {
   try {
     const { mode } = req.params;
-    const { limit = 100 } = req.query;
+    const limit = clampLimit(req.query.limit, 100, 100);
 
     // Obtener mejores puntuaciones por modo
     const matches = await prisma.match.findMany({
       where: { mode },
       orderBy: { score: 'desc' },
-      take: Number(limit),
+      take: limit,
       include: {
         user: {
           select: {
             id: true,
             username: true,
-            email: true,
             level: true,
           },
         },
@@ -225,7 +226,6 @@ router.get('/mode/:mode', async (req, res) => {
         userBestScores.set(match.userId, {
           userId: match.userId,
           username: match.user.username,
-          email: match.user.email,
           level: match.user.level,
           score: match.score,
           accuracy: match.accuracy,
@@ -257,7 +257,7 @@ router.get('/mode/:mode', async (req, res) => {
 // GET /api/leaderboard/weekly - Ranking semanal
 router.get('/weekly', async (req, res) => {
   try {
-    const { limit = 100 } = req.query;
+    const limit = clampLimit(req.query.limit, 100, 100);
 
     // Calcular inicio de la semana
     const now = new Date();
@@ -275,7 +275,6 @@ router.get('/weekly', async (req, res) => {
           select: {
             id: true,
             username: true,
-            email: true,
             level: true,
           },
         },
@@ -290,7 +289,6 @@ router.get('/weekly', async (req, res) => {
         userScores.set(match.userId, {
           userId: match.userId,
           username: match.user.username,
-          email: match.user.email,
           level: match.user.level,
           totalScore: 0,
           gamesPlayed: 0,
@@ -306,7 +304,7 @@ router.get('/weekly', async (req, res) => {
 
     const leaderboard = Array.from(userScores.values())
       .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, Number(limit))
+      .slice(0, limit)
       .map((entry, index) => ({
         rank: index + 1,
         ...entry,
@@ -328,7 +326,7 @@ router.get('/weekly', async (req, res) => {
 // GET /api/leaderboard/monthly - Ranking mensual
 router.get('/monthly', async (req, res) => {
   try {
-    const { limit = 100 } = req.query;
+    const limit = clampLimit(req.query.limit, 100, 100);
 
     // Calcular inicio del mes
     const now = new Date();
@@ -344,7 +342,6 @@ router.get('/monthly', async (req, res) => {
           select: {
             id: true,
             username: true,
-            email: true,
             level: true,
           },
         },
@@ -359,7 +356,6 @@ router.get('/monthly', async (req, res) => {
         userScores.set(match.userId, {
           userId: match.userId,
           username: match.user.username,
-          email: match.user.email,
           level: match.user.level,
           totalScore: 0,
           gamesPlayed: 0,
@@ -375,7 +371,7 @@ router.get('/monthly', async (req, res) => {
 
     const leaderboard = Array.from(userScores.values())
       .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, Number(limit))
+      .slice(0, limit)
       .map((entry, index) => ({
         rank: index + 1,
         ...entry,

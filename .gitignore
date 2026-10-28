@@ -48,9 +48,10 @@ Thumbs.db
 *.code-workspace
 
 # Prisma
-prisma/migrations/
 *.db
 *.db-journal
+*.bak
+*.bak_*
 
 # Temporary Files
 tmp/
@@ -74,4 +75,18 @@ temp/
 # Debug
 .vscode-test/
 
+# Respaldos de base de datos (contienen datos reales: NUNCA versionar)
+backups/
+*.dump
+*.sql.gz
+
+# Entregables y artefactos generados (mantener fuera del repo)
+out/
+img_ppt/
+*.pptx
+Evidencia_*.pdf
+
 *.exe
+
+# Masters de arte IA (los optimizados en frontend/public/cards sí se versionan)
+frontend/art-source/

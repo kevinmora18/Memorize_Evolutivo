@@ -49,6 +49,7 @@ const GAME_MODES = {
     icon: '🧠',
     emojis: [],
   },
+  
   triads: {
     name: 'Tríadas',
     triads: [
@@ -123,7 +124,9 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
       const audio = new Audio(url);
       audio.volume = volume;
       audio.play().catch(() => {});
-    } catch (_) {}
+    } catch {
+      // audio no disponible
+    }
   };
 
   // ── Initialize ────────────────────────────────────────────────────────────

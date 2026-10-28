@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * BaseRepository - Clase abstracta base para repositorios de datos
@@ -41,6 +41,16 @@ export abstract class BaseRepository<T, ID = string> {
    * Método abstracto - cada repositorio define cómo listar entidades
    */
   abstract findAll(options?: any): Promise<T[]>;
+
+  /**
+   * Ejecuta un callback dentro de una transacción ACID (todo o nada).
+   * Si el callback lanza un error, Prisma hace ROLLBACK automático.
+   */
+  public async transaction<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>
+  ): Promise<T> {
+    return this.prisma.$transaction(fn);
+  }
 
   /**
    * Método protegido para logging

@@ -1,6 +1,15 @@
-
-import { motion } from 'framer-motion';
-import { Award, Star, Zap, Target, Flame, RotateCcw, Home, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Award, Star, Zap, Target, Flame, RotateCcw,
+  Home, Clock, ArrowRight, Sparkles, Coins, Gem, ShieldAlert
+} from 'lucide-react';
+import {
+  getLevel, recordLevelResult, computeStars, STAR_RULES, TOTAL_LEVELS,
+  type LevelRewards, type LevelOutcome
+} from '../lib/classicCampaign';
+import { apiFetch } from '../lib/api';
+import { CardArt } from './cards/CardArt';
 
 interface ClassicResultsProps {
   level: number;
@@ -11,6 +20,7 @@ interface ClassicResultsProps {
   matchedPairs: number;
   totalPairs: number;
   timeLeft: number;
+  maxTime: number;
   won: boolean;
   onNextLevel: () => void;
   onRetry: () => void;
@@ -18,206 +28,320 @@ interface ClassicResultsProps {
 }
 
 export function ClassicResults({
-  level, score, aiScore, accuracy, maxCombo, matchedPairs, totalPairs,
-  timeLeft, won, onNextLevel, onRetry, onBackToLobby
+  level,
+  score,
+  aiScore,
+  accuracy,
+  maxCombo,
+  matchedPairs,
+  totalPairs,
+  timeLeft,
+  maxTime,
+  won,
+  onNextLevel,
+  onRetry,
+  onBackToLobby,
 }: ClassicResultsProps) {
-  const xpGained = won
-    ? Math.floor(score * 0.1 + maxCombo * 50 + timeLeft * 10)
-    : Math.floor(score * 0.05);
+  const levelDef = getLevel(level);
+  const calculatedStars = computeStars(won, accuracy, timeLeft, maxTime);
 
-  const stars = won
-    ? (accuracy >= 90 && maxCombo >= 5 ? 3 : accuracy >= 70 ? 2 : 1)
-    : 0;
+  const [rewards, setRewards] = useState<LevelRewards | null>(null);
+  const [serverRewards, setServerRewards] = useState<{ xpGained: number; coinsGained: number } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getRank = () => {
-    if (!won) return { label: 'FALLO NEURAL', color: '#ef4444' };
-    if (accuracy >= 95 && maxCombo >= 10) return { label: 'MAESTRO CUÁNTICO', color: '#facc15' };
-    if (accuracy >= 85 && maxCombo >= 5) return { label: 'NEURO EXPERTO', color: '#a855f7' };
-    if (accuracy >= 70) return { label: 'LINKER NEURAL', color: '#22d3ee' };
-    return { label: 'NOVATO SINÁPTICO', color: '#6b7280' };
-  };
+  useEffect(() => {
+    // 1. Guardar y procesar recompensas locales (estrellas, reliquia, poder, corona)
+    const outcome: LevelOutcome = {
+      won,
+      score,
+      accuracy,
+      maxCombo,
+      timeLeft,
+      stars: calculatedStars,
+    };
+    const local = recordLevelResult(level, outcome);
+    setRewards(local);
 
-  const rank = getRank();
+    // 2. Enviar resultado al servidor para acreditar XP y Monedas oficiales
+    setIsSubmitting(true);
+    apiFetch<{ xpGained: number; coinsGained: number }>('/api/matches', {
+      method: 'POST',
+      body: JSON.stringify({
+        mode: 'classic',
+        level,
+        score,
+        accuracy,
+        combo: maxCombo,
+        timeLeft: Math.round(timeLeft),
+        won,
+      }),
+    })
+      .then((data) => {
+        setServerRewards({
+          xpGained: data.xpGained,
+          coinsGained: data.coinsGained,
+        });
+      })
+      .catch(() => {
+        // Modo offline / sin sesión: fallback visual
+        setServerRewards({
+          xpGained: local.localXp,
+          coinsGained: won ? Math.floor(score / 10) : 10,
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  }, [level, won, score, accuracy, maxCombo, timeLeft, calculatedStars]);
+
+  // Sonidos de victoria o derrota
+  useEffect(() => {
+    const audioUrl = won
+      ? 'https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg'
+      : 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg';
+    try {
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.4;
+      audio.play().catch(() => {});
+    } catch {}
+  }, [won]);
 
   const stats = [
     { icon: Target, label: 'Precisión', value: `${accuracy}%`, color: '#22d3ee' },
-    { icon: Flame, label: 'Mejor Combo', value: `x${maxCombo}`, color: '#f97316' },
-    { icon: Zap, label: 'Pares', value: `${matchedPairs}/${totalPairs}`, color: '#a855f7' },
-    { icon: TrendingUp, label: 'Tiempo', value: `${Math.ceil(timeLeft)}s`, color: '#4ade80' },
+    { icon: Flame, label: 'Mayor Cadena', value: `x${maxCombo}`, color: '#f97316' },
+    { icon: Zap, label: 'Memorias', value: `${matchedPairs}/${totalPairs}`, color: '#a855f7' },
+    { icon: Clock, label: 'Tiempo Libre', value: `${Math.ceil(timeLeft)}s`, color: '#4ade80' },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)' }}>
-
-      {/* Background glow */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto select-none"
+      style={{ background: 'rgba(5,7,12,0.92)', backdropFilter: 'blur(16px)' }}
+    >
+      {/* Background Ambience Glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-20"
-          style={{ background: `radial-gradient(circle, ${won ? '#7c3aed' : '#ef4444'}, transparent)`, filter: 'blur(60px)' }} />
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-25 blur-3xl pointer-events-none"
+          style={{ background: won ? 'radial-gradient(circle, #35E0C8, #E8B54A, transparent)' : 'radial-gradient(circle, #FF4D5E, transparent)' }}
+        />
       </div>
 
       <motion.div
-        className="w-full max-w-sm relative"
-        initial={{ scale: 0.7, opacity: 0, y: 60 }}
+        className="w-full max-w-lg relative my-auto"
+        initial={{ scale: 0.85, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 22, delay: 0.1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       >
-        <div className="rounded-3xl overflow-hidden border"
+        <div
+          className="rounded-3xl border overflow-hidden shadow-2xl relative"
           style={{
-            background: 'linear-gradient(180deg, rgba(15,5,40,0.98) 0%, rgba(5,2,20,0.98) 100%)',
-            borderColor: won ? 'rgba(139,92,246,0.6)' : 'rgba(239,68,68,0.6)',
-            boxShadow: `0 0 60px ${won ? 'rgba(139,92,246,0.3)' : 'rgba(239,68,68,0.3)'}`,
-          }}>
+            background: 'linear-gradient(180deg, #0D1119 0%, #07090F 100%)',
+            borderColor: won ? 'rgba(53,224,200,0.4)' : 'rgba(255,77,94,0.4)',
+            boxShadow: won ? '0 0 50px rgba(53,224,200,0.15)' : '0 0 50px rgba(255,77,94,0.15)',
+          }}
+        >
+          {/* Header Banner */}
+          <div
+            className="p-6 text-center relative"
+            style={{
+              background: won
+                ? 'linear-gradient(180deg, rgba(53,224,200,0.12) 0%, transparent 100%)'
+                : 'linear-gradient(180deg, rgba(255,77,94,0.12) 0%, transparent 100%)',
+            }}
+          >
+            <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-[#9AA3B2] mb-1">
+              REGISTRO DE CUSTODIA · NIVEL {level}
+            </div>
 
-          {/* Header */}
-          <div className="relative px-6 pt-8 pb-4 text-center"
-            style={{ background: `linear-gradient(180deg, ${won ? 'rgba(139,92,246,0.15)' : 'rgba(239,68,68,0.1)'} 0%, transparent 100%)` }}>
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', delay: 0.3, stiffness: 200 }}
-              className="flex justify-center mb-3"
+            <h2
+              className="font-serif text-3xl sm:text-4xl font-bold tracking-wide text-white drop-shadow-md mb-2"
+              style={{
+                color: won ? '#35E0C8' : '#FF4D5E',
+                textShadow: won ? '0 0 20px rgba(53,224,200,0.5)' : '0 0 20px rgba(255,77,94,0.5)',
+              }}
             >
+              {won ? (level === TOTAL_LEVELS ? '¡CAMPAÑA CONQUISTADA!' : '¡SECUENCIA CAPTURADA!') : 'ANOMALÍA NO RESUELTA'}
+            </h2>
+
+            <p className="text-xs text-[#9AA3B2]">
               {won
-                ? <Award size={56} className="text-yellow-400" style={{ filter: 'drop-shadow(0 0 20px rgba(250,204,21,0.6))' }} />
-                : <div className="text-5xl">💀</div>
-              }
-            </motion.div>
+                ? `Has completado el Nivel ${level}: "${levelDef.title}"`
+                : 'Se agotó el tiempo de contención. El Archivo ha restablecido el registro.'}
+            </p>
 
-            <div className="font-black text-2xl text-white mb-1" style={{ textShadow: `0 0 20px ${rank.color}` }}>
-              {won ? '¡SECUENCIA SINCRONIZADA!' : 'CONEXIÓN PERDIDA'}
-            </div>
-            <div className="font-bold text-sm uppercase tracking-widest" style={{ color: rank.color }}>
-              {rank.label}
-            </div>
-
-            {/* Stars */}
+            {/* Stars Animation */}
             {won && (
-              <div className="flex justify-center gap-3 mt-4">
-                {[1, 2, 3].map(s => (
-                  <motion.div key={s}
-                    initial={{ scale: 0, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    transition={{ delay: 0.4 + s * 0.15, type: 'spring' }}>
-                    <Star
-                      size={32}
-                      className={s <= stars ? 'text-yellow-400' : 'text-gray-700'}
-                      fill={s <= stars ? '#facc15' : 'none'}
-                      style={s <= stars ? { filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.8))' } : {}}
-                    />
-                  </motion.div>
-                ))}
+              <div className="flex items-center justify-center gap-3 mt-4">
+                {[1, 2, 3].map((starIdx) => {
+                  const isEarned = starIdx <= calculatedStars;
+                  return (
+                    <motion.div
+                      key={starIdx}
+                      initial={{ scale: 0, rotate: -30 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.2 + starIdx * 0.15, type: 'spring' }}
+                      className="relative"
+                    >
+                      <Star
+                        className={`w-9 h-9 ${
+                          isEarned
+                            ? 'text-[#E8B54A] fill-[#E8B54A] filter drop-shadow-[0_0_12px_rgba(232,181,74,0.8)]'
+                            : 'text-[#1E2836] fill-[#131A26]'
+                        }`}
+                      />
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* VS Score */}
-          <div className="px-6 py-3 flex items-center gap-4 border-y border-white/5">
-            <div className="flex-1 text-center">
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">Tu Puntuación</div>
-              <motion.div
-                className="text-2xl font-black text-cyan-400"
-                style={{ textShadow: '0 0 15px rgba(34,211,238,0.6)' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
+          {/* Score & Server Rewards Banner */}
+          <div className="px-6 py-3 border-y border-[#1E2836] bg-[#07090F]/60 flex items-center justify-around">
+            <div className="text-center">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2]">Puntuación</span>
+              <div className="font-mono text-xl sm:text-2xl font-bold text-white">
                 {score.toLocaleString()}
-              </motion.div>
+              </div>
             </div>
-            <div className="text-gray-600 font-black text-lg">VS</div>
-            <div className="flex-1 text-center">
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">IA Rival</div>
-              <div className="text-2xl font-black text-red-400"
-                style={{ textShadow: '0 0 15px rgba(248,113,113,0.6)' }}>
-                {aiScore.toLocaleString()}
+
+            <div className="h-8 w-px bg-[#1E2836]" />
+
+            <div className="text-center">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2] flex items-center justify-center gap-1">
+                <Coins className="w-3 h-3 text-[#E8B54A]" /> Monedas
+              </span>
+              <div className="font-mono text-xl sm:text-2xl font-bold text-[#E8B54A]">
+                +{serverRewards?.coinsGained ?? Math.floor(score / 10)}
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-[#1E2836]" />
+
+            <div className="text-center">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2] flex items-center justify-center gap-1">
+                <Zap className="w-3 h-3 text-[#35E0C8]" /> XP Ganado
+              </span>
+              <div className="font-mono text-xl sm:text-2xl font-bold text-[#35E0C8]">
+                +{serverRewards?.xpGained ?? rewards?.localXp ?? 50}
               </div>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="px-6 py-4 grid grid-cols-2 gap-3">
-            {stats.map((stat, i) => (
-              <motion.div key={stat.label}
-                className="rounded-2xl p-3 flex items-center gap-3"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-                initial={{ opacity: 0, x: i % 2 === 0 ? -20 : 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + i * 0.1 }}
+          {/* Stats 4-Grid */}
+          <div className="p-6 grid grid-cols-2 gap-3">
+            {stats.map((s, i) => (
+              <div
+                key={s.label}
+                className="p-3 rounded-xl border border-[#1E2836] bg-[#131A26]/50 flex items-center gap-3"
               >
-                <stat.icon size={18} style={{ color: stat.color }} />
+                <s.icon className="w-5 h-5 shrink-0" style={{ color: s.color }} />
                 <div>
-                  <div className="text-[9px] text-gray-500 uppercase tracking-wider">{stat.label}</div>
-                  <div className="font-black text-base text-white">{stat.value}</div>
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2]">{s.label}</div>
+                  <div className="font-mono text-base font-bold text-white">{s.value}</div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          {/* XP Bar */}
-          <div className="px-6 pb-4">
-            <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wider mb-1">
-              <span className="flex items-center gap-1"><Zap size={9} />XP Ganado</span>
-              <span className="text-purple-400 font-bold">+{xpGained} XP</span>
-            </div>
-            <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #7c3aed, #c084fc)', boxShadow: '0 0 8px rgba(168,85,247,0.7)' }}
-                initial={{ width: '0%' }}
-                animate={{ width: `${Math.min((xpGained / 500) * 100, 100)}%` }}
-                transition={{ duration: 1.2, delay: 0.8, ease: 'easeOut' }}
-              />
-            </div>
-          </div>
+          {/* Special Unlocks Box (Relic, Power, Crown) */}
+          {won && rewards?.firstClear && (
+            <div className="px-6 pb-4">
+              <div className="p-4 rounded-2xl border border-[#E8B54A]/40 bg-[#E8B54A]/10 relative overflow-hidden">
+                <div className="flex items-center gap-3 mb-2">
+                  <Sparkles className="w-4 h-4 text-[#E8B54A]" />
+                  <span className="font-mono text-xs uppercase tracking-widest font-bold text-[#E8B54A]">
+                    ¡Desbloqueo de 1ª Victoria!
+                  </span>
+                </div>
 
-          {/* Action Buttons */}
-          <div className="px-6 pb-6 flex flex-col gap-2">
-            {won && level < 15 && (
+                <div className="flex items-center gap-4">
+                  {rewards.relic && (
+                    <div className="w-14 h-18 rounded-lg border border-[#E8B54A]/60 overflow-hidden shrink-0 shadow-md">
+                      <CardArt artId={rewards.relic.id} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    {rewards.relic && (
+                      <div className="text-sm font-bold text-white truncate">
+                        Reliquia: {rewards.relic.name}
+                      </div>
+                    )}
+                    {rewards.power && (
+                      <div className="text-xs text-[#35E0C8] font-mono font-medium mt-0.5">
+                        Nuevo Poder: {rewards.power.name} ({rewards.power.verb})
+                      </div>
+                    )}
+                    {rewards.crown && (
+                      <div className="text-xs text-[#E8B54A] font-mono font-bold mt-0.5">
+                        ★ Has obtenido la Corona del Archivo ★
+                      </div>
+                    )}
+                    <div className="text-[11px] text-[#9AA3B2] mt-1">
+                      Añadida a tu colección permanente del Archivo.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Star Criteria Info (If won) */}
+          {won && (
+            <div className="px-6 pb-4 text-[10px] font-mono text-[#9AA3B2] flex flex-col gap-1 border-t border-[#1E2836]/40 pt-3">
+              <div className="flex items-center justify-between">
+                <span>★ Superar el Nivel:</span>
+                <span className="text-white">Concedida</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>★ Precisión ≥ {STAR_RULES.accuracy}% ({accuracy}%):</span>
+                <span className={accuracy >= STAR_RULES.accuracy ? 'text-[#35E0C8]' : 'text-[#5C6675]'}>
+                  {accuracy >= STAR_RULES.accuracy ? 'Conseguida' : 'Pendiente'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>★ Tiempo restante ≥ {Math.round(STAR_RULES.timeRatio * 100)}% ({Math.round((timeLeft / maxTime) * 100)}%):</span>
+                <span className={timeLeft / maxTime >= STAR_RULES.timeRatio ? 'text-[#35E0C8]' : 'text-[#5C6675]'}>
+                  {timeLeft / maxTime >= STAR_RULES.timeRatio ? 'Conseguida' : 'Pendiente'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Buttons Footer */}
+          <div className="p-6 border-t border-[#1E2836] bg-[#07090F] flex flex-col gap-2.5">
+            {won && level < TOTAL_LEVELS && (
               <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={onNextLevel}
-                className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white flex items-center justify-center gap-2"
-                style={{
-                  background: 'linear-gradient(135deg, #7c3aed, #a855f7)',
-                  boxShadow: '0 0 25px rgba(139,92,246,0.5)',
-                }}
-                whileHover={{ scale: 1.03, boxShadow: '0 0 35px rgba(139,92,246,0.7)' }}
-                whileTap={{ scale: 0.97 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9 }}
+                className="w-full py-3.5 px-4 rounded-xl font-mono text-sm uppercase tracking-widest font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] shadow-[0_0_20px_rgba(53,224,200,0.3)] hover:shadow-[0_0_30px_rgba(53,224,200,0.5)] cursor-pointer"
               >
-                <Zap size={16} /> Siguiente Nivel
+                <span>Siguiente Nivel ({level + 1})</span>
+                <ArrowRight className="w-4 h-4" />
               </motion.button>
             )}
 
-            <div className="flex gap-2">
-              <motion.button
+            <div className="flex gap-2.5">
+              <button
                 onClick={onRetry}
-                className="flex-1 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                whileHover={{ background: 'rgba(255,255,255,0.1)' }}
-                whileTap={{ scale: 0.97 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
+                className="flex-1 py-3 px-4 rounded-xl font-mono text-xs uppercase tracking-wider font-semibold border border-[#1E2836] bg-[#131A26] text-[#E8E6DF] hover:border-[#35E0C8]/50 hover:bg-[#1A2230] transition-colors flex items-center justify-center gap-2"
               >
-                <RotateCcw size={14} /> Reintentar
-              </motion.button>
-              <motion.button
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reintentar</span>
+              </button>
+
+              <button
                 onClick={onBackToLobby}
-                className="flex-1 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest text-gray-400 flex items-center justify-center gap-2"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                whileHover={{ background: 'rgba(255,255,255,0.07)' }}
-                whileTap={{ scale: 0.97 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.05 }}
+                className="flex-1 py-3 px-4 rounded-xl font-mono text-xs uppercase tracking-wider font-semibold border border-[#1E2836] bg-[#0D1119] text-[#9AA3B2] hover:text-white hover:border-[#2C3A4E] transition-colors flex items-center justify-center gap-2"
               >
-                <Home size={14} /> Lobby
-              </motion.button>
+                <Home className="w-3.5 h-3.5" />
+                <span>Expedición / Mapa</span>
+              </button>
             </div>
           </div>
+
         </div>
       </motion.div>
     </div>

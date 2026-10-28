@@ -23,6 +23,7 @@ Memorize Evolutivo es un juego web multijugador en tiempo real que combina el cl
 - 👥 **Multijugador en Tiempo Real:** Hasta 4 jugadores con Socket.IO
 - 🏆 **Rankings:** Global, por modo, semanal y mensual
 - 🛡️ **Panel de Administración:** Gestión completa del sistema
+- 🔐 **Autenticación Real:** Registro/login con contraseña (bcrypt + JWT)
 
 ---
 
@@ -52,7 +53,7 @@ Memorize Evolutivo es un juego web multijugador en tiempo real que combina el cl
    cd backend
    npm install
    npx prisma generate
-   npx prisma db push
+   npm run prisma:deploy
    ```
 
 4. **Configurar frontend**
@@ -80,11 +81,12 @@ Memorize Evolutivo es un juego web multijugador en tiempo real que combina el cl
 
 ## 📚 Documentación
 
-- 📄 [SRS Completo](./SRS_MEMORIZE_EVOLUTIVO_ACTUALIZADO.md) - Especificación de requisitos
 - 🔧 [Guía de Instalación](./INSTRUCCIONES_INSTALACION.md) - Instalación paso a paso
+- 📋 [Reporte de Implementación](./REPORTE_IMPLEMENTACION.md) - Cambios en la base de datos
 - ✅ [Verificación](./VERIFICACION_IMPLEMENTACION.md) - Estado de implementación
-- 📊 [Resumen Final](./RESUMEN_FINAL.md) - Resumen ejecutivo
 - ☑️ [Checklist](./CHECKLIST_COMPLETO.md) - Checklist de verificación
+- 🔐 [Plan de Seguridad Fase 1](./PLAN_SEGURIDAD_FASE1.md) - Autenticación y hardening
+- 🚀 [Guía de Despliegue](./DEPLOYMENT.md) - Despliegue en Render
 
 ---
 
@@ -145,11 +147,12 @@ Juego por turnos contra inteligencia artificial
 
 ### Backend
 ```bash
-npm run dev          # Desarrollo
-npm run build        # Build
-npm start            # Producción
-npx prisma studio    # Interfaz visual DB
-npx prisma db push   # Sincronizar schema
+npm run dev            # Desarrollo
+npm run build          # Build
+npm start              # Producción
+npm run prisma:studio  # Interfaz visual DB
+npm run prisma:migrate # Crear/aplicar migraciones (desarrollo)
+npm run prisma:deploy  # Aplicar migraciones (producción)
 ```
 
 ### Frontend
@@ -186,7 +189,7 @@ Este proyecto fue desarrollado como parte de un proyecto académico.
 ✅ **Base de Datos:** Configurada  
 ✅ **Documentación:** Completa  
 
-**Próximo paso:** Instalar PostgreSQL y ejecutar migraciones
+**Próximo paso:** Configurar `backend/.env` (DATABASE_URL y JWT_SECRET) y ejecutar `npm run prisma:deploy`
 
 ---
 

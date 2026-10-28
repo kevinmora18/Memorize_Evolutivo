@@ -118,7 +118,8 @@ export interface IAuditLogService {
  */
 export interface IAuthService {
   initialize(): Promise<void>;
-  loginOrRegister(email: string): Promise<User>;
+  register(email: string, password: string, username?: string): Promise<{ user: User; token: string }>;
+  login(email: string, password: string): Promise<{ user: User; token: string }>;
   validateAccess(userId: string): Promise<boolean>;
   isAdmin(userId: string): Promise<boolean>;
 }

@@ -13,9 +13,7 @@ Este documento explica cómo desplegar el proyecto **Memorize Evolutivo** en Ren
 El proyecto ya está preparado para Render con:
 
 - ✓ `render.yaml` - Configuración de despliegue
-- ✓ `backend/Dockerfile` - Imagen del backend
-- ✓ `frontend/Dockerfile` - Imagen del frontend
-- ✓ `.env.production` - Variables de producción
+- ✓ `backend/prisma/migrations/` - Migraciones versionadas (se aplican en el build con `prisma migrate deploy`)
 - ✓ Health check endpoint (`/health`)
 
 ## 📤 Pasos de Despliegue
@@ -25,7 +23,7 @@ El proyecto ya está preparado para Render con:
 ```bash
 git add .
 git commit -m "Preparar para despliegue en Render"
-git push origin master
+git push origin main
 ```
 
 ### 2. Crear Backend en Render
@@ -35,9 +33,9 @@ git push origin master
 3. Conecta tu repositorio de GitHub
 4. Configura:
    - **Name:** `memorize-backend`
-   - **Branch:** `master`
+   - **Branch:** `main`
    - **Runtime:** `Node`
-   - **Build Command:** `npm --prefix backend install && npm --prefix backend run build`
+   - **Build Command:** `npm --prefix backend install && npm --prefix backend run build && npm --prefix backend run prisma:deploy`
    - **Start Command:** `npm --prefix backend run start`
    - **Plan:** Free (o pagado si deseas mejor rendimiento)
 
@@ -46,7 +44,9 @@ git push origin master
    PORT = 10000
    NODE_ENV = production
    FRONTEND_URL = https://memorize-evolutivo.onrender.com
-   CORS_ORIGIN = https://memorize-evolutivo.onrender.com
+   DATABASE_URL = postgresql://...   (cadena de conexión de tu PostgreSQL)
+   JWT_SECRET = <cadena_larga_y_aleatoria>
+   JWT_EXPIRES_IN = 7d
    ```
 
 6. Click **"Create Web Service"**
@@ -58,7 +58,7 @@ git push origin master
 2. Conecta tu repositorio de GitHub
 3. Configura:
    - **Name:** `memorize-frontend`
-   - **Branch:** `master`
+   - **Branch:** `main`
    - **Build Command:** `npm --prefix frontend install && npm --prefix frontend run build`
    - **Publish Directory:** `frontend/dist`
 
@@ -87,6 +87,9 @@ curl https://memorize-backend.onrender.com/health
 | `NODE_ENV` | `production` |
 | `PORT` | `10000` |
 | `FRONTEND_URL` | URL del frontend en Render |
+| `DATABASE_URL` | Cadena de conexión PostgreSQL |
+| `JWT_SECRET` | Cadena aleatoria larga (mín. 16 caracteres) |
+| `JWT_EXPIRES_IN` | `7d` |
 | `VITE_API_BASE` | URL del backend en Render |
 
 ## 🐛 Troubleshooting
@@ -114,10 +117,9 @@ En Render Dashboard puedes:
 
 ## 💡 Mejoras Futuras
 
-- [ ] Usar base de datos (PostgreSQL en Render)
-- [ ] Persistencia de datos de salas
-- [ ] Autenticación JWT
-- [ ] Sistema de puntuaciones
+- [ ] Persistencia de datos de salas (hoy en memoria)
+- [ ] Refresh tokens / expiración corta de sesión
+- [ ] Tests automatizados + CI/CD
 - [ ] CDN para assets estáticos
 
 ---
