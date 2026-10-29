@@ -397,19 +397,19 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       </AnimatePresence>
 
       {/* ──────────────── 1. Header Minimalista y Limpio ──────────────── */}
-      <header className="h-16 px-6 sm:px-8 flex items-center justify-between z-20 backdrop-blur-xl border-b border-white/5 bg-slate-950/60 shrink-0">
+      <header className="h-14 sm:h-16 px-3 sm:px-8 flex items-center justify-between z-20 backdrop-blur-xl border-b border-white/5 bg-slate-950/60 shrink-0">
         {/* Logo del Juego */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center border border-cyan-400/40 bg-cyan-950/30 text-cyan-400 shadow-lg shadow-cyan-950/50">
-            <Brain className="w-5 h-5" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-cyan-400/40 bg-cyan-950/30 text-cyan-400 shadow-lg shadow-cyan-950/50">
+            <Brain className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold tracking-wider font-serif text-white">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-base sm:text-xl font-bold tracking-wider font-serif text-white">
                 MEMORIZE
               </span>
-              <span className="text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 font-semibold">
-                EVOLUTIVO
+              <span className="text-[9px] sm:text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 font-semibold hidden xs:inline">
+                EVO
               </span>
             </div>
           </div>
@@ -452,47 +452,47 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
         </nav>
 
         {/* Recursos y Utilidades (Monedas, Gemas, Cerebritos) */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200 text-xs font-mono font-bold backdrop-blur-sm" title="Monedas">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200 text-xs font-mono font-bold backdrop-blur-sm" title="Monedas">
               <Coins className="w-3.5 h-3.5 text-amber-400" />
               <span>{coins.toLocaleString()}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-cyan-400/25 bg-cyan-400/10 text-cyan-200 text-xs font-mono font-bold backdrop-blur-sm" title="Gemas">
-              <Gem className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-cyan-400/25 bg-cyan-400/10 text-cyan-200 text-[11px] sm:text-xs font-mono font-bold backdrop-blur-sm" title="Gemas">
+              <Gem className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-cyan-400" />
               <span>{gems.toLocaleString()}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-purple-400/30 bg-purple-400/15 text-purple-200 text-xs font-mono font-bold backdrop-blur-sm shadow-[0_0_12px_rgba(183,156,255,0.25)]" title="Cerebritos para tu compañero 3D">
-              <Brain className="w-3.5 h-3.5 text-purple-300" />
+            <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-purple-400/30 bg-purple-400/15 text-purple-200 text-[11px] sm:text-xs font-mono font-bold backdrop-blur-sm shadow-[0_0_12px_rgba(183,156,255,0.25)]" title="Cerebritos para tu compañero 3D">
+              <Brain className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-purple-300" />
               <span>{petState.brains}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 pl-2 border-l border-white/10">
+          <div className="flex items-center gap-0.5 sm:gap-1 pl-1.5 sm:pl-2 border-l border-white/10">
             <button
               onClick={toggleSound}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               title={isMuted ? 'Habilitar sonido' : 'Silenciar sonido'}
             >
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
             </button>
             <button
               onClick={() => { playSfx('click'); setShowMessages(true); }}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               title="Buzón de transmisiones"
             >
               <Mail className="w-4 h-4" />
             </button>
             <button
               onClick={() => { playSfx('click'); setShowSettings(true); }}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               title="Ajustes"
             >
               <Settings className="w-4 h-4" />
             </button>
             <button
               onClick={() => { playSfx('click'); onLogout(); }}
-              className="p-2 rounded-xl text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
               title="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
@@ -502,7 +502,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       </header>
 
       {/* ──────────────── 2. Área Principal: Mascota 3D Central + Centro de Operaciones ──────────────── */}
-      <main className="flex-grow p-5 sm:p-6 lg:p-7 flex gap-6 z-10 min-h-0 overflow-hidden max-w-7xl w-full mx-auto">
+      <main className="flex-grow p-3 sm:p-5 lg:p-7 flex flex-col lg:flex-row gap-4 lg:gap-6 z-10 min-h-0 overflow-y-auto lg:overflow-hidden max-w-7xl w-full mx-auto">
 
         {/* ── SECTOR CENTRAL: EL ANIMAL 3D COMO CENTRO DEL LOBBY (68% del espacio) ── */}
         <section className="flex-1 flex flex-col justify-between min-h-0 relative">
@@ -714,7 +714,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
         </section>
 
         {/* ── SECTOR DERECHO: Centro de Operaciones & Misiones (32% del espacio) ── */}
-        <aside className="w-80 sm:w-84 flex flex-col gap-3 shrink-0 min-h-0 overflow-y-auto an-scroll pr-1">
+        <aside className="w-full lg:w-84 flex flex-col gap-3 shrink-0 min-h-0 overflow-y-auto an-scroll pr-1 pb-4 lg:pb-0">
 
           {/* Tarjeta de Perfil Compacta */}
           <div
