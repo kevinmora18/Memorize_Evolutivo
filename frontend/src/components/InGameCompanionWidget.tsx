@@ -23,7 +23,7 @@ export function InGameCompanionWidget({
   const [charge, setCharge] = useState(100); // Comienza al 100% para poder probarla de inmediato
   const [isInteracting, setIsInteracting] = useState(false);
   const [speech, setSpeech] = useState<string | null>('¡Estoy aquí para ayudarte con mi visión astral! ✨');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [cooldown, setCooldown] = useState(false);
 
   const petDef = PETS[petState.type] || PETS.fox;
@@ -122,7 +122,7 @@ export function InGameCompanionWidget({
   const isReady = charge >= 100;
 
   return (
-    <div className="fixed top-18 left-3 z-40 select-none pointer-events-auto">
+    <div className="fixed top-12 left-1.5 sm:top-18 sm:left-3 z-40 select-none pointer-events-auto">
       {/* Globo de diálogo flotante del compañero */}
       <AnimatePresence>
         {speech && !isCollapsed && (

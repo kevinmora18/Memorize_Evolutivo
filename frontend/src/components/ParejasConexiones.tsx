@@ -1774,7 +1774,7 @@ export function ParejasConexiones({
   const accuracy = attempts > 0 ? Math.round((completedPairs.length / attempts) * 100) : 100;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden flex flex-col justify-between select-none text-white font-sans bg-[#030712]">
+    <div className="h-[100dvh] max-h-[100dvh] w-full relative overflow-hidden flex flex-col justify-between select-none text-white font-sans bg-[#030712] game-screen-lock">
       {/* ── Fondo Cinemático con Gradiente Profundo y Partículas Ambientales ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -1804,15 +1804,50 @@ export function ParejasConexiones({
       {/* Superposición cuando el tiempo está congelado */}
       <FreezeOverlay active={isTimeFrozen} />
 
-      {/* ── Cabecera HUD Superior ────────────────────────────────────────── */}
-      <header className="relative z-20 px-4 sm:px-6 pt-4 pb-2 w-full max-w-5xl mx-auto flex items-center justify-between gap-4">
+      {/* ── Cabecera Móvil Compacta (sm:hidden) ────────────────────────────── */}
+      <header className="px-2.5 py-1.5 flex sm:hidden items-center justify-between border-b border-white/10 backdrop-blur-md bg-black/40 relative z-30 shrink-0">
+        <button
+          onClick={onBackToMenu}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-white/10 bg-white/5 active:bg-white/15 text-[11px] font-mono tracking-wider text-gray-200"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
+          <span>SALIR</span>
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <Link2 className="w-4 h-4" style={{ color: meta.color }} />
+          <span className="font-black text-xs tracking-wider uppercase text-white truncate max-w-[140px]">
+            {meta.badge}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleSound}
+            aria-label="Silenciar sonido"
+            className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-gray-300"
+          >
+            {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+          </button>
+          <button
+            onClick={initializeGame}
+            aria-label="Reiniciar partida"
+            className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-gray-300"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+          </button>
+        </div>
+      </header>
+
+      {/* ── Cabecera HUD Superior Escritorio (hidden sm:flex) ──────────────── */}
+      <header className="relative z-20 px-4 sm:px-6 pt-3 pb-2 w-full max-w-5xl mx-auto hidden sm:flex items-center justify-between gap-4 shrink-0">
         {/* Botón Salir / Volver */}
         <button
           onClick={onBackToMenu}
           className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-wider backdrop-blur-md"
         >
           <ArrowLeft className="w-4 h-4 text-emerald-400" />
-          <span className="hidden sm:inline">Boss Select</span>
+          <span>Boss Select</span>
         </button>
 
         {/* Identificador Central de Modo */}
@@ -1849,20 +1884,57 @@ export function ParejasConexiones({
         </div>
       </header>
 
-      {/* ── Widget del Compañero Neural Astral (InGame Companion) ─────────── */}
-      <div className="relative z-30 w-full max-w-5xl mx-auto px-4 flex justify-end">
-        <InGameCompanionWidget
-          onRevealPair={handleRevealPair}
-          onFreezeTime={handleFreezeTime}
-          combo={combo}
-          matchedCount={completedPairs.length}
-          isGameActive={phase === "playing"}
-        />
+      {/* ── Widget del Compañero Neural Astral ─────────────────────────────── */}
+      <InGameCompanionWidget
+        onRevealPair={handleRevealPair}
+        onFreezeTime={handleFreezeTime}
+        combo={combo}
+        matchedCount={completedPairs.length}
+        isGameActive={phase === "playing"}
+      />
+
+      {/* ── HUD Móvil de 1 Línea (sm:hidden) ─────────────────────────────────── */}
+      <div className="px-2 pt-1 relative z-20 sm:hidden shrink-0">
+        <div className="flex items-center justify-between gap-1 p-1 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md font-mono text-xs">
+          {/* Puntuación */}
+          <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg flex-1 justify-center">
+            <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
+            <span className="font-black text-white text-xs">{score.toLocaleString()}</span>
+          </div>
+
+          {/* Racha */}
+          <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg shrink-0">
+            <Flame className={`w-3 h-3 shrink-0 ${combo >= 2 ? "text-amber-400" : "text-gray-400"}`} />
+            <span className={`font-black text-xs ${combo >= 2 ? "text-amber-300" : "text-white"}`}>{combo}x</span>
+          </div>
+
+          {/* Tiempo */}
+          <div
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg shrink-0 border ${
+              isTimeFrozen
+                ? "bg-cyan-950/50 border-cyan-400 text-cyan-300"
+                : timeLeft <= 15
+                ? "bg-rose-950/50 border-rose-500/70 text-rose-400"
+                : "bg-white/5 border-transparent text-white"
+            }`}
+          >
+            {isTimeFrozen ? <Snowflake className="w-3 h-3 shrink-0 text-cyan-300 animate-spin" /> : <Clock className="w-3 h-3 shrink-0 text-blue-400" />}
+            <span className="font-black text-xs">
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
+            </span>
+          </div>
+
+          {/* Parejas */}
+          <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg shrink-0">
+            <CheckCircle2 className="w-3 h-3 text-teal-400 shrink-0" />
+            <span className="font-black text-teal-300 text-xs">{completedPairs.length}/{targetCount}</span>
+          </div>
+        </div>
       </div>
 
-      {/* ── Barra de Métricas y Estado Sináptico ─────────────────────────────── */}
-      <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 my-1">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl border border-white/10 bg-black/45 backdrop-blur-md shadow-2xl">
+      {/* ── Barra de Métricas y Estado Sináptico Escritorio (hidden sm:block) ── */}
+      <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 my-1 hidden sm:block shrink-0">
+        <div className="grid grid-cols-4 gap-2.5 p-3 rounded-2xl border border-white/10 bg-black/45 backdrop-blur-md shadow-2xl">
           {/* Puntuación */}
           <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5">
             <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
@@ -1951,50 +2023,50 @@ export function ParejasConexiones({
             </div>
           </div>
         </div>
-
-        {/* Banner de Pareja Conectada con Explicación de Relación */}
-        <AnimatePresence>
-          {activeBanner && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -10 }}
-              className="mt-2.5 p-3 rounded-2xl border-2 backdrop-blur-xl text-center shadow-2xl relative overflow-hidden"
-              style={{
-                borderColor: activeBanner.color,
-                background: "rgba(6, 12, 28, 0.92)",
-                boxShadow: `0 0 35px ${activeBanner.color}66`,
-              }}
-            >
-              <div
-                className="font-mono text-xs font-black tracking-widest uppercase mb-0.5 flex items-center justify-center gap-2"
-                style={{ color: activeBanner.color }}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{activeBanner.title}</span>
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-              <p className="text-xs sm:text-sm font-bold text-white tracking-wide">{activeBanner.desc}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* ── Tablero de Juego (Cartas Realistas de Colección) ─────────────────── */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-3 relative z-20 w-full max-w-4xl mx-auto">
-        <div className="relative p-4 sm:p-6 rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full flex flex-col items-center">
+      {/* ── Banner Flotante de Pareja Conectada (Overlay) ──────────────────── */}
+      <AnimatePresence>
+        {activeBanner && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            className="absolute top-12 sm:top-20 left-1/2 -translate-x-1/2 z-50 p-2.5 sm:p-3 rounded-2xl border-2 backdrop-blur-xl text-center shadow-2xl pointer-events-none max-w-[92vw] sm:max-w-md w-full"
+            style={{
+              borderColor: activeBanner.color,
+              background: "rgba(6, 12, 28, 0.95)",
+              boxShadow: `0 0 35px ${activeBanner.color}88`,
+            }}
+          >
+            <div
+              className="font-mono text-[10px] sm:text-xs font-black tracking-widest uppercase mb-0.5 flex items-center justify-center gap-2"
+              style={{ color: activeBanner.color }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{activeBanner.title}</span>
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-white tracking-wide truncate sm:whitespace-normal">{activeBanner.desc}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Tablero de Juego (Cartas Realistas de Colección Zero-Scroll) ─────── */}
+      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-2 relative z-20 w-full max-w-4xl mx-auto overflow-hidden">
+        <div className="relative p-1 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center justify-center overflow-hidden">
           {/* Indicador de Escaneo Previo */}
           {phase === "preview" && (
-            <div className="mb-3 flex items-center gap-2 font-mono text-xs text-teal-300 font-bold bg-teal-500/20 px-4 py-1.5 rounded-full border border-teal-400/40 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>MEMORIZA LAS PAREJAS RELACIONADAS: {previewCountdown.toFixed(1)}s</span>
+            <div className="mb-1 sm:mb-2 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs text-teal-300 font-bold bg-teal-500/20 px-3 py-1 rounded-full border border-teal-400/40 animate-pulse shrink-0">
+              <Sparkles className="w-3 h-3" />
+              <span>MEMORIZA PAREJAS: {previewCountdown.toFixed(1)}s</span>
             </div>
           )}
 
           {/* Cuadrícula de Cartas Coleccionables */}
           <div
-            className={`grid gap-3 sm:gap-4 w-full justify-center ${
-              cols === 4 ? "grid-cols-4 max-w-2xl" : "grid-cols-4 max-w-2xl"
+            className={`grid gap-1 sm:gap-3 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${
+              cols === 4 ? "grid-cols-4 max-w-2xl" : "grid-cols-3 sm:grid-cols-4 max-w-2xl"
             }`}
           >
             {cards.map((card, idx) => {
@@ -2010,17 +2082,16 @@ export function ParejasConexiones({
                   }}
                   style={{
                     aspectRatio: "3/4",
-                    maxWidth: "135px",
                     perspective: 1000,
                   }}
-                  className="w-full relative cursor-pointer select-none"
-                  whileHover={!card.isFlipped && !card.isMatched ? { y: -4, scale: 1.04 } : {}}
-                  whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.96 } : {}}
+                  className="w-full max-w-[95px] sm:max-w-[130px] h-full max-h-[16dvh] sm:max-h-[145px] relative cursor-pointer select-none touch-manipulation flex items-center justify-center"
+                  whileHover={!card.isFlipped && !card.isMatched ? { y: -3, scale: 1.03 } : {}}
+                  whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.95 } : {}}
                   animate={
                     isShaking
-                      ? { x: [0, -6, 6, -4, 4, 0], rotate: [0, -2, 2, -1, 1, 0] }
+                      ? { x: [0, -5, 5, -3, 3, 0], rotate: [0, -2, 2, -1, 1, 0] }
                       : card.isHinted
-                      ? { scale: [1, 1.08, 1], filter: "drop-shadow(0 0 16px #E8B54A)" }
+                      ? { scale: [1, 1.06, 1], filter: "drop-shadow(0 0 16px #E8B54A)" }
                       : {}
                   }
                   transition={{ duration: isShaking ? 0.35 : 0.2 }}
@@ -2034,47 +2105,50 @@ export function ParejasConexiones({
                   >
                     {/* Reverso de Carta Realista */}
                     <div
-                      className="absolute inset-0 rounded-2xl overflow-hidden border-2 border-white/10 bg-[#070D1E] flex flex-col items-center justify-between p-3"
+                      className="absolute inset-0 rounded-xl sm:rounded-2xl overflow-hidden border sm:border-2 border-white/10 bg-[#070D1E] flex flex-col items-center justify-between p-1 sm:p-2.5"
                       style={{
                         backfaceVisibility: "hidden",
-                        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
+                        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.6)",
                       }}
                     >
-                      <div className="w-full flex justify-between items-center text-[9px] font-mono text-teal-400/60 uppercase">
+                      <div className="w-full flex justify-between items-center text-[7px] sm:text-[9px] font-mono text-teal-400/60 uppercase">
                         <span>PAREJA</span>
                         <span>0{idx + 1}</span>
                       </div>
 
                       {/* Emblema Central del Reverso */}
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border border-teal-500/30 flex items-center justify-center">
-                        <Link2 className="w-6 h-6 text-teal-400" />
+                      <div className="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border border-teal-500/30 flex items-center justify-center">
+                        <Link2 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-teal-400" />
                       </div>
 
-                      <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">
+                      <div className="text-[7px] sm:text-[9px] font-mono text-gray-500 uppercase tracking-widest hidden sm:block">
                         MEMORIZE
+                      </div>
+                      <div className="text-[7px] font-mono text-gray-600 uppercase block sm:hidden">
+                        •••
                       </div>
                     </div>
 
                     {/* Frente de Carta Realista (Boca Arriba) */}
                     <div
-                      className={`absolute inset-0 rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-2.5 transition-all ${
+                      className={`absolute inset-0 rounded-xl sm:rounded-2xl overflow-hidden border sm:border-2 flex flex-col justify-between p-1 sm:p-2 transition-all ${
                         card.isMatched
                           ? "opacity-60 border-emerald-400/50 bg-[#041712]"
                           : isSelected
-                          ? "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+                          ? "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.4)]"
                           : "border-white/20"
                       }`}
                       style={{
                         backfaceVisibility: "hidden",
                         transform: "rotateY(180deg)",
                         background: `linear-gradient(180deg, #0A1224 0%, #030814 100%)`,
-                        boxShadow: `inset 0 0 16px ${card.item.glow}`,
+                        boxShadow: `inset 0 0 12px ${card.item.glow}`,
                       }}
                     >
                       {/* Cabecera de la Carta: Rol */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-0.5 leading-none">
                         <span
-                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase tracking-wider border"
+                          className="px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-mono font-black uppercase tracking-wider border truncate"
                           style={{
                             color: card.item.color,
                             borderColor: `${card.item.color}55`,
@@ -2083,29 +2157,31 @@ export function ParejasConexiones({
                         >
                           {card.item.role}
                         </span>
-                        <span className="text-[8px] font-mono text-gray-400 uppercase truncate max-w-[50px]">
+                        <span className="text-[7px] sm:text-[8px] font-mono text-gray-400 uppercase truncate max-w-[50px]">
                           {card.item.category}
                         </span>
                       </div>
 
                       {/* Ilustración Realista Focal */}
-                      <div className="flex-1 flex flex-col items-center justify-center my-1 relative overflow-hidden rounded-xl">
+                      <div className="flex-1 min-h-0 flex flex-col items-center justify-center my-0.5 relative overflow-hidden rounded-lg sm:rounded-xl">
                         <div
-                          className="absolute inset-2 rounded-xl blur-lg opacity-30"
+                          className="absolute inset-1 rounded-lg blur-md opacity-25"
                           style={{ background: card.item.color }}
                         />
-                        <RealisticPairEmblem iconType={card.item.iconType} color={card.item.color} />
+                        <div className="scale-75 sm:scale-100">
+                          <RealisticPairEmblem iconType={card.item.iconType} color={card.item.color} />
+                        </div>
                       </div>
 
                       {/* Pie de Carta: Título Nítido y Lore Breve */}
-                      <div className="text-center pt-1 border-t border-white/10">
+                      <div className="text-center pt-0.5 border-t border-white/10 leading-tight">
                         <h4
-                          className="font-black text-xs sm:text-sm tracking-wider uppercase truncate"
+                          className="font-black text-[9px] sm:text-xs tracking-tight uppercase truncate"
                           style={{ color: card.item.color }}
                         >
                           {card.item.name}
                         </h4>
-                        <p className="text-[9px] font-mono text-gray-400 truncate">
+                        <p className="text-[8px] font-mono text-gray-400 truncate hidden sm:block">
                           {card.item.relation}
                         </p>
                       </div>
@@ -2115,7 +2191,7 @@ export function ParejasConexiones({
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-cyan-400 text-black font-black font-mono text-xs flex items-center justify-center shadow-lg"
+                          className="absolute top-1 right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-cyan-400 text-black font-black font-mono text-[9px] sm:text-xs flex items-center justify-center shadow-lg"
                         >
                           {selectionOrder}
                         </motion.div>
@@ -2124,7 +2200,7 @@ export function ParejasConexiones({
                       {/* Sello de Pareja Resuelta */}
                       {card.isMatched && (
                         <div className="absolute inset-0 bg-emerald-950/40 backdrop-blur-[1px] flex items-center justify-center">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-400 drop-shadow" />
+                          <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400 drop-shadow" />
                         </div>
                       )}
                     </div>
@@ -2136,8 +2212,8 @@ export function ParejasConexiones({
         </div>
       </main>
 
-      {/* ── Pie Informativo ─────────────────────────────────────────────────── */}
-      <footer className="px-4 py-2 relative z-20 flex items-center justify-between text-[11px] font-mono text-gray-400 border-t border-white/5 bg-black/30 backdrop-blur-sm">
+      {/* ── Pie Informativo (hidden sm:flex) ─────────────────────────────────── */}
+      <footer className="px-4 py-1.5 relative z-20 hidden sm:flex items-center justify-between text-[11px] font-mono text-gray-400 border-t border-white/5 bg-black/30 backdrop-blur-sm shrink-0">
         <span>CONECTA LAS 2 CARTAS CON RELACIÓN DIRECTA DE CAUSA, ORIGEN O HÁBITAT</span>
         <span>MODO PAREJAS · MEMORIZE EVOLUTIVO</span>
       </footer>

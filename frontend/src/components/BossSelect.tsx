@@ -124,7 +124,7 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
       </div>
 
       {/* Header */}
-      <div className="p-6 flex justify-between items-center z-20">
+      <div className="p-3 sm:p-6 flex justify-between items-center z-20 gap-2">
         <button 
           onClick={onBack}
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
@@ -133,19 +133,19 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           </div>
           <span className="font-bold tracking-widest uppercase text-sm">
-            Volver al Lobby
+            Lobby
           </span>
         </button>
-        <div className="bg-gray-800/50 backdrop-blur-xl px-6 py-2 rounded-full border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-          <h1 className="text-xl font-bold tracking-[0.25em] uppercase text-purple-300">
+        <div className="bg-gray-800/50 backdrop-blur-xl px-3 py-1 sm:px-6 sm:py-2 rounded-full border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)] text-center">
+          <h1 className="text-xs sm:text-xl font-bold tracking-[0.12em] sm:tracking-[0.25em] uppercase text-purple-300">
             MODO BOSS · CONEXIONES Y TRÍADAS
           </h1>
         </div>
-        <div className="w-32" />
+        <div className="hidden sm:block sm:w-32 shrink-0" />
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-8 z-10">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-8 z-10 flex items-start sm:items-center justify-center">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
           {BOSSES.map((boss, index) => {
             const unlocked = isBossUnlocked(boss);

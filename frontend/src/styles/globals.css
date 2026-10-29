@@ -282,3 +282,21 @@ html {
     scroll-behavior: auto !important;
   }
 }
+
+/* 📱 Optimizaciones Móviles Zero-Scroll */
+.game-screen-lock {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}
