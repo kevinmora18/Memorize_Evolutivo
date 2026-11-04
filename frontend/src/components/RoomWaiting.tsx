@@ -1,81 +1,120 @@
-import { motion } from 'framer-motion';
-import { ArrowLeft, Crown, Users, Play, Clock, Copy, Check, RefreshCw, Send, MessageCircle } from 'lucide-react';
-import type { Room, Player } from '../App';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, Crown, Users, Play, Copy, Check, Send,
+  MessageCircle, Swords, CheckCircle2, Clock, ShieldCheck, Globe
+} from 'lucide-react';
+import type { Room, Player } from '../App';
+import socket from '../lib/socket';
+import { useEquippedRoomTheme, type RoomThemeDef } from '../lib/roomTheme';
 
 interface ChatMessage {
   id: string;
-  playerId: string;
-  playerEmail: string;
+  userId: string;
+  userName: string;
   message: string;
-  timestamp: number;
-  teamId: number;
+  timestamp: number | string | Date;
 }
 
 interface RoomWaitingProps {
   room: Room;
   currentUser: Player;
   onStartGame: () => void;
-  onChangeTeam: (teamId: number) => void;
+  onChangeTeam?: (teamId: number) => void;
   onBackToLobby: () => void;
 }
 
-const teamColors = [
-  { bg: 'from-red-600 to-orange-600', text: 'text-red-400', border: 'border-red-500' },
-  { bg: 'from-blue-600 to-cyan-600', text: 'text-blue-400', border: 'border-blue-500' },
-  { bg: 'from-green-600 to-emerald-600', text: 'text-green-400', border: 'border-green-500' },
-  { bg: 'from-purple-600 to-pink-600', text: 'text-purple-400', border: 'border-purple-500' },
-  { bg: 'from-yellow-600 to-amber-600', text: 'text-yellow-400', border: 'border-yellow-500' },
-];
-
-export function RoomWaiting({ room, currentUser, onStartGame, onChangeTeam, onBackToLobby }: RoomWaitingProps) {
+export function RoomWaiting({ room, currentUser, onStartGame, onBackToLobby }: RoomWaitingProps) {
   const [copiedCode, setCopiedCode] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
+  const [isReady, setIsReady] = useState(false);
+  const roomTheme = useEquippedRoomTheme();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  const teams = [1, 2, 3, 4, 5].map(teamId => ({
-    id: teamId,
-    players: room.players.filter((p: any) => p.teamId === teamId),
-  })).filter(team => team.players.length === 2);
 
-  const canStart = teams.length >= 2;
+  const playersList = room.players || [];
+  const hostId = room.hostId || room.creatorId || (playersList[0]?.id ?? '');
+  const isHost = currentUser.id === hostId;
+
+  // Encontrar al oponente (en modo 1v1)
+  const opponent = playersList.find((p) => p.id !== currentUser.id);
+
+  // Verificar si se puede iniciar la partida (mínimo 2 jugadores)
+  // El host no necesita marcarse listo; los invitados sí.
+  const guestPlayers = playersList.filter((p) => p.id !== hostId);
+  const allGuestsReady = guestPlayers.length > 0 && guestPlayers.every((p: any) => p.isReady);
+  const canStart = playersList.length >= 2 && allGuestsReady;
+
+  // Sincronización Socket.IO de la sala
+  useEffect(() => {
+    // Unirse al canal de socket de la sala
+    socket.emit('room:join', {
+      roomId: room.id,
+      userName: currentUser.email.split('@')[0],
+      userLevel: currentUser.level || 1,
+    });
+
+    const handleChatMessage = (msg: any) => {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          userId: msg.userId,
+          userName: msg.userName || 'Operador',
+          message: msg.message,
+          timestamp: msg.timestamp || Date.now(),
+        },
+      ]);
+    };
+
+    socket.on('chat:message', handleChatMessage);
+
+    return () => {
+      socket.off('chat:message', handleChatMessage);
+    };
+  }, [room.id, currentUser]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   const copyRoomCode = () => {
-    navigator.clipboard.writeText(room.code);
+    const code = room.code || room.id;
+    navigator.clipboard.writeText(code);
     setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    setTimeout(() => setCopiedCode(false), 2200);
   };
 
-  const getAvailableTeams = (): number[] => {
-    const teamCounts = [1, 2, 3, 4, 5].map(teamId => ({
-      teamId,
-      count: room.players.filter((p: any) => p.teamId === teamId).length,
-    }));
-    
-    return teamCounts.filter(t => t.count < 2).map(t => t.teamId);
+  const toggleReady = () => {
+    const nextState = !isReady;
+    setIsReady(nextState);
+    socket.emit('room:ready', {
+      roomId: room.id,
+      isReady: nextState,
+    });
+  };
+
+  const handleStartGame = () => {
+    if (!isHost || !canStart) return;
+    socket.emit('game:start', { roomId: room.id });
+    onStartGame();
   };
 
   const handleSendMessage = () => {
     if (!messageInput.trim()) return;
-    
-    const newMessage: ChatMessage = {
-      id: `${Date.now()}-${Math.random()}`,
-      playerId: currentUser.id,
-      playerEmail: currentUser.email,
-      message: messageInput.trim(),
-      timestamp: Date.now(),
-      teamId: currentUser.teamId,
-    };
-    
-    setChatMessages(prev => [...prev, newMessage]);
+
+    const text = messageInput.trim();
+    const userName = currentUser.email.split('@')[0];
+
+    socket.emit('chat:message', {
+      roomId: room.id,
+      userId: currentUser.id,
+      userName,
+      message: text,
+    });
+
     setMessageInput('');
-    
-    // Sonido de envío
-    const sendSound = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
-    sendSound.volume = 0.3;
-    sendSound.play().catch(() => {});
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -85,229 +124,374 @@ export function RoomWaiting({ room, currentUser, onStartGame, onChangeTeam, onBa
     }
   };
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+  const handleLeave = () => {
+    socket.emit('room:leave', { roomId: room.id });
+    onBackToLobby();
+  };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0">
-        <motion.div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-cyan-900/20" animate={{ scale: [1,1.1,1], rotate: [0,90,0] }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} />
-      </div>
+    <div
+      className="min-h-screen text-[#E8E6DF] flex flex-col relative overflow-hidden select-none transition-all duration-700"
+      style={{
+        backgroundImage: `url('${roomTheme.image}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#07090F]/80 backdrop-blur-[2px]" />
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[350px] rounded-full blur-[130px] opacity-25 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
+      />
+      {/* Resplandores de duelo lateral en la sala de espera */}
+      <div
+        className="absolute top-1/2 -left-20 -translate-y-1/2 w-[350px] h-[500px] rounded-full blur-[140px] opacity-20 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
+      />
+      <div
+        className="absolute top-1/2 -right-20 -translate-y-1/2 w-[350px] h-[500px] rounded-full blur-[140px] opacity-20 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
+      />
+      <div className="absolute inset-0 pointer-events-none an-grain-overlay" />
+      <div className="absolute inset-0 pointer-events-none an-vignette" />
 
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <button onClick={onBackToLobby} className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl backdrop-blur-sm border border-gray-700 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span>Volver al Lobby</span>
-          </button>
+      {/* Header */}
+      <header className="relative z-20 px-6 py-4 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
+        <button
+          onClick={handleLeave}
+          className="an-focusable flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#FF4D5E]/50 transition-all group cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="font-mono text-xs uppercase tracking-widest">Abandonar Sala</span>
+        </button>
 
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-center">
-            <h2 className="text-3xl bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">{room.name}</h2>
-            <p className="text-gray-400 text-sm mt-1">Esperando jugadores...</p>
-            <div className="flex items-center justify-center gap-2 mt-3">
-              <div className="px-3 py-1 bg-cyan-500/20 border border-cyan-500 rounded text-sm text-cyan-300 font-mono">Código: {room.code}</div>
-              <button onClick={copyRoomCode} className="p-1 hover:bg-gray-700 rounded transition-colors" title="Copiar código">{copiedCode ? (<Check className="w-4 h-4 text-green-400" />) : (<Copy className="w-4 h-4 text-gray-400" />)}</button>
-            </div>
-          </motion.div>
-
-          <div className="w-40" />
+        <div className="text-center">
+          <div className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#35E0C8]">
+            SALA MULTIJUGADOR 1V1
+          </div>
+          <h1 className="font-serif text-2xl text-white font-bold tracking-tight">
+            {room.name || 'Sala de Duelo'}
+          </h1>
         </div>
 
-        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 mb-8">
-          <div className="grid grid-cols-3 gap-6 text-center">
-            <div>
-              <Users className="w-8 h-8 mx-auto mb-2 text-cyan-400" />
-              <div className="text-2xl">{room.players.length}/10</div>
-              <div className="text-sm text-gray-400">Jugadores</div>
+        {/* Código de Sala y Entorno Vinculado */}
+        <div className="flex items-center gap-2">
+          <div
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs"
+            style={{
+              borderColor: `${roomTheme.accent}40`,
+              background: `${roomTheme.accent}15`,
+              color: roomTheme.accent,
+            }}
+            title="Entorno vinculado con tu Perfil"
+          >
+            <span>{roomTheme.icon}</span>
+            <span>{roomTheme.name}</span>
+          </div>
+
+          <button
+            onClick={copyRoomCode}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#0D1119] text-[#35E0C8] hover:border-[#35E0C8] hover:bg-[#35E0C8]/10 transition-all font-mono text-xs cursor-pointer shadow-[0_0_15px_rgba(53,224,200,0.15)]"
+            title="Copiar código para compartir"
+          >
+            <span>CÓDIGO: {room.code || room.id.slice(0, 6).toUpperCase()}</span>
+            {copiedCode ? <Check className="w-3.5 h-3.5 text-[#35E0C8]" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 px-4 py-8 max-w-6xl mx-auto w-full flex flex-col justify-between gap-6 overflow-y-auto an-scroll">
+        
+        {/* Banner de Estado */}
+        <div className="p-4 rounded-2xl border border-[#1E2836] bg-[#0D1119]/80 backdrop-blur-md flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#35E0C8]/10 border border-[#35E0C8]/40 flex items-center justify-center text-[#35E0C8]">
+              <Users className="w-5 h-5" />
             </div>
             <div>
-              <Crown className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
-              <div className="text-2xl">{teams.length}</div>
-              <div className="text-sm text-gray-400">Equipos Completos</div>
-            </div>
-            <div>
-              <Clock className="w-8 h-8 mx-auto mb-2 text-purple-400" />
-              <div className="text-2xl">5</div>
-              <div className="text-sm text-gray-400">Rondas</div>
+              <div className="text-xs font-mono text-[#9AA3B2] uppercase">Capacidad de Sala</div>
+              <div className="text-base font-bold text-white font-mono">
+                {playersList.length} / {room.maxPlayers || 2} Jugadores Conectados
+              </div>
             </div>
           </div>
-        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Teams Section */}
-          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[1,2,3,4,5].map((teamId, index) => {
-              const teamPlayers = room.players.filter((p: any) => p.teamId === teamId);
-              const color = teamColors[index];
-              const isCurrentUserTeam = currentUser.teamId === teamId;
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#35E0C8] animate-pulse" />
+            <span className="text-[#9AA3B2]">
+              {playersList.length < 2
+                ? 'Esperando al segundo jugador (1v1)...'
+                : allGuestsReady
+                ? '¡Ambos jugadores listos para el duelo!'
+                : 'Esperando que el jugador invitado confirme "Listo"'}
+            </span>
+          </div>
+        </div>
+
+        {/* Sección Central: Duelo 1v1 (Jugador 1 vs Jugador 2) + Chat */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1">
+          
+          {/* Tarjetas de Jugadores (1v1 Arenas) */}
+          <div className="lg:col-span-7 flex flex-col justify-center gap-4">
+            
+            {/* Jugador 1 (Anfitrión) */}
+            {(() => {
+              const hostPlayer = playersList.find((p) => p.id === hostId) || playersList[0];
+              const isMe = hostPlayer?.id === currentUser.id;
 
               return (
-                <motion.div key={teamId} initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ delay: index * 0.1, type: 'spring' }} className={`bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl p-6 border-2 ${isCurrentUserTeam ? color.border : 'border-gray-700'} ${isCurrentUserTeam ? 'ring-2 ring-white/20' : ''}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className={`text-xl ${color.text}`}>Equipo {teamId}</h3>
-                    <div className={`px-3 py-1 rounded-full text-xs ${teamPlayers.length === 2 ? 'bg-green-500/20 text-green-400 border border-green-500' : 'bg-gray-700/50 text-gray-400 border border-gray-600'}`}>{teamPlayers.length}/2</div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {[0,1].map((slot) => {
-                      const player = teamPlayers[slot];
-                      return (
-                        <div key={slot} className={`p-3 rounded-xl ${player ? `bg-gradient-to-r ${color.bg} bg-opacity-20` : 'bg-gray-700/30 border-2 border-dashed border-gray-600'}`}>
-                          {player ? (
-                            <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${color.bg} flex items-center justify-center text-sm`}>{player.email[0].toUpperCase()}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm truncate">{player.email}{player.id === currentUser.id && (<span className="ml-2 text-xs text-cyan-400">(Tú)</span>)}</div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center text-gray-500 text-sm">Esperando jugador...</div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`p-5 rounded-2xl border transition-all ${
+                    isMe
+                      ? 'border-[#35E0C8]/50 bg-[#131A26]/90 shadow-[0_0_20px_rgba(53,224,200,0.15)]'
+                      : 'border-[#1E2836] bg-[#0D1119]/80'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#E8B54A] to-[#D49A24] text-[#07090F] flex items-center justify-center font-bold text-lg font-mono shadow-md relative">
+                        {hostPlayer ? (hostPlayer.name || hostPlayer.email)[0].toUpperCase() : 'H'}
+                        <Crown className="w-4 h-4 text-[#E8B54A] fill-[#E8B54A] absolute -top-2 -right-2 drop-shadow" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-serif text-lg font-bold text-white">
+                            {hostPlayer ? hostPlayer.name || hostPlayer.email.split('@')[0] : 'Anfitrión'}
+                          </span>
+                          {isMe && (
+                            <span className="font-mono text-[10px] bg-[#35E0C8]/15 text-[#35E0C8] px-2 py-0.5 rounded border border-[#35E0C8]/30">
+                              TÚ
+                            </span>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
+                        <span className="font-mono text-xs text-[#9AA3B2]">
+                          Creador de la Sala · Nivel {hostPlayer?.level || 1}
+                        </span>
+                      </div>
+                    </div>
 
-                  {!isCurrentUserTeam && teamPlayers.length < 2 && (
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onChangeTeam(teamId)} className={`w-full mt-3 py-2 bg-gradient-to-r ${color.bg} rounded-lg text-sm flex items-center justify-center gap-2 hover:brightness-110`}>
-                      <RefreshCw className="w-4 h-4" />
-                      Cambiar a este equipo
-                    </motion.button>
-                  )}
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8B54A]/10 border border-[#E8B54A]/40 text-[#E8B54A] font-mono text-xs font-semibold">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>ANFITRIÓN</span>
+                    </div>
+                  </div>
                 </motion.div>
               );
-            })}
-          </div>
+            })()}
 
-          {/* Chat Section */}
-          <motion.div 
-            initial={{ x: 20, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            transition={{ delay: 0.3 }}
-            className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden flex flex-col"
-            style={{ height: '600px' }}
-          >
-            {/* Chat Header */}
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gradient-to-r from-cyan-900/30 to-purple-900/30">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-bold">Chat de Sala</h3>
+            {/* Divisor VS */}
+            <div className="flex items-center justify-center gap-4 py-1">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1E2836] to-transparent" />
+              <div className="w-10 h-10 rounded-full border border-[#FF6B35]/40 bg-[#0D1119] flex items-center justify-center text-[#FF6B35] font-bold font-mono shadow-[0_0_15px_rgba(255,107,53,0.2)]">
+                <Swords className="w-4 h-4" />
               </div>
-              <div className="text-xs text-gray-400">{chatMessages.length} mensajes</div>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1E2836] to-transparent" />
             </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Jugador 2 (Rival / Invitado) */}
+            {(() => {
+              const guestPlayer = opponent || (playersList.length > 1 ? playersList[1] : null);
+              const isMe = guestPlayer?.id === currentUser.id;
+              const guestReady = (guestPlayer as any)?.isReady;
+
+              return guestPlayer ? (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`p-5 rounded-2xl border transition-all ${
+                    guestReady
+                      ? 'border-[#2BE08F]/50 bg-[#131A26]/90 shadow-[0_0_20px_rgba(43,224,143,0.15)]'
+                      : 'border-[#1E2836] bg-[#0D1119]/80'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#B79CFF] to-[#8A63D2] text-[#07090F] flex items-center justify-center font-bold text-lg font-mono shadow-md">
+                        {(guestPlayer.name || guestPlayer.email)[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-serif text-lg font-bold text-white">
+                            {guestPlayer.name || guestPlayer.email.split('@')[0]}
+                          </span>
+                          {isMe && (
+                            <span className="font-mono text-[10px] bg-[#35E0C8]/15 text-[#35E0C8] px-2 py-0.5 rounded border border-[#35E0C8]/30">
+                              TÚ
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono text-xs text-[#9AA3B2]">
+                          Rival en Duelo · Nivel {guestPlayer.level || 1}
+                        </span>
+                      </div>
+                    </div>
+
+                    {guestReady ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2BE08F]/15 border border-[#2BE08F]/40 text-[#2BE08F] font-mono text-xs font-bold animate-pulse">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>¡LISTO!</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8B54A]/10 border border-[#E8B54A]/40 text-[#E8B54A] font-mono text-xs">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>PREPARÁNDOSE...</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                /* Ranura Vacía esperando rival */
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-6 rounded-2xl border-2 border-dashed border-[#1E2836] bg-[#07090F]/50 flex flex-col items-center justify-center text-center gap-3"
+                >
+                  <div className="w-12 h-12 rounded-xl border border-[#1E2836] bg-[#0D1119] flex items-center justify-center text-[#5C6675]">
+                    <Users className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-base text-white">Esperando al Rival (1v1)</h4>
+                    <p className="text-xs text-[#9AA3B2] mt-0.5 max-w-xs">
+                      Pásale el código <span className="font-mono text-[#35E0C8] font-bold">{room.code || room.id.slice(0, 6)}</span> a tu compañero para comenzar.
+                    </p>
+                  </div>
+                  <button
+                    onClick={copyRoomCode}
+                    className="mt-1 px-4 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#35E0C8]/10 text-[#35E0C8] hover:bg-[#35E0C8]/20 transition-all font-mono text-xs font-semibold cursor-pointer"
+                  >
+                    {copiedCode ? '¡Código Copiado!' : 'Copiar Código de Sala'}
+                  </button>
+                </motion.div>
+              );
+            })()}
+
+          </div>
+
+          {/* Columna Derecha: Chat en Vivo */}
+          <div className="lg:col-span-5 flex flex-col rounded-2xl border border-[#1E2836] bg-[#0D1119]/80 backdrop-blur-md overflow-hidden min-h-[360px]">
+            <div className="p-3.5 border-b border-[#1E2836] bg-[#131A26]/60 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-mono text-xs font-semibold text-white">
+                <MessageCircle className="w-4 h-4 text-[#35E0C8]" />
+                <span>Chat de la Sala</span>
+              </div>
+              <span className="font-mono text-[10px] text-[#9AA3B2]">
+                {chatMessages.length} mensajes
+              </span>
+            </div>
+
+            {/* Mensajes */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 max-h-[300px] an-scroll">
               {chatMessages.length === 0 ? (
-                <div className="text-center text-gray-500 mt-8">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No hay mensajes aún</p>
-                  <p className="text-xs mt-1">¡Sé el primero en escribir!</p>
+                <div className="h-full flex flex-col items-center justify-center text-center text-[#5C6675] py-8">
+                  <MessageCircle className="w-8 h-8 opacity-40 mb-1" />
+                  <p className="text-xs font-mono">No hay mensajes aún.</p>
+                  <p className="text-[11px] text-[#5C6675]">¡Saluda a tu rival antes de jugar!</p>
                 </div>
               ) : (
                 chatMessages.map((msg) => {
-                  const isOwnMessage = msg.playerId === currentUser.id;
-                  const color = teamColors[msg.teamId - 1];
-                  
+                  const isMe = msg.userId === currentUser.id;
                   return (
-                    <motion.div
-                      key={msg.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[80%] ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className={`w-6 h-6 rounded-full bg-gradient-to-r ${color.bg} flex items-center justify-center text-xs`}>
-                            {msg.playerEmail[0].toUpperCase()}
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {msg.playerEmail.split('@')[0]}
-                            {isOwnMessage && <span className="ml-1 text-cyan-400">(Tú)</span>}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(msg.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <div className={`px-4 py-2 rounded-2xl ${
-                          isOwnMessage 
-                            ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white' 
-                            : 'bg-gray-700/50 text-gray-200'
-                        }`}>
-                          <p className="text-sm break-words">{msg.message}</p>
-                        </div>
+                    <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#9AA3B2] mb-0.5">
+                        <span>{msg.userName}</span>
+                        {isMe && <span className="text-[#35E0C8]">(Tú)</span>}
                       </div>
-                    </motion.div>
+                      <div
+                        className={`px-3 py-1.5 rounded-xl text-xs max-w-[85%] break-words ${
+                          isMe
+                            ? 'bg-[#35E0C8]/20 border border-[#35E0C8]/40 text-white rounded-tr-none'
+                            : 'bg-[#131A26] border border-[#1E2836] text-[#E8E6DF] rounded-tl-none'
+                        }`}
+                      >
+                        {msg.message}
+                      </div>
+                    </div>
                   );
                 })
               )}
               <div ref={chatEndRef} />
             </div>
 
-            {/* Chat Input */}
-            <div className="p-4 border-t border-gray-700 bg-gray-900/50">
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Escribe un mensaje..."
-                  className="flex-1 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-cyan-500 text-sm placeholder-gray-500"
-                  maxLength={200}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSendMessage}
-                  disabled={!messageInput.trim()}
-                  className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all ${
-                    messageInput.trim()
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600'
-                      : 'bg-gray-700/50 cursor-not-allowed opacity-50'
-                  }`}
-                >
-                  <Send className="w-4 h-4" />
-                </motion.button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Presiona Enter para enviar • {messageInput.length}/200
-              </p>
+            {/* Input de Chat */}
+            <div className="p-3 border-t border-[#1E2836] bg-[#07090F]/60 flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Escribe un mensaje..."
+                maxLength={180}
+                className="flex-1 px-3 py-2 rounded-xl bg-[#0D1119] border border-[#1E2836] text-white text-xs placeholder-[#5C6675] focus:outline-none focus:border-[#35E0C8]"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!messageInput.trim()}
+                className={`p-2 rounded-xl transition-all cursor-pointer ${
+                  messageInput.trim()
+                    ? 'bg-[#35E0C8] text-[#07090F] hover:bg-[#2BE08F]'
+                    : 'bg-[#131A26] text-[#5C6675] cursor-not-allowed'
+                }`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 mb-8">
-          <h3 className="text-xl mb-4 text-center">Cambiar de Equipo</h3>
-          <div className="grid grid-cols-5 gap-3">
-            {getAvailableTeams().filter(t => t !== currentUser.teamId).map((teamId) => {
-              const color = teamColors[teamId - 1];
-              return (
-                <motion.button key={teamId} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onChangeTeam(teamId)} className={`py-3 bg-gradient-to-r ${color.bg} rounded-xl flex items-center justify-center gap-2 hover:brightness-110`}>Equipo {teamId}</motion.button>
-              );
-            })}
+        {/* Barra de Acciones Inferiores */}
+        <div className="p-4 rounded-2xl border border-[#1E2836] bg-[#0D1119]/90 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-[#9AA3B2] font-mono">
+            {isHost
+              ? 'Eres el anfitrión de la sala. Puedes iniciar cuando ambos jugadores estén preparados.'
+              : 'Confirma que estás preparado con el botón "Listo" para que el anfitrión comience.'}
           </div>
-          {getAvailableTeams().filter(t => t !== currentUser.teamId).length === 0 && (<p className="text-center text-gray-500 text-sm">No hay equipos disponibles para cambiar</p>)}
-        </motion.div>
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="text-center">
-          {canStart ? (
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onStartGame} className="px-12 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-2xl flex items-center gap-3 mx-auto text-xl shadow-lg shadow-green-500/50">
-              <Play className="w-6 h-6" />
-              <span>¡Comenzar Partida!</span>
-            </motion.button>
-          ) : (
-            <div className="px-12 py-4 bg-gray-800/50 rounded-2xl border border-gray-700 inline-flex items-center gap-3">
-              <Clock className="w-6 h-6 text-gray-400" />
-              <span className="text-gray-400">Se necesitan al menos 2 equipos completos para comenzar</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Si no eres el host: botón de "Preparado / Listo" */}
+            {!isHost && (
+              <button
+                onClick={toggleReady}
+                className={`flex-1 sm:flex-none px-6 py-3 rounded-xl font-mono text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  isReady
+                    ? 'bg-[#2BE08F]/20 border border-[#2BE08F] text-[#2BE08F]'
+                    : 'bg-[#35E0C8] text-[#07090F] hover:bg-[#2BE08F] shadow-[0_0_20px_rgba(53,224,200,0.3)]'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{isReady ? 'CANCELAR LISTO' : '¡ESTOY LISTO!'}</span>
+              </button>
+            )}
 
-          <p className="text-sm text-gray-500 mt-4">• Cada equipo juega por turnos<br/>• 5 rondas con dificultad creciente<br/>• El equipo con menos puntos al final pierde</p>
-        </motion.div>
-      </div>
+            {/* Si eres el host: botón de Iniciar Partida */}
+            {isHost && (
+              <button
+                onClick={handleStartGame}
+                disabled={!canStart}
+                className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-mono text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-2 transition-all ${
+                  canStart
+                    ? 'bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] shadow-[0_0_25px_rgba(53,224,200,0.4)] hover:shadow-[0_0_35px_rgba(53,224,200,0.6)] cursor-pointer'
+                    : 'bg-[#131A26] border border-[#1E2836] text-[#5C6675] cursor-not-allowed'
+                }`}
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>
+                  {playersList.length < 2
+                    ? 'FALTA RIVAL (1V1)'
+                    : allGuestsReady
+                    ? '¡COMENZAR PARTIDA!'
+                    : 'ESPERANDO QUE ESTÉ LISTO'}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+
+      </main>
     </div>
   );
 }

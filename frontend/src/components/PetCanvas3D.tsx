@@ -8,6 +8,7 @@ interface PetCanvas3DProps {
   isInteracting?: boolean;
   onPetClick?: () => void;
   mode?: 'lobby' | 'ingame';
+  accentColor?: string;
 }
 
 /**
@@ -79,6 +80,7 @@ export function PetCanvas3D({
   isInteracting,
   onPetClick,
   mode = 'lobby',
+  accentColor,
 }: PetCanvas3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerJumpRef = useRef<(() => void) | null>(null);
@@ -97,20 +99,20 @@ export function PetCanvas3D({
     const isIngame = mode === 'ingame';
 
     // 1. Escena, Cámara y Renderer 3D
-    const width = container.clientWidth || (isIngame ? 260 : 380);
-    const height = container.clientHeight || (isIngame ? 208 : 340);
+    const width = container.clientWidth || (isIngame ? 260 : 600);
+    const height = container.clientHeight || (isIngame ? 208 : 500);
 
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     if (isIngame) {
       // En partida: encuadre completo de cuerpo entero (orejas a pedestal)
       camera.position.set(0, 0.22, 4.45);
       camera.lookAt(0, 0.22, 0);
     } else {
-      // En el Lobby: encuadre original, elegante y centrado en el pedestal
-      camera.position.set(0, 0.35, 4.3);
-      camera.lookAt(0, 0.20, 0);
+      // En el Lobby Heroico: encuadre heroico de cuerpo completo, protagonista imponente
+      camera.position.set(0, 0.22, 3.85);
+      camera.lookAt(0, 0.10, 0);
     }
 
     const renderer = new THREE.WebGLRenderer({
@@ -130,7 +132,11 @@ export function PetCanvas3D({
     // 2. Colores temáticos dinámicos
     const isCat = petType === 'cat';
     const primaryThemeColor = isCat ? 0xa78bfa : 0xff7a00;
-    const accentThemeColor = isCat ? 0x00ffb4 : 0x00f0ff;
+    const accentThemeColor = accentColor
+      ? new THREE.Color(accentColor).getHex()
+      : isCat
+      ? 0x00ffb4
+      : 0x00f0ff;
 
     // 3. Iluminación Cinematográfica Estilizada (Estilo Pixar)
     const ambientLight = new THREE.AmbientLight(0xfff8f0, 0.95);
@@ -1007,7 +1013,7 @@ export function PetCanvas3D({
         (orb.material as THREE.Material).dispose();
       });
     };
-  }, [petType, stage, onPetClick]);
+  }, [petType, stage, onPetClick, mode, accentColor]);
 
   return (
     <div

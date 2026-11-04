@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Trophy, Medal, Award, TrendingUp, Zap, X, Star, Target, Clock, Shield } from 'lucide-react';
+import { useEquippedRoomTheme } from '../lib/roomTheme';
 import { useState, useEffect } from 'react';
 import { apiFetch, getStoredUser } from '../lib/api';
 import { getRankByXP, calculateLevelFromXP } from '../lib/playerEvolution';
@@ -46,6 +47,7 @@ export function RankedScreen({ onBack }: RankedScreenProps) {
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
   const [myRank, setMyRank] = useState<{ rank: number; value: number } | null>(null);
+  const roomTheme = useEquippedRoomTheme();
 
   const storedUser = getStoredUser();
 
@@ -77,16 +79,20 @@ export function RankedScreen({ onBack }: RankedScreenProps) {
 
   return (
     <div 
-      className="min-h-screen text-white p-8 relative overflow-hidden"
+      className="min-h-screen text-white p-8 relative overflow-hidden transition-all duration-700"
       style={{
-        backgroundImage: "url('/classic/map-hero-1920.webp')",
+        backgroundImage: `url('${roomTheme.image}')`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Dark overlay */}
+      {/* Dark overlay adaptado */}
       <div className="absolute inset-0 bg-black/75"></div>
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[350px] rounded-full blur-[130px] opacity-20 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
+      />
 
       {/* Starfield Background */}
       <div className="absolute inset-0 pointer-events-none">

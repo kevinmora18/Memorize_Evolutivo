@@ -11,6 +11,38 @@ import { GameRoom, IPlayer, GameStatus } from '../models/domain/GameRoom.model';
 export class RoomManager {
   private static instance: RoomManager;
   private rooms: Map<string, GameRoom>;
+  private changeListeners: Array<() => void> = [];
+
+  /**
+   * Suscribirse a cambios en salas
+   */
+  onRoomsChange(listener: () => void): () => void {
+    this.changeListeners.push(listener);
+    return () => {
+      this.changeListeners = this.changeListeners.filter(l => l !== listener);
+    };
+  }
+
+  notifyChange(): void {
+    this.changeListeners.forEach(listener => {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[RoomManager] Error en listener de cambio:', err);
+      }
+    });
+  }
+
+  /**
+   * Buscar sala por código corto (ej: "K79W2X")
+   */
+  getRoomByCode(code: string): GameRoom | undefined {
+    if (!code) return undefined;
+    const clean = code.trim().toUpperCase();
+    return Array.from(this.rooms.values()).find(
+      r => (r.code && r.code.toUpperCase() === clean) || r.id === code
+    );
+  }
 
   /**
    * Constructor privado (Patrón Singleton)
@@ -72,7 +104,8 @@ export class RoomManager {
     });
 
     this.rooms.set(roomId, room);
-    console.log(`🏠 Sala creada: ${roomId} (${data.name})`);
+    console.log(`🏠 Sala creada: ${roomId} (${data.name}) [Código: ${room.code}]`);
+    this.notifyChange();
 
     return room;
   }
@@ -98,6 +131,7 @@ export class RoomManager {
     const deleted = this.rooms.delete(roomId);
     if (deleted) {
       console.log(`🗑️  Sala eliminada: ${roomId}`);
+      this.notifyChange();
     }
     return deleted;
   }
@@ -155,6 +189,7 @@ export class RoomManager {
     room.addPlayer(playerData);
 
     console.log(`👤 ${playerData.name} se unió a la sala ${roomId}`);
+    this.notifyChange();
 
     return room;
   }
@@ -171,6 +206,7 @@ export class RoomManager {
 
     room.removePlayer(playerId);
     console.log(`👋 Jugador ${playerId} salió de la sala ${roomId}`);
+    this.notifyChange();
 
     // Si la sala quedó vacía, eliminarla
     if (room.isEmpty()) {

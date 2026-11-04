@@ -36,12 +36,15 @@ export type GameScreen = 'login' | 'register' | 'lobby' | 'roomWaiting' | 'multi
 export type Player = {
   id: string;
   email: string;
+  name?: string;
   teamId: number;
   role?: string;
   level?: number;
   xp?: number;
   coins?: number;
   gems?: number;
+  isReady?: boolean;
+  score?: number;
 };
 
 export type Room = {
@@ -50,10 +53,13 @@ export type Room = {
   code: string;
   players: Player[];
   maxPlayers: number;
-  isStarted: boolean;
-  currentRound: number;
-  currentTeam: number;
-  creatorId: string;
+  isStarted?: boolean;
+  status?: string;
+  mode?: string;
+  difficulty?: string;
+  hostId?: string;
+  creatorId?: string;
+  gameState?: any;
 };
 
 export default function App() {
@@ -68,12 +74,39 @@ export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
 
   useEffect(() => {
-    socket.on('rooms:update', (data: Room[]) => setRooms(data));
-    socket.on('player:joined', (payload: any) => {
-      console.log('player joined', payload);
+    socket.on('rooms:update', (data: any[]) => {
+      setRooms(data);
+      setCurrentRoom(prev => {
+        if (!prev) return null;
+        const found = data.find((r: any) => r.id === prev.id || (r.code && prev.code && r.code === prev.code));
+        return found ? { ...prev, ...found } : prev;
+      });
     });
+
+    socket.on('room:player-joined', (payload: any) => {
+      if (payload.players) {
+        setCurrentRoom(prev => prev ? { ...prev, players: payload.players } : prev);
+      }
+    });
+
+    socket.on('room:player-ready', (payload: any) => {
+      if (payload.players) {
+        setCurrentRoom(prev => prev ? { ...prev, players: payload.players } : prev);
+      }
+    });
+
+    socket.on('room:player-left', (payload: any) => {
+      if (payload.players) {
+        setCurrentRoom(prev => prev ? { ...prev, players: payload.players } : prev);
+      }
+    });
+
+    socket.on('game:started', (payload: any) => {
+      setCurrentRoom(prev => prev ? { ...prev, isStarted: true, gameState: payload.gameState } : prev);
+      setCurrentScreen('multiplayerGame');
+    });
+
     socket.on('room:started', (payload: any) => {
-      console.log('room started', payload);
       setCurrentScreen('multiplayerGame');
     });
 
@@ -88,7 +121,10 @@ export default function App() {
 
     return () => {
       socket.off('rooms:update');
-      socket.off('player:joined');
+      socket.off('room:player-joined');
+      socket.off('room:player-ready');
+      socket.off('room:player-left');
+      socket.off('game:started');
       socket.off('room:started');
     };
   }, []);
@@ -448,6 +484,11 @@ export default function App() {
       {currentScreen === 'ai-room-lobby' && (
         <AIRoomLobby 
           onBackToLobby={() => setCurrentScreen('lobby')}
+          currentUser={currentUser}
+          onJoinRealRoom={(room: any) => {
+            setCurrentRoom(room);
+            setCurrentScreen('roomWaiting');
+          }}
           onStartGame={() => {
             setCurrentScreen('ai-friends');
           }}
@@ -464,7 +505,11 @@ export default function App() {
       )}
 
       {currentScreen === 'profile' && (
-        <ProfileScreen onBack={() => setCurrentScreen('lobby')} />
+        <ProfileScreen 
+          onBack={() => setCurrentScreen('lobby')} 
+          currentUser={currentUser}
+          currentRoom={currentRoom}
+        />
       )}
 
       {currentScreen === 'ranked' && (
