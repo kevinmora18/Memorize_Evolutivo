@@ -53,8 +53,19 @@ export class SocketManager {
       }
     });
 
+    // Suscribirse a cambios en RoomManager para propagar salas en tiempo real
+    this.roomManager.onRoomsChange(() => {
+      this.broadcastRooms();
+    });
+
     this.io.on('connection', (socket: Socket) => {
       this.log(`Usuario conectado: ${socket.id}`);
+
+      // Enviar lista actualizada de salas inmediatamente
+      try {
+        const availableRooms = this.roomManager.getAvailableRooms({}).map(r => r.toJSON());
+        socket.emit('rooms:update', availableRooms);
+      } catch {}
 
       // Registrar todos los eventos
       this.registerRoomEvents(socket);
@@ -67,21 +78,39 @@ export class SocketManager {
   }
 
   /**
+   * Notificar lista actualizada de salas a todos los usuarios conectados
+   */
+  public broadcastRooms(): void {
+    try {
+      const availableRooms = this.roomManager.getAvailableRooms({}).map(r => r.toJSON());
+      this.io.emit('rooms:update', availableRooms);
+    } catch (err: any) {
+      this.logError('broadcastRooms', err);
+    }
+  }
+
+  /**
    * Registrar eventos de sala
    */
   private registerRoomEvents(socket: Socket): void {
     // Unirse a una sala
-    socket.on('room:join', async ({ roomId, userName, userLevel, password }) => {
+    socket.on('room:join', async ({ roomId, roomCode, userName, userLevel, password }: any) => {
       try {
         // Identidad SIEMPRE desde el token (nunca desde el cliente)
         const userId = socket.data.user.userId;
+        const targetId = roomId || roomCode;
 
-        const room = this.roomManager.getRoom(roomId);
+        let room = this.roomManager.getRoom(targetId);
+        if (!room) {
+          room = this.roomManager.getRoomByCode(targetId);
+        }
         
         if (!room) {
           socket.emit('room:error', { message: 'Sala no encontrada' });
           return;
         }
+
+        const realRoomId = room.id;
 
         // Salas privadas: validar contraseña igual que en la vía HTTP
         if (!room.validatePassword(password || '')) {
@@ -89,7 +118,7 @@ export class SocketManager {
           return;
         }
 
-        socket.join(roomId);
+        socket.join(realRoomId);
 
         // Si el jugador ya existe, actualizar socket
         if (room.hasPlayer(userId)) {
@@ -107,20 +136,22 @@ export class SocketManager {
           });
         }
 
-        // Notificar a todos
-        this.io.to(roomId).emit('room:player-joined', {
+        // Notificar a todos en la sala
+        this.io.to(realRoomId).emit('room:player-joined', {
           player: room.getPlayer(userId)?.toJSON(),
           players: room.getPlayers().map(p => p.toJSON()),
         });
 
         // Enviar estado actual al jugador
         socket.emit('room:joined', {
-          roomId,
+          roomId: realRoomId,
+          room: room.toJSON(),
           players: room.getPlayers().map(p => p.toJSON()),
           gameState: room.getGameState(),
         });
 
-        this.log(`${userName} se unió a la sala ${roomId}`);
+        this.broadcastRooms();
+        this.log(`${userName} se unió a la sala ${realRoomId}`);
       } catch (error: any) {
         this.logError('room:join', error);
         socket.emit('room:error', { message: error.message });
@@ -128,48 +159,52 @@ export class SocketManager {
     });
 
     // Salir de una sala
-    socket.on('room:leave', ({ roomId }) => {
+    socket.on('room:leave', ({ roomId }: any) => {
       try {
         const userId = socket.data.user.userId;
-        const room = this.roomManager.getRoom(roomId);
+        let room = this.roomManager.getRoom(roomId);
+        if (!room) room = this.roomManager.getRoomByCode(roomId);
         if (!room) return;
 
         const player = room.getPlayer(userId);
         room.removePlayer(userId);
-        socket.leave(roomId);
+        socket.leave(room.id);
 
-        this.io.to(roomId).emit('room:player-left', {
+        this.io.to(room.id).emit('room:player-left', {
           playerId: userId,
           playerName: player?.name,
           players: room.getPlayers().map(p => p.toJSON()),
         });
 
         if (room.isEmpty()) {
-          this.roomManager.deleteRoom(roomId);
+          this.roomManager.deleteRoom(room.id);
         }
 
-        this.log(`${player?.name} salió de la sala ${roomId}`);
+        this.broadcastRooms();
+        this.log(`${player?.name} salió de la sala ${room.id}`);
       } catch (error: any) {
         this.logError('room:leave', error);
       }
     });
 
     // Marcar como listo
-    socket.on('room:ready', ({ roomId, isReady }) => {
+    socket.on('room:ready', ({ roomId, isReady }: any) => {
       try {
         const userId = socket.data.user.userId;
-        const room = this.roomManager.getRoom(roomId);
+        let room = this.roomManager.getRoom(roomId);
+        if (!room) room = this.roomManager.getRoomByCode(roomId);
         if (!room) return;
 
         room.setPlayerReady(userId, isReady);
 
-        this.io.to(roomId).emit('room:player-ready', {
+        this.io.to(room.id).emit('room:player-ready', {
           playerId: userId,
           isReady,
           players: room.getPlayers().map(p => p.toJSON()),
         });
 
-        this.log(`Jugador ${userId} está ${isReady ? 'listo' : 'no listo'}`);
+        this.broadcastRooms();
+        this.log(`Jugador ${userId} está ${isReady ? 'listo' : 'no listo'} en sala ${room.id}`);
       } catch (error: any) {
         this.logError('room:ready', error);
       }
@@ -181,10 +216,11 @@ export class SocketManager {
    */
   private registerGameEvents(socket: Socket): void {
     // Iniciar partida
-    socket.on('game:start', async ({ roomId }) => {
+    socket.on('game:start', async ({ roomId }: any) => {
       try {
         const userId = socket.data.user.userId;
-        const room = this.roomManager.getRoom(roomId);
+        let room = this.roomManager.getRoom(roomId);
+        if (!room) room = this.roomManager.getRoomByCode(roomId);
         
         if (!room) {
           socket.emit('game:error', { message: 'Sala no encontrada' });
@@ -194,14 +230,14 @@ export class SocketManager {
         // Crear comando para el motor
         const command: IGameCommand = {
           type: 'start',
-          roomId,
+          roomId: room.id,
           userId,
         };
 
         // Procesar comando a través del motor (autoritativo)
         await this.gameEngine.processCommand(command, room);
 
-        this.log(`Partida iniciada en sala ${roomId} vía motor`);
+        this.log(`Partida iniciada en sala ${room.id} vía motor`);
       } catch (error: any) {
         this.logError('game:start', error);
         socket.emit('game:error', { message: error.message });
@@ -209,22 +245,22 @@ export class SocketManager {
     });
 
     // Voltear carta
-    socket.on('game:flip-card', async ({ roomId, cardIndex }) => {
+    socket.on('game:flip-card', async ({ roomId, cardIndex }: any) => {
       try {
         const userId = socket.data.user.userId;
-        const room = this.roomManager.getRoom(roomId);
+        let room = this.roomManager.getRoom(roomId);
+        if (!room) room = this.roomManager.getRoomByCode(roomId);
         if (!room) return;
 
         // Crear comando para el motor
         const command: IGameCommand = {
           type: 'flip',
-          roomId,
+          roomId: room.id,
           userId,
           payload: { cardIndex },
         };
 
         // Procesar comando a través del motor (autoritativo)
-        // El motor manejará la evaluación automáticamente
         await this.gameEngine.processCommand(command, room);
 
       } catch (error: any) {
@@ -250,16 +286,42 @@ export class SocketManager {
    */
   private applyOutcome(outcome: ICommandOutcome): void {
     try {
-      // El outcome puede tener roomId+event+payload o solo type (comandos internos)
-      const { roomId, event, payload, type } = outcome;
+      const roomId = outcome.roomId || outcome.room?.id;
+      const type = outcome.type;
 
-      // Si tiene roomId y event, es un evento para propagar
-      if (roomId && event) {
-        this.io.to(roomId).emit(event, payload);
+      if (!roomId) {
+        if (type) this.log(`Outcome interno: ${type}`);
+        return;
+      }
+
+      // Mapeo exhaustivo de resultados del motor a eventos Socket.IO
+      const eventMap: Record<string, string> = {
+        game_started: 'game:started',
+        card_flipped: 'game:card-flipped',
+        match_found: 'game:match-found',
+        no_match: 'game:no-match',
+        game_finished: 'game:finished',
+        turn_timeout: 'game:turn-timeout',
+        turn_tick: 'game:turn-tick',
+        turn_ended: 'game:turn-ended',
+      };
+
+      const event = outcome.event || (type ? eventMap[type] : undefined);
+
+      if (event) {
+        const fullPayload = {
+          ...outcome.payload,
+          gameState: outcome.room?.getGameState ? outcome.room.getGameState() : undefined,
+          players: outcome.room?.getPlayers ? outcome.room.getPlayers().map(p => p.toJSON()) : undefined,
+        };
+        this.io.to(roomId).emit(event, fullPayload);
         this.log(`Evento ${event} enviado a sala ${roomId}`);
+
+        if (event === 'game:started' || event === 'game:finished') {
+          this.broadcastRooms();
+        }
       } else if (type) {
-        // Comandos internos sin roomId específico (ej: errors de validación)
-        this.log(`Outcome interno: ${type}`);
+        this.log(`Outcome no mapeado: ${type}`);
       }
     } catch (error: any) {
       this.logError('applyOutcome', error);

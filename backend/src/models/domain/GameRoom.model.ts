@@ -44,6 +44,7 @@ export interface IGameState {
 export interface IGameRoomData {
   id: string;
   name: string;
+  code?: string;
   hostId: string;
   hostName: string;
   maxPlayers: number;
@@ -134,6 +135,7 @@ export class Player implements IPlayer {
  */
 export class GameRoom extends BaseEntity<any> {
   name: string;
+  code: string;
   hostId: string;
   hostName: string;
   maxPlayers: number;
@@ -151,6 +153,7 @@ export class GameRoom extends BaseEntity<any> {
     super(data.id, data.createdAt);
     
     this.name = data.name;
+    this.code = (data.code || data.id.replace(/[^a-zA-Z0-9]/g, '').slice(-6)).toUpperCase();
     this.hostId = data.hostId;
     this.hostName = data.hostName;
     this.maxPlayers = data.maxPlayers;
@@ -418,6 +421,7 @@ export class GameRoom extends BaseEntity<any> {
     return {
       id: this.id,
       name: this.name,
+      code: this.code,
       hostId: this.hostId,
       hostName: this.hostName,
       maxPlayers: this.maxPlayers,
@@ -428,7 +432,10 @@ export class GameRoom extends BaseEntity<any> {
       status: this.gameState.status,
       createdAt: this.createdAt,
       players: Array.from(this.players.values()).map(p => p.toJSON()),
-      gameState: this.gameState,
+      gameState: {
+        ...this.gameState,
+        scores: Object.fromEntries(this.gameState.scores),
+      },
     };
   }
 }

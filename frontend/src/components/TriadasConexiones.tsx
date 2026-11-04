@@ -45,6 +45,11 @@ export interface TriadGroupDef {
 interface InGameCard {
   uniqueId: string;
   triadId: number;
+  triadName: string;
+  triadThemeColor: string;
+  chainTitle: string;
+  chainDescription: string;
+  chainSteps: { step: number; name: string; stepName: string; imageSrc?: string }[];
   item: TriadCardItem;
   isFlipped: boolean;
   isMatched: boolean;
@@ -1646,10 +1651,22 @@ export function TriadasConexiones({
 
     const deck: InGameCard[] = [];
     selectedDefs.forEach((triad) => {
+      const chainSteps = triad.items.map((it) => ({
+        step: it.step,
+        name: it.name,
+        stepName: it.stepName,
+        imageSrc: it.imageSrc,
+      }));
+
       triad.items.forEach((item) => {
         deck.push({
           uniqueId: `${item.id}-${Math.random().toString(36).substring(2, 6)}`,
           triadId: triad.id,
+          triadName: triad.name,
+          triadThemeColor: triad.themeColor,
+          chainTitle: triad.chainTitle,
+          chainDescription: triad.chainDescription,
+          chainSteps,
           item,
           isFlipped: true, // Revelado en preview
           isMatched: false,
@@ -1849,6 +1866,40 @@ export function TriadasConexiones({
 
   const targetCount = getTriadsCount(level);
   const cols = cards.length <= 9 ? 3 : cards.length <= 12 ? 4 : 5;
+
+  // Bandeja de Ensamblaje en vivo de la Tríada seleccionada
+  const activeTriadAssembly = (() => {
+    if (selectedCards.length === 0) return null;
+    const firstCard = cards[selectedCards[0]];
+    if (!firstCard) return null;
+
+    const triadDef = activeCatalog.find((t) => t.id === firstCard.triadId);
+    if (!triadDef) return null;
+
+    const selectedInTriad = selectedCards
+      .map((idx) => cards[idx])
+      .filter((c) => c && c.triadId === firstCard.triadId);
+
+    const steps = triadDef.items.map((it) => {
+      const isSelected = selectedInTriad.some((c) => c.item.id === it.id);
+      return {
+        step: it.step,
+        name: it.name,
+        stepName: it.stepName,
+        isFilled: isSelected,
+        imageSrc: it.imageSrc,
+      };
+    });
+
+    return {
+      name: triadDef.name,
+      themeColor: triadDef.themeColor,
+      chainTitle: triadDef.chainTitle,
+      chainDescription: triadDef.chainDescription,
+      selectedCount: selectedInTriad.length,
+      steps,
+    };
+  })();
 
   return (
     <div
@@ -2058,6 +2109,72 @@ export function TriadasConexiones({
         </div>
       </div>
 
+      {/* ── Bandeja Flotante de Ensamblaje en Vivo (Cuando hay cartas seleccionadas) ── */}
+      <AnimatePresence>
+        {activeTriadAssembly && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            className="max-w-2xl w-full mx-auto px-3 sm:px-4 pt-1 z-30 shrink-0"
+          >
+            <div
+              className="p-2 sm:p-2.5 rounded-2xl border-2 backdrop-blur-xl shadow-2xl flex flex-col gap-1.5 transition-all"
+              style={{
+                borderColor: `${activeTriadAssembly.themeColor}90`,
+                background: "rgba(10, 5, 22, 0.94)",
+                boxShadow: `0 0 30px ${activeTriadAssembly.themeColor}35`,
+              }}
+            >
+              <div className="flex items-center justify-between px-1">
+                <span
+                  className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 truncate"
+                  style={{ color: activeTriadAssembly.themeColor }}
+                >
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">ENSAMBLANDO: {activeTriadAssembly.name}</span>
+                </span>
+                <span className="font-mono text-[10px] text-gray-300 shrink-0">
+                  {activeTriadAssembly.selectedCount}/3 eslabones
+                </span>
+              </div>
+
+              {/* 3 Slots del flujo */}
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                {activeTriadAssembly.steps.map((st) => (
+                  <div
+                    key={st.step}
+                    className={`p-1.5 rounded-xl border flex items-center gap-2 transition-all ${
+                      st.isFilled
+                        ? "bg-white/10 border-white/40 text-white shadow-sm"
+                        : "bg-black/50 border-white/10 text-gray-400 border-dashed"
+                    }`}
+                  >
+                    <div
+                      className="w-5 h-5 rounded-md font-mono text-[10px] font-black flex items-center justify-center shrink-0 shadow-sm"
+                      style={{
+                        background: st.isFilled ? activeTriadAssembly.themeColor : "rgba(255,255,255,0.08)",
+                        color: st.isFilled ? "#000" : "#888",
+                      }}
+                    >
+                      {st.isFilled ? "✓" : st.step}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-mono text-[8px] text-gray-400 uppercase leading-none truncate">
+                        Paso {st.step}
+                      </div>
+                      <div className={`font-serif text-[10px] sm:text-xs font-bold truncate leading-tight ${st.isFilled ? "text-white" : "text-gray-400"}`}>
+                        {st.name}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Banner Flotante de Tríada (Overlay que no empuja cartas) ─────────── */}
       <AnimatePresence>
         {activeBanner && (
@@ -2085,9 +2202,9 @@ export function TriadasConexiones({
         )}
       </AnimatePresence>
 
-      {/* ── Tablero de Juego (Cartas Realistas con Viewport Lock Zero-Scroll) ─── */}
-      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-2 relative z-20 w-full max-w-4xl mx-auto overflow-hidden">
-        <div className="relative p-1 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center justify-center overflow-hidden">
+      {/* ── Tablero de Juego (Cartas Realistas de Gran Formato con Viewport Lock) ─── */}
+      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-2 relative z-20 w-full max-w-5xl mx-auto overflow-hidden">
+        <div className="relative p-1.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center justify-center overflow-hidden">
           {/* Indicador de Escaneo Previo */}
           {phase === "preview" && (
             <div className="mb-1 sm:mb-2 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs text-purple-300 font-bold bg-purple-500/20 px-3 py-1 rounded-full border border-purple-400/40 animate-pulse shrink-0">
@@ -2098,10 +2215,10 @@ export function TriadasConexiones({
 
           {/* Cuadrícula de Cartas Coleccionables */}
           <div
-            className={`grid gap-1 sm:gap-3 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${
+            className={`grid gap-2 sm:gap-3.5 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${
               cols === 3
-                ? "grid-cols-3 max-w-md"
-                : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 max-w-3xl"
+                ? "grid-cols-3 max-w-lg"
+                : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 max-w-4xl"
             }`}
           >
             {cards.map((card, idx) => {
@@ -2116,17 +2233,17 @@ export function TriadasConexiones({
                     cardRefs.current[idx] = el;
                   }}
                   style={{
-                    aspectRatio: "3/4",
+                    aspectRatio: "2.7/4",
                     perspective: 1000,
                   }}
-                  className="w-full max-w-[95px] sm:max-w-[130px] h-full max-h-[14.5dvh] sm:max-h-[140px] relative cursor-pointer select-none touch-manipulation flex items-center justify-center"
-                  whileHover={!card.isFlipped && !card.isMatched ? { y: -3, scale: 1.03 } : {}}
+                  className="w-full max-w-[125px] sm:max-w-[155px] md:max-w-[175px] h-full max-h-[25dvh] sm:max-h-[210px] md:max-h-[240px] relative cursor-pointer select-none touch-manipulation flex items-center justify-center group"
+                  whileHover={!card.isFlipped && !card.isMatched ? { y: -4, scale: 1.04 } : {}}
                   whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.95 } : {}}
                   animate={
                     isShaking
-                      ? { x: [0, -5, 5, -3, 3, 0], rotate: [0, -2, 2, -1, 1, 0] }
+                      ? { x: [0, -6, 6, -4, 4, 0], rotate: [0, -3, 3, -1, 1, 0] }
                       : card.isHinted
-                      ? { scale: [1, 1.06, 1], filter: "drop-shadow(0 0 16px #E8B54A)" }
+                      ? { scale: [1, 1.08, 1], filter: "drop-shadow(0 0 20px #E8B54A)" }
                       : {}
                   }
                   transition={{ duration: isShaking ? 0.35 : 0.2 }}
@@ -2138,98 +2255,138 @@ export function TriadasConexiones({
                     animate={{ rotateY: card.isFlipped || card.isMatched ? 180 : 0 }}
                     transition={{ duration: 0.45, ease: "easeOut" }}
                   >
-                    {/* Reverso de Carta Realista */}
+                    {/* Reverso de Carta */}
                     <div
-                      className="absolute inset-0 rounded-xl sm:rounded-2xl overflow-hidden border sm:border-2 border-white/10 bg-[#0E071A] flex flex-col items-center justify-between p-1 sm:p-2.5"
+                      className="absolute inset-0 rounded-2xl overflow-hidden border-2 border-white/10 bg-gradient-to-b from-[#180D2E] via-[#0E061D] to-[#070210] flex flex-col items-center justify-between p-2 sm:p-3 shadow-xl transition-all group-hover:border-purple-400/50"
                       style={{
                         backfaceVisibility: "hidden",
-                        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.6)",
+                        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
                       }}
                     >
-                      <div className="w-full flex justify-between items-center text-[7px] sm:text-[9px] font-mono text-purple-400/60 uppercase">
-                        <span>TRÍADA</span>
-                        <span>0{idx + 1}</span>
+                      <div className="w-full flex justify-between items-center text-[8px] sm:text-[10px] font-mono text-purple-400/70 uppercase">
+                        <span className="font-bold tracking-widest">TRÍADA</span>
+                        <span>#{String(idx + 1).padStart(2, "0")}</span>
                       </div>
 
                       {/* Emblema Central del Reverso */}
-                      <div className="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/10 border border-purple-500/30 flex items-center justify-center">
-                        <Layers className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-purple-400" />
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 border border-purple-400/30 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.2)] group-hover:scale-110 transition-transform">
+                        <Layers className="w-5 h-5 sm:w-7 sm:h-7 text-purple-300" />
                       </div>
 
-                      <div className="text-[7px] sm:text-[9px] font-mono text-gray-500 uppercase tracking-widest hidden sm:block">
+                      <div className="text-[8px] sm:text-[10px] font-mono text-purple-300/50 uppercase tracking-[0.2em]">
                         MEMORIZE
-                      </div>
-                      <div className="text-[7px] font-mono text-gray-600 uppercase block sm:hidden">
-                        •••
                       </div>
                     </div>
 
-                    {/* Frente de Carta Realista (Boca Arriba) */}
+                    {/* Frente de Carta (Boca Arriba) */}
                     <div
-                      className={`absolute inset-0 rounded-xl sm:rounded-2xl overflow-hidden border sm:border-2 flex flex-col justify-between p-1 sm:p-2 transition-all ${
+                      className={`absolute inset-0 rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-2 sm:p-2.5 transition-all shadow-xl ${
                         card.isMatched
-                          ? "opacity-60 border-emerald-400/50 bg-[#071510]"
+                          ? "opacity-60 border-emerald-400/70 bg-[#06140E]"
                           : isSelected
-                          ? "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.4)]"
-                          : "border-white/20"
+                          ? "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(0,240,255,0.5)] bg-[#0F0822]"
+                          : "bg-gradient-to-b from-[#160A29] via-[#0C0418] to-[#06020D]"
                       }`}
                       style={{
                         backfaceVisibility: "hidden",
                         transform: "rotateY(180deg)",
-                        background: `linear-gradient(180deg, #120A20 0%, #07030F 100%)`,
-                        boxShadow: `inset 0 0 12px ${card.item.glow}`,
+                        borderColor: isSelected
+                          ? "#00F0FF"
+                          : card.isMatched
+                          ? "#10B981"
+                          : `${card.triadThemeColor}90`,
+                        boxShadow: isSelected
+                          ? "0 0 25px rgba(0,240,255,0.5)"
+                          : `inset 0 0 16px ${card.triadThemeColor}25, 0 8px 20px rgba(0,0,0,0.6)`,
                       }}
                     >
-                      {/* Cabecera de la Carta: Eslabón */}
-                      <div className="flex items-center justify-between gap-0.5 leading-none">
+                      {/* 1. Cabecera Unificada de la Tríada / Familia */}
+                      <div
+                        className="flex items-center justify-between gap-1 w-full pb-1 border-b border-white/10 shrink-0"
+                        style={{ borderColor: `${card.triadThemeColor}30` }}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                            style={{ background: card.triadThemeColor, boxShadow: `0 0 8px ${card.triadThemeColor}` }}
+                          />
+                          <span
+                            className="font-mono text-[9px] sm:text-[11px] font-black uppercase tracking-tight truncate max-w-[85px] sm:max-w-[110px]"
+                            style={{ color: card.triadThemeColor }}
+                            title={card.triadName}
+                          >
+                            {card.triadName}
+                          </span>
+                        </div>
                         <span
-                          className="px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-mono font-black uppercase tracking-wider border truncate"
-                          style={{
-                            color: card.item.color,
-                            borderColor: `${card.item.color}55`,
-                            background: `${card.item.color}18`,
-                          }}
+                          className="px-1.5 py-0.2 sm:py-0.5 rounded text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-wider text-black shrink-0 shadow-sm"
+                          style={{ background: card.triadThemeColor }}
                         >
                           {card.item.step}/3
                         </span>
-                        <span className="text-[7px] sm:text-[8px] font-mono text-gray-400 uppercase truncate">
-                          {card.item.stepName}
-                        </span>
                       </div>
 
-                      {/* Ilustración Realista Focal */}
-                      <div className="flex-1 min-h-0 flex flex-col items-center justify-center my-0.5 relative overflow-hidden rounded-lg sm:rounded-xl">
+                      {/* 2. Ilustración Realista Grande y Protagónica */}
+                      <div className="flex-1 w-full min-h-0 my-1 relative overflow-hidden rounded-xl bg-black/60 border border-white/10 flex items-center justify-center group shadow-inner">
+                        {/* Resplandor del color de familia detrás de la imagen */}
                         <div
-                          className="absolute inset-1 rounded-lg blur-md opacity-25"
-                          style={{ background: card.item.color }}
+                          className="absolute inset-0 pointer-events-none opacity-30 mix-blend-screen"
+                          style={{ background: `radial-gradient(circle at 50% 50%, ${card.triadThemeColor}, transparent 75%)` }}
                         />
+
                         {card.item.imageSrc ? (
-                          <div className="w-10 h-10 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-lg sm:rounded-xl overflow-hidden border border-white/20 shadow-md relative z-10 bg-black/40">
-                            <img
-                              src={card.item.imageSrc}
-                              alt={card.item.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
+                          <img
+                            src={card.item.imageSrc}
+                            alt={card.item.name}
+                            className="w-full h-full object-cover object-center filter brightness-[1.02] contrast-[1.1] transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
                         ) : (
-                          <div className="scale-75 sm:scale-100">
-                            <RealisticCardEmblem iconType={card.item.iconType} color={card.item.color} />
+                          <div className="scale-90 sm:scale-110">
+                            <RealisticCardEmblem iconType={card.item.iconType} color={card.triadThemeColor} />
                           </div>
                         )}
+
+                        {/* Subtítulo de función o rol del eslabón sobre la imagen */}
+                        <div className="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/10 text-center">
+                          <span className="font-mono text-[8px] sm:text-[9px] text-gray-200 uppercase tracking-wider truncate block font-medium">
+                            {card.item.stepName}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Pie de Carta: Título Nítido y Lore */}
-                      <div className="text-center pt-0.5 border-t border-white/10 leading-tight">
+                      {/* 3. Título del Objeto y Mini-Diagrama de Conexión de la Tríada */}
+                      <div className="w-full pt-0.5 shrink-0 text-center flex flex-col gap-0.5">
                         <h4
-                          className="font-black text-[9px] sm:text-xs tracking-tight uppercase truncate"
-                          style={{ color: card.item.color }}
+                          className="font-serif font-black text-[11px] sm:text-xs text-white tracking-tight uppercase truncate leading-tight"
+                          title={card.item.name}
                         >
                           {card.item.name}
                         </h4>
-                        <p className="text-[8px] font-mono text-gray-400 truncate hidden sm:block">
-                          {card.item.category}
-                        </p>
+
+                        {/* Mini Diagrama de Flujo (Paso 1 -> Paso 2 -> Paso 3) */}
+                        <div className="flex items-center justify-center gap-0.5 sm:gap-1 font-mono text-[7px] sm:text-[8px] text-gray-400 bg-black/40 py-0.5 px-1 rounded-md border border-white/5 truncate">
+                          {card.chainSteps?.map((st, i) => {
+                            const isCurrent = st.step === card.item.step;
+                            const shortName = st.name.split(" ")[0];
+                            return (
+                              <span key={st.step} className="flex items-center gap-0.5 truncate">
+                                <span
+                                  className={`px-1 py-0.2 rounded font-bold transition-all truncate ${
+                                    isCurrent
+                                      ? "text-black font-black shadow-sm"
+                                      : "text-gray-400 font-normal"
+                                  }`}
+                                  style={isCurrent ? { background: card.triadThemeColor } : {}}
+                                  title={st.name}
+                                >
+                                  {shortName}
+                                </span>
+                                {i < 2 && <span className="text-gray-600 text-[6px]">➔</span>}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {/* Badge de Selección (1, 2, 3) */}
@@ -2237,7 +2394,7 @@ export function TriadasConexiones({
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute top-1 right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-cyan-400 text-black font-black font-mono text-[9px] sm:text-xs flex items-center justify-center shadow-lg"
+                          className="absolute top-1.5 right-1.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-cyan-400 text-black font-black font-mono text-[10px] sm:text-xs flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.7)] ring-2 ring-white/80 z-20"
                         >
                           {selectionOrder}
                         </motion.div>
@@ -2245,8 +2402,8 @@ export function TriadasConexiones({
 
                       {/* Sello de Tríada Resuelta */}
                       {card.isMatched && (
-                        <div className="absolute inset-0 bg-emerald-950/40 backdrop-blur-[1px] flex items-center justify-center">
-                          <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400 drop-shadow" />
+                        <div className="absolute inset-0 bg-emerald-950/50 backdrop-blur-[2px] flex items-center justify-center z-20">
+                          <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.7)]" />
                         </div>
                       )}
                     </div>

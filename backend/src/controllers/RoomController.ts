@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { RoomManager } from '../managers/RoomManager';
 import { GameStatus } from '../models/domain/GameRoom.model';
 import { UserRepository } from '../repositories/UserRepository';
+import { DeckGenerator } from '../engine/DeckGenerator';
 
 /**
  * RoomController - Controlador para rutas de salas
@@ -47,7 +48,10 @@ export class RoomController {
     try {
       const roomId = req.params.roomId as string;
 
-      const room = this.roomManager.getRoom(roomId);
+      let room = this.roomManager.getRoom(roomId);
+      if (!room) {
+        room = this.roomManager.getRoomByCode(roomId);
+      }
 
       if (!room) {
         res.status(404).json({ error: 'Sala no encontrada' });
@@ -129,9 +133,18 @@ export class RoomController {
         return;
       }
 
+      let targetRoom = this.roomManager.getRoom(roomId);
+      if (!targetRoom) {
+        targetRoom = this.roomManager.getRoomByCode(roomId);
+      }
+      if (!targetRoom) {
+        res.status(404).json({ error: 'Sala no encontrada' });
+        return;
+      }
+
       // Unirse a la sala
       const room = this.roomManager.joinRoom(
-        roomId,
+        targetRoom.id,
         {
           id: userId,
           socketId: '', // Se actualizará por socket
@@ -220,7 +233,10 @@ export class RoomController {
       const roomId = req.params.roomId as string;
       const { hostId, cards } = req.body;
 
-      const room = this.roomManager.getRoom(roomId);
+      let room = this.roomManager.getRoom(roomId);
+      if (!room) {
+        room = this.roomManager.getRoomByCode(roomId);
+      }
 
       if (!room) {
         res.status(404).json({ error: 'Sala no encontrada' });
@@ -233,8 +249,12 @@ export class RoomController {
         return;
       }
 
-      // Iniciar el juego
-      room.startGame(cards);
+      // Iniciar el juego (generar cartas autoritativas si no se proporcionaron)
+      const cardsToUse = (cards && Array.isArray(cards) && cards.length > 0)
+        ? cards
+        : DeckGenerator.generate(room.mode, (room.difficulty as any) || 'easy');
+
+      room.startGame(cardsToUse);
 
       res.json(room.toJSON());
     } catch (error: any) {

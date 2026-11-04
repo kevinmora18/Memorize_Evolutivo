@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail, Users, Boxes, Infinity as InfinityIcon, Settings,
   Target, Skull, Gamepad2, LogOut, X, TrendingUp, Coins, Gem,
-  Volume2, VolumeX, Play, Award, CheckCircle2, ChevronRight,
-  Sparkles, Brain, Gift, Trophy, Star, ArrowRightLeft, Heart, Shield
+  Volume2, VolumeX, Play, Award, ChevronRight,
+  Sparkles, Brain, Gift, Trophy, ArrowRightLeft, Shield
 } from 'lucide-react';
 import {
   loadPlayerStats, savePlayerStats, getRankByXP, getProgressToNextRank,
@@ -19,6 +19,7 @@ import {
 } from '../lib/petSystem';
 import { PetCanvas3D } from './PetCanvas3D';
 import { AN } from '../lib/archivoTokens';
+import { useEquippedRoomTheme } from '../lib/roomTheme';
 import type { Player } from '../App';
 
 interface LobbyScreenProps {
@@ -74,7 +75,7 @@ const MODES: GameModeItem[] = [
   {
     mode: 'ai-friends',
     code: '05',
-    title: 'Salas & Amigos IA',
+    title: 'Multijugador en Línea (1v1)',
     icon: Users,
     color: '#00FF9D',
     glowColor: 'rgba(0, 255, 157, 0.4)',
@@ -148,6 +149,7 @@ function playSfx(type: 'hover' | 'click' | 'claim' | 'launch') {
 
 export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUser }: LobbyScreenProps) {
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5175';
+  const roomTheme = useEquippedRoomTheme();
 
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [classicProgress, setClassicProgress] = useState(loadClassicProgress());
@@ -161,6 +163,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
   const [showMessages, setShowMessages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showRanksModal, setShowRanksModal] = useState(false);
+  const [showOperationsDrawer, setShowOperationsDrawer] = useState(false);
   const [claimedBonus, setClaimedBonus] = useState(false);
   const [claimedMissions, setClaimedMissions] = useState<Record<string, boolean>>({});
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
@@ -363,20 +366,25 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
 
   return (
     <div
-      className="h-screen w-screen text-slate-200 flex flex-col overflow-hidden relative select-none font-sans"
+      className="h-[100dvh] w-full text-slate-200 flex flex-col overflow-hidden relative select-none font-sans transition-all duration-700"
       style={{
-        backgroundImage: "url('/classic/map-hero-1920.webp')",
+        backgroundImage: `url('${roomTheme.image}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Fondo obsidiana cinematográfico */}
+      {/* Fondo adaptado al entorno equipado con resplandor cinematográfico */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none transition-all duration-700"
         style={{
-          background: 'radial-gradient(ellipse at 50% 25%, rgba(10, 16, 28, 0.65) 0%, rgba(6, 8, 14, 0.92) 65%, #030508 100%)',
+          background: `radial-gradient(ellipse at 50% 30%, ${roomTheme.accent}14 0%, rgba(10, 16, 28, 0.72) 50%, #030508 100%)`,
         }}
+      />
+      {/* Resplandor focal sutil tras la mascota 3D en el Lobby */}
+      <div
+        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full blur-[140px] opacity-25 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
       />
       <div className="absolute inset-0 pointer-events-none an-grain-overlay opacity-25" />
 
@@ -404,14 +412,9 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
             <Brain className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-base sm:text-xl font-bold tracking-wider font-serif text-white">
-                MEMORIZE
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 font-semibold hidden xs:inline">
-                EVO
-              </span>
-            </div>
+            <span className="text-base sm:text-xl font-bold tracking-wider font-serif text-white">
+              MEMORIZE
+            </span>
           </div>
         </div>
 
@@ -437,9 +440,11 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
           </button>
           <button
             onClick={() => { playSfx('click'); onStartMode('profile'); }}
-            className="px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-wider text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium tracking-wider text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+            title={`Perfil de Usuario y Entorno Vinculado: ${roomTheme.name}`}
           >
-            PERFIL
+            <span>PERFIL</span>
+            <span className="text-[10px] opacity-80">{roomTheme.icon}</span>
           </button>
           {userRole === 'admin' && (
             <button
@@ -501,116 +506,198 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
         </div>
       </header>
 
-      {/* ──────────────── 2. Área Principal: Mascota 3D Central + Centro de Operaciones ──────────────── */}
-      <main className="flex-grow p-3 sm:p-5 lg:p-7 flex flex-col lg:flex-row gap-4 lg:gap-6 z-10 min-h-0 overflow-y-auto lg:overflow-hidden max-w-7xl w-full mx-auto">
-
-        {/* ── SECTOR CENTRAL: EL ANIMAL 3D COMO CENTRO DEL LOBBY (68% del espacio) ── */}
-        <section className="flex-1 flex flex-col justify-between min-h-0 relative">
-
-          {/* Escenario 3D Central */}
-          <div
-            className="flex-1 rounded-3xl p-6 border backdrop-blur-2xl relative overflow-hidden flex flex-col justify-between shadow-2xl transition-all duration-300"
-            style={{
-              borderColor: `${petDef.themeColor}55`,
-              background: 'linear-gradient(180deg, rgba(14, 20, 32, 0.75) 0%, rgba(6, 9, 16, 0.95) 100%)',
-              boxShadow: `0 20px 50px rgba(0,0,0,0.6), 0 0 40px ${petDef.glowColor}`,
-            }}
+      {/* ──────────────── 2. Escenario Heroico Abierto del Avatar 3D + HUD Flotante ──────────────── */}
+      <main className="flex-grow flex flex-col justify-between relative z-10 w-full min-h-0 overflow-hidden">
+        
+        {/* ── BARRA SUPERIOR DE WIDGETS FLOTANTES (Bajo el Header) ── */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 flex items-start justify-between pointer-events-none z-20 shrink-0">
+          
+          {/* Lado Izquierdo: Expediente Rápido de Operador */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="pointer-events-auto flex flex-col gap-2 max-w-xs"
           >
-            {/* Halo de luz de fondo del color del animal */}
             <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none transition-colors duration-700"
-              style={{ background: petDef.themeColor, opacity: 0.16 }}
-            />
-
-            {/* Cabecera del Compañero 3D */}
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-bold font-serif text-white tracking-wide">
-                      {petState.nickname}
-                    </h2>
-                    <span
-                      className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border"
-                      style={{
-                        color: petDef.themeColor,
-                        borderColor: `${petDef.themeColor}66`,
-                        background: `${petDef.themeColor}15`,
-                      }}
-                    >
-                      Fase {petStage}: {petStageInfo.title}
-                    </span>
-                  </div>
-                  <p className="text-xs font-mono text-slate-400">
-                    {petDef.epithet} • Nivel {petState.level}
-                  </p>
+              onClick={() => { playSfx('click'); onStartMode('profile'); }}
+              className="px-3.5 py-2 rounded-2xl border border-white/10 bg-[#07090F]/70 backdrop-blur-xl flex items-center gap-3 shadow-xl hover:border-[#35E0C8]/50 hover:bg-[#0D1119]/80 transition-all cursor-pointer group"
+              title="Abrir Perfil Completo"
+            >
+              <div className="relative w-9 h-9 rounded-xl border border-white/15 bg-slate-950 p-0.5 shrink-0">
+                <img
+                  alt="Avatar"
+                  className="w-full h-full rounded-lg object-cover"
+                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${operatorName}&backgroundColor=0d1119`}
+                />
+                <div className="absolute -bottom-1 -left-1 px-1.5 py-0.2 rounded-full border border-cyan-400 bg-slate-950 text-[8px] font-mono font-bold text-cyan-300">
+                  LV {playerStats.level}
                 </div>
               </div>
 
-              {/* Botón de Cambiar Compañero (Zorro 🦊 <-> Gatito 🐱) */}
-              <button
-                onClick={handleSwitchPet}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 hover:border-white/25 bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono text-slate-200 hover:text-white transition-all shadow-md group cursor-pointer"
-                title={`Cambiar a ${petState.type === 'fox' ? 'Gatito Cuántico 🐱' : 'Zorro Neofox 🦊'}`}
-              >
-                <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-180 transition-transform duration-300" />
-                <span>
-                  {petState.type === 'fox' ? 'Cambiar a Gatito 🐱' : 'Cambiar a Zorro 🦊'}
-                </span>
-              </button>
-            </div>
-
-            {/* Canvas 3D Interactivo (El Animal en el centro absoluto) */}
-            <div className="relative flex-1 flex items-center justify-center my-2 min-h-[220px]">
-              {/* Globo de diálogo flotante */}
-              <AnimatePresence>
-                {petQuote && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                    className="absolute -top-3 z-30 px-4 py-2 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-xs text-center"
+              <div className="flex-grow min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-white truncate">{operatorName}</h3>
+                  <ChevronRight className="w-3 h-3 text-[#5C6675] group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div
+                  className="text-[11px] font-mono font-semibold truncate"
+                  style={{ color: currentRank.color }}
+                >
+                  {currentRank.name}
+                </div>
+                <div className="w-24 h-1 rounded-full overflow-hidden bg-white/10 mt-1">
+                  <div
+                    className="h-full rounded-full transition-all"
                     style={{
-                      borderColor: petDef.themeColor,
-                      background: 'rgba(8, 12, 22, 0.95)',
-                      boxShadow: `0 0 20px ${petDef.glowColor}`,
+                      width: `${progress}%`,
+                      background: `linear-gradient(90deg, ${currentRank.color}, ${AN.signal})`,
                     }}
-                  >
-                    {petQuote}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Renderizador Three.js 3D */}
-              <div className="w-full h-full min-h-[220px] max-h-[360px] flex items-center justify-center">
-                <PetCanvas3D
-                  petType={petState.type}
-                  level={petState.level}
-                  isInteracting={isPetJumping}
-                  onPetClick={handlePetInteract}
-                />
+                  />
+                </div>
               </div>
-
-              <span className="absolute bottom-1 text-[10px] font-mono text-slate-500 pointer-events-none">
-                Haz clic en el animal para interactuar
-              </span>
             </div>
 
-            {/* Barra de Progresión y Controles de Alimentación */}
-            <div className="relative z-10 pt-3 border-t border-white/10 flex flex-col gap-3">
-              {/* Barra de Experiencia */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-mono mb-1">
+            {/* Pasiva del Compañero */}
+            <div
+              className="px-3 py-1.5 rounded-xl border backdrop-blur-md flex items-center gap-2 bg-[#07090F]/60 text-left"
+              style={{ borderColor: `${petDef.themeColor}33` }}
+            >
+              <Shield className="w-3.5 h-3.5 shrink-0" style={{ color: petDef.themeColor }} />
+              <div className="min-w-0">
+                <span className="text-[10px] font-mono font-bold block leading-none" style={{ color: petDef.themeColor }}>
+                  {petDef.perkName}
+                </span>
+                <p className="text-[9px] text-slate-400 font-mono truncate">
+                  {petDef.perkDesc}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Lado Derecho: Acciones Flotantes (Bono Diario y Misiones) */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="pointer-events-auto flex items-center gap-2"
+          >
+            {/* Bono Diario */}
+            <button
+              onClick={handleClaimDailyBonus}
+              className={`px-3.5 py-2 rounded-2xl border backdrop-blur-xl flex items-center gap-2 text-xs font-mono transition-all shadow-xl cursor-pointer ${
+                claimedBonus
+                  ? 'border-white/10 bg-[#07090F]/60 text-slate-400'
+                  : 'border-amber-400/50 bg-amber-500/15 text-amber-200 shadow-[0_0_20px_rgba(255,215,0,0.25)] hover:scale-105'
+              }`}
+              title={claimedBonus ? 'Bono reclamado hoy' : 'Haz clic para reclamar tu bono diario'}
+            >
+              <Gift className="w-4 h-4 text-amber-400" />
+              <span className="font-bold hidden sm:inline">
+                {claimedBonus ? 'Bono Activo' : 'Reclamar Bono'}
+              </span>
+            </button>
+
+            {/* Botón de Cajón de Misiones & Ranking */}
+            <button
+              onClick={() => { playSfx('click'); setShowOperationsDrawer(true); }}
+              className="relative px-3.5 py-2 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-[#07090F]/70 hover:bg-[#0D1119]/90 backdrop-blur-xl flex items-center gap-2 text-xs font-mono text-white transition-all shadow-xl cursor-pointer group"
+              title="Abrir Misiones y Clasificación"
+            >
+              <Gamepad2 className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="font-bold hidden sm:inline">Misiones & Ranking</span>
+              {hasReadyMission && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping absolute -top-0.5 -right-0.5" />
+              )}
+            </button>
+          </motion.div>
+        </div>
+
+        {/* ── ÁREA CENTRAL HEROICA: EL AVATAR 3D LIBRE EN EL ESCENARIO ── */}
+        <div className="relative flex-1 w-full flex flex-col items-center justify-center my-auto min-h-0 pointer-events-auto">
+          
+          {/* Identidad Flotante del Compañero */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#07090F]/60 backdrop-blur-md shadow-lg mb-1"
+          >
+            <span className="text-xl">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
+            <span className="font-serif text-sm font-bold text-white tracking-wide">
+              {petState.nickname}
+            </span>
+            <span className="text-[#5C6675]">•</span>
+            <span
+              className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border"
+              style={{
+                color: petDef.themeColor,
+                borderColor: `${petDef.themeColor}55`,
+                background: `${petDef.themeColor}15`,
+              }}
+            >
+              Fase {petStage}: {petStageInfo.title}
+            </span>
+            <button
+              onClick={handleSwitchPet}
+              className="ml-1 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title={`Alternar a ${petState.type === 'fox' ? 'Gatito 🐱' : 'Zorro 🦊'}`}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+          </motion.div>
+
+          {/* Globo de diálogo flotante al interactuar */}
+          <AnimatePresence>
+            {petQuote && (
+              <motion.div
+                initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                className="absolute top-10 z-30 px-5 py-2.5 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-sm text-center"
+                style={{
+                  borderColor: petDef.themeColor,
+                  background: 'rgba(8, 12, 22, 0.95)',
+                  boxShadow: `0 0 25px ${petDef.glowColor}`,
+                }}
+              >
+                {petQuote}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Canvas 3D a tamaño heroico (100% libre, sin contenedor negro opaco) */}
+          <div className="w-full flex-1 max-w-4xl min-h-[280px] sm:min-h-[340px] md:min-h-[400px] max-h-[540px] flex items-center justify-center relative select-none">
+            <PetCanvas3D
+              petType={petState.type}
+              level={petState.level}
+              isInteracting={isPetJumping}
+              onPetClick={handlePetInteract}
+              mode="lobby"
+              accentColor={roomTheme.accent}
+            />
+          </div>
+
+          {/* Pista interactiva debajo del pedestal */}
+          <span className="text-[10px] font-mono text-slate-400/80 -mt-2 mb-1 pointer-events-none tracking-wider uppercase">
+            Haz clic en el animal para interactuar
+          </span>
+        </div>
+
+        {/* ── DOCK INFERIOR DE COMBATE (FLOTANTE ESTILO AAA) ── */}
+        <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 pb-3 sm:pb-4 z-20 shrink-0">
+          <div className="rounded-3xl border border-white/10 bg-[#07090F]/75 backdrop-blur-2xl p-3 sm:p-4 shadow-2xl flex flex-col gap-2.5 sm:gap-3 transition-all">
+            
+            {/* Fila 1: Progreso Evolutivo y Botón de Alimentar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-1">
+              <div className="flex-1 w-full sm:w-auto">
+                <div className="flex justify-between items-center text-[11px] font-mono mb-1">
                   <span className="text-slate-300 font-bold flex items-center gap-1.5">
                     <Award className="w-3.5 h-3.5" style={{ color: petDef.themeColor }} />
                     Progreso a Fase {petStage < 3 ? petStage + 1 : 'Máxima'}
                   </span>
-                  <span className="text-slate-400">
+                  <span className="text-slate-400 font-mono text-[10px]">
                     {petState.xp} / {petXpNeeded} XP ({petXpProgress}%)
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full overflow-hidden bg-white/10">
+                <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
                   <motion.div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
@@ -621,341 +708,285 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                 </div>
               </div>
 
-              {/* Botón de Alimentar + Botón de Jugar */}
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <button
-                  onClick={() => handleFeedPet(10)}
-                  className="w-full sm:w-auto px-5 py-3 rounded-2xl font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
-                  style={{
-                    background:
-                      petState.brains >= 10
-                        ? `linear-gradient(135deg, ${petDef.themeColor} 0%, #FFFFFF 100%)`
-                        : 'rgba(255, 255, 255, 0.08)',
-                    color: petState.brains >= 10 ? '#000000' : '#64748b',
-                    boxShadow: petState.brains >= 10 ? `0 0 16px ${petDef.glowColor}` : 'none',
-                  }}
-                >
-                  <Brain className="w-4 h-4" />
-                  <span>Alimentar (-10 🧠)</span>
-                </button>
-
-                {/* Gran Botón de Jugar con el Modo Seleccionado */}
-                <button
-                  onClick={() => {
-                    playSfx('launch');
-                    onStartMode(activeMode.mode);
-                  }}
-                  className="w-full sm:flex-1 py-3 px-6 rounded-2xl font-mono text-sm font-bold tracking-wider uppercase text-black flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-2xl group cursor-pointer"
-                  style={{
-                    background: `linear-gradient(135deg, ${activeMode.color} 0%, #FFFFFF 100%)`,
-                    boxShadow: `0 0 30px ${activeMode.glowColor}`,
-                  }}
-                >
-                  <Play className="w-4 h-4 fill-black group-hover:translate-x-0.5 transition-transform" />
-                  <span>JUGAR: {activeMode.title.toUpperCase()}</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Selector de Modos Limpio (Píldoras Rápidas, sin especificaciones largas) */}
-          <div className="grid grid-cols-5 gap-2.5 mt-3 shrink-0">
-            {MODES.map((item) => {
-              const isSelected = selectedModeKey === item.mode;
-              const IconComp = item.icon;
-
-              return (
-                <button
-                  key={item.mode}
-                  onMouseEnter={() => playSfx('hover')}
-                  onClick={() => {
-                    playSfx('click');
-                    setSelectedModeKey(item.mode);
-                  }}
-                  onDoubleClick={() => {
-                    playSfx('launch');
-                    onStartMode(item.mode);
-                  }}
-                  className="rounded-2xl p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer"
-                  style={{
-                    background: isSelected
-                      ? 'linear-gradient(180deg, rgba(20, 30, 48, 0.95) 0%, rgba(10, 15, 26, 0.95) 100%)'
-                      : 'rgba(10, 15, 26, 0.65)',
-                    borderColor: isSelected ? item.color : 'rgba(255, 255, 255, 0.08)',
-                    boxShadow: isSelected ? `0 0 16px ${item.glowColor}` : 'none',
-                    transform: isSelected ? 'translateY(-2px)' : 'none',
-                  }}
-                >
-                  <div
-                    className="w-7 h-7 mx-auto rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 mb-1"
-                    style={{
-                      background: isSelected ? item.color : 'rgba(255, 255, 255, 0.05)',
-                      color: isSelected ? '#000000' : item.color,
-                    }}
-                  >
-                    <IconComp className="w-3.5 h-3.5" />
-                  </div>
-
-                  <h3 className="text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
-                    {item.title}
-                  </h3>
-
-                  {isSelected && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-1"
-                      style={{ background: item.color }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── SECTOR DERECHO: Centro de Operaciones & Misiones (32% del espacio) ── */}
-        <aside className="w-full lg:w-84 flex flex-col gap-3 shrink-0 min-h-0 overflow-y-auto an-scroll pr-1 pb-4 lg:pb-0">
-
-          {/* Tarjeta de Perfil Compacta */}
-          <div
-            onClick={() => { playSfx('click'); onStartMode('profile'); }}
-            className="rounded-2xl p-3 border border-white/10 bg-slate-900/60 backdrop-blur-xl relative overflow-hidden group cursor-pointer hover:border-cyan-400/40 transition-all shrink-0"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-xl border border-white/15 bg-slate-950 p-1 shrink-0">
-                <img
-                  alt="Avatar"
-                  className="w-full h-full rounded-lg object-cover"
-                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${operatorName}&backgroundColor=0d1119`}
-                />
-                <div className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-full border border-cyan-400 bg-slate-950 text-[8px] font-mono font-bold text-cyan-300">
-                  LV {playerStats.level}
-                </div>
-              </div>
-
-              <div className="flex-grow min-w-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-white truncate">{operatorName}</h3>
-                  <span className="text-xs">{currentRank.icon}</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playSfx('click');
-                    setShowRanksModal(true);
-                  }}
-                  className="text-[11px] font-mono font-semibold truncate hover:underline block text-left"
-                  style={{ color: currentRank.color }}
-                >
-                  {currentRank.name}
-                </button>
-                <div className="w-full h-1 rounded-full overflow-hidden bg-white/10 mt-1">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${progress}%`,
-                      background: `linear-gradient(90deg, ${AN.signal}, ${currentRank.color})`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Habilidad Pasiva del Animal Activo */}
-          <div
-            className="rounded-2xl p-2.5 border backdrop-blur-xl flex items-center gap-2.5 shrink-0"
-            style={{
-              borderColor: `${petDef.themeColor}33`,
-              background: 'rgba(10, 15, 26, 0.65)',
-            }}
-          >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
-              style={{
-                borderColor: petDef.themeColor,
-                background: petDef.accentBg,
-              }}
-            >
-              <Shield className="w-3.5 h-3.5" style={{ color: petDef.themeColor }} />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-mono font-bold block leading-none" style={{ color: petDef.themeColor }}>
-                {petDef.perkName}
-              </span>
-              <p className="text-[9px] text-slate-400 font-mono truncate mt-0.5">
-                {petDef.perkDesc}
-              </p>
-            </div>
-          </div>
-
-          {/* Bono Diario Elegante */}
-          <div
-            className="rounded-2xl p-2.5 border backdrop-blur-xl flex items-center justify-between transition-all shrink-0"
-            style={{
-              borderColor: claimedBonus ? 'rgba(255,255,255,0.06)' : 'rgba(255, 215, 0, 0.4)',
-              background: claimedBonus ? 'rgba(10, 15, 26, 0.5)' : 'linear-gradient(90deg, rgba(255,215,0,0.12) 0%, rgba(10,15,26,0.7) 100%)',
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
+              {/* Botón de Alimentar con Cerebritos */}
+              <button
+                onClick={() => handleFeedPet(10)}
+                className="w-full sm:w-auto px-4 py-1.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-105 active:scale-95 cursor-pointer shrink-0"
                 style={{
-                  borderColor: claimedBonus ? 'rgba(255,255,255,0.1)' : AN.gold,
-                  background: claimedBonus ? 'rgba(255,255,255,0.04)' : 'rgba(255,215,0,0.15)',
+                  background:
+                    petState.brains >= 10
+                      ? `linear-gradient(135deg, ${petDef.themeColor} 0%, #FFFFFF 100%)`
+                      : 'rgba(255, 255, 255, 0.08)',
+                  color: petState.brains >= 10 ? '#000000' : '#64748b',
+                  boxShadow: petState.brains >= 10 ? `0 0 16px ${petDef.glowColor}` : 'none',
                 }}
               >
-                <Gift className="w-3.5 h-3.5" color={claimedBonus ? '#64748b' : AN.gold} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white leading-tight">Bono de Conexión</h4>
-                <p className="text-[9px] text-slate-400 font-mono">
-                  {claimedBonus ? 'Reclamado hoy' : '+150 🪙, +1 💎, +25 🧠'}
-                </p>
-              </div>
+                <Brain className="w-3.5 h-3.5" />
+                <span>Alimentar (-10 🧠)</span>
+              </button>
             </div>
 
+            {/* Fila 2: Selector de Modos de Juego (Píldoras Flotantes) */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {MODES.map((item) => {
+                const isSelected = selectedModeKey === item.mode;
+                const IconComp = item.icon;
+
+                return (
+                  <button
+                    key={item.mode}
+                    onMouseEnter={() => playSfx('hover')}
+                    onClick={() => {
+                      playSfx('click');
+                      setSelectedModeKey(item.mode);
+                    }}
+                    onDoubleClick={() => {
+                      playSfx('launch');
+                      onStartMode(item.mode);
+                    }}
+                    className="rounded-2xl p-2 sm:p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer"
+                    style={{
+                      background: isSelected
+                        ? 'linear-gradient(180deg, rgba(20, 30, 48, 0.95) 0%, rgba(10, 15, 26, 0.95) 100%)'
+                        : 'rgba(10, 15, 26, 0.65)',
+                      borderColor: isSelected ? item.color : 'rgba(255, 255, 255, 0.08)',
+                      boxShadow: isSelected ? `0 0 16px ${item.glowColor}` : 'none',
+                      transform: isSelected ? 'translateY(-2px)' : 'none',
+                    }}
+                  >
+                    <div
+                      className="w-6 h-6 sm:w-7 sm:h-7 mx-auto rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 mb-1"
+                      style={{
+                        background: isSelected ? item.color : 'rgba(255, 255, 255, 0.05)',
+                        color: isSelected ? '#000000' : item.color,
+                      }}
+                    >
+                      <IconComp className="w-3.5 h-3.5" />
+                    </div>
+
+                    <h3 className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
+                      {item.title}
+                    </h3>
+
+                    {isSelected && (
+                      <div
+                        className="absolute bottom-0 left-0 right-0 h-1"
+                        style={{ background: item.color }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Fila 3: Gran Botón de Batalla "JUGAR" */}
             <button
-              onClick={handleClaimDailyBonus}
-              disabled={claimedBonus}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all shrink-0"
+              onClick={() => {
+                playSfx('launch');
+                onStartMode(activeMode.mode);
+              }}
+              className="w-full py-3 sm:py-3.5 px-6 rounded-2xl font-mono text-sm sm:text-base font-bold tracking-wider uppercase text-black flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl group cursor-pointer"
               style={{
-                background: claimedBonus ? 'rgba(255,255,255,0.05)' : AN.gold,
-                color: claimedBonus ? '#64748b' : '#000000',
-                cursor: claimedBonus ? 'default' : 'pointer',
-                boxShadow: claimedBonus ? 'none' : '0 0 12px rgba(255,215,0,0.3)',
+                background: `linear-gradient(135deg, ${activeMode.color} 0%, #FFFFFF 100%)`,
+                boxShadow: `0 0 30px ${activeMode.glowColor}`,
               }}
             >
-              {claimedBonus ? 'Listo ✓' : 'RECLAMAR'}
+              <Play className="w-5 h-5 fill-black group-hover:translate-x-0.5 transition-transform" />
+              <span>JUGAR: {activeMode.title.toUpperCase()}</span>
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
+        </div>
 
-          {/* Panel Unificado de Misiones / Ranking (Con Pestañas) */}
-          <div className="flex-1 rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl flex flex-col min-h-0 overflow-hidden shadow-xl">
-            {/* Cabecera de Pestañas */}
-            <div className="flex border-b border-white/10 p-1 bg-black/20 shrink-0">
-              <button
-                onClick={() => { playSfx('click'); setSidebarTab('missions'); }}
-                className={`flex-1 py-1 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'missions'
-                    ? 'bg-white/10 text-cyan-300 font-bold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Gamepad2 className="w-3 h-3" />
-                <span>Misiones</span>
-                {hasReadyMission && (
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                )}
-              </button>
+      </main>
 
-              <button
-                onClick={() => { playSfx('click'); setSidebarTab('ranking'); }}
-                className={`flex-1 py-1 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'ranking'
-                    ? 'bg-white/10 text-cyan-300 font-bold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Trophy className="w-3 h-3" />
-                <span>Ranking</span>
-              </button>
-            </div>
+      {/* ──────────────── Drawer Lateral: Centro de Operaciones & Misiones ──────────────── */}
+      <AnimatePresence>
+        {showOperationsDrawer && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            {/* Backdrop oscuro */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowOperationsDrawer(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
 
-            {/* Contenido de la Pestaña */}
-            <div className="p-3 flex-1 overflow-y-auto an-scroll">
-              {sidebarTab === 'missions' ? (
-                <div className="space-y-2">
-                  {dailyMissions.map((m) => {
-                    const isClaimed = claimedMissions[m.id];
-                    const canClaim = m.isDone && !isClaimed;
+            {/* Panel lateral deslizante */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              className="relative w-full max-w-md h-full bg-[#07090F]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl p-6 flex flex-col justify-between overflow-y-auto an-scroll z-10"
+            >
+              <div>
+                {/* Header del Drawer */}
+                <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center">
+                      <Gamepad2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg font-bold text-white">Centro de Operaciones</h3>
+                      <p className="font-mono text-[10px] text-slate-400">Misiones diarias y clasificación</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowOperationsDrawer(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-                    return (
-                      <div
-                        key={m.id}
-                        className="p-2 rounded-xl border bg-black/25 transition-all"
-                        style={{
-                          borderColor: canClaim ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255,255,255,0.05)',
-                        }}
-                      >
-                        <div className="flex justify-between items-start mb-0.5">
-                          <h4 className="text-[11px] font-semibold text-white">{m.title}</h4>
-                          <span className="text-[9px] font-mono text-amber-300 font-bold">
-                            +{m.rewardCoins} 🪙 +15 🧠
-                          </span>
-                        </div>
-                        <p className="text-[9px] text-slate-400 mb-1.5 leading-tight">{m.desc}</p>
+                {/* Bono Diario dentro del Drawer */}
+                <div
+                  onClick={handleClaimDailyBonus}
+                  className={`p-3.5 rounded-2xl border mb-5 flex items-center justify-between transition-all ${
+                    claimedBonus ? 'border-white/10 bg-white/[0.03]' : 'border-amber-400/50 bg-amber-500/10 cursor-pointer shadow-lg hover:scale-[1.02]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-serif text-xs font-bold text-white">Bono de Conexión Diario</div>
+                      <div className="font-mono text-[10px] text-slate-400">+150 🪙 • +1 💎 • +25 🧠</div>
+                    </div>
+                  </div>
+                  <button
+                    disabled={claimedBonus}
+                    className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold ${
+                      claimedBonus
+                        ? 'text-slate-500 bg-white/5'
+                        : 'text-black bg-amber-400 shadow-[0_0_12px_rgba(255,215,0,0.4)] hover:brightness-110'
+                    }`}
+                  >
+                    {claimedBonus ? 'Reclamado' : 'Reclamar'}
+                  </button>
+                </div>
 
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="w-full h-1 rounded-full overflow-hidden bg-white/10">
+                {/* Pestañas de Misiones / Ranking */}
+                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] p-1 mb-4">
+                  <button
+                    onClick={() => setSidebarTab('missions')}
+                    className={`flex-1 py-1.5 rounded-full font-mono text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      sidebarTab === 'missions'
+                        ? 'bg-cyan-400 text-black shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Gamepad2 className="w-3.5 h-3.5" />
+                    <span>Misiones</span>
+                    {hasReadyMission && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setSidebarTab('ranking')}
+                    className={`flex-1 py-1.5 rounded-full font-mono text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      sidebarTab === 'ranking'
+                        ? 'bg-cyan-400 text-black shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Trophy className="w-3.5 h-3.5" />
+                    <span>Ranking</span>
+                  </button>
+                </div>
+
+                {/* Contenido Misiones */}
+                {sidebarTab === 'missions' ? (
+                  <div className="space-y-3">
+                    {dailyMissions.map((m) => {
+                      const canClaim = m.isDone && !claimedMissions[m.id];
+                      return (
+                        <div
+                          key={m.id}
+                          className="p-3.5 rounded-2xl border bg-black/30 backdrop-blur-md"
+                          style={{
+                            borderColor: canClaim ? 'rgba(0, 240, 255, 0.5)' : 'rgba(255,255,255,0.08)',
+                          }}
+                        >
+                          <div className="flex justify-between items-start mb-1.5">
+                            <h4 className="text-xs font-bold text-white">{m.title}</h4>
+                            <span className="font-mono text-[10px] text-amber-300">+{m.rewardCoins} 🪙</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mb-2.5 leading-snug">{m.desc}</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/10">
                               <div
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${(m.current / m.target) * 100}%`,
-                                  background: m.isDone ? AN.signal : AN.gold,
+                                  background: 'linear-gradient(90deg, #00F0FF, #35E0C8)',
                                 }}
                               />
                             </div>
+                            {canClaim && (
+                              <button
+                                onClick={() => handleClaimMission(m.id, m.rewardCoins, 0, 50)}
+                                className="px-3 py-1 rounded-lg font-mono text-[10px] font-bold bg-cyan-400 text-black uppercase hover:scale-105 transition-transform shadow-md cursor-pointer"
+                              >
+                                Reclamar
+                              </button>
+                            )}
                           </div>
-
-                          {canClaim && (
-                            <button
-                              onClick={() => handleClaimMission(m.id, m.rewardCoins, 0, 50)}
-                              className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-400 text-black uppercase hover:scale-105 transition-transform"
-                            >
-                              Reclamar
-                            </button>
-                          )}
-                          {isClaimed && (
-                            <span className="text-[9px] font-mono text-slate-500 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-cyan-400" /> Listo
-                            </span>
-                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {[
+                      { name: 'KRONOS_AI', score: '24,850', icon: '👑' },
+                      { name: 'CYBER_VALKYRIE', score: '21,400', icon: '🥈' },
+                      { name: 'NEURO_PHANTOM', score: '19,750', icon: '🥉' },
+                      { name: operatorName, score: `${playerStats.totalScore || 3420}`, icon: '👤', isMe: true },
+                    ].map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-2.5 rounded-xl border"
+                        style={{
+                          background: p.isMe ? 'rgba(0, 240, 255, 0.1)' : 'rgba(255,255,255,0.03)',
+                          borderColor: p.isMe ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255,255,255,0.06)',
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{p.icon}</span>
+                          <span className={`text-xs font-mono ${p.isMe ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
+                            {p.name} {p.isMe && '(Tú)'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono text-slate-400">{p.score} XP</span>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {[
-                    { name: 'KRONOS_AI', score: '24,850', icon: '👑' },
-                    { name: 'CYBER_VALKYRIE', score: '21,400', icon: '🥈' },
-                    { name: 'NEURO_PHANTOM', score: '19,750', icon: '🥉' },
-                    { name: operatorName, score: `${playerStats.totalScore || 3420}`, icon: '👤', isMe: true },
-                  ].map((p, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-1.5 rounded-xl border"
-                      style={{
-                        background: p.isMe ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255,255,255,0.02)',
-                        borderColor: p.isMe ? 'rgba(0, 240, 255, 0.3)' : 'rgba(255,255,255,0.04)',
+                    ))}
+                    <button
+                      onClick={() => {
+                        setShowOperationsDrawer(false);
+                        playSfx('click');
+                        onStartMode('ranked');
                       }}
+                      className="w-full mt-3 py-2.5 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 text-xs font-mono text-cyan-300 hover:text-white transition-all text-center cursor-pointer"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs">{p.icon}</span>
-                        <span className={`text-[11px] font-mono truncate ${p.isMe ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
-                          {p.name} {p.isMe && '(Tú)'}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono text-slate-400">{p.score} XP</span>
-                    </div>
-                  ))}
+                      Ver Clasificación Completa
+                    </button>
+                  </div>
+                )}
+              </div>
 
-                  <button
-                    onClick={() => { playSfx('click'); onStartMode('ranked'); }}
-                    className="w-full mt-2 py-1.5 rounded-xl border border-white/10 hover:border-white/20 text-[10px] font-mono text-slate-300 hover:text-white transition-all text-center"
-                  >
-                    Ver Clasificación Completa
-                  </button>
-                </div>
-              )}
-            </div>
+              {/* Pie del Drawer */}
+              <div className="pt-4 border-t border-white/10 text-center font-mono text-[10px] text-slate-500">
+                MEMORIZE ARCHIVE // SISTEMA DE OPERACIONES
+              </div>
+            </motion.div>
           </div>
-        </aside>
-
-      </main>
+        )}
+      </AnimatePresence>
 
       {/* ──────────────── Modal: Celebración de Evolución ──────────────── */}
       {showEvolutionModal && (

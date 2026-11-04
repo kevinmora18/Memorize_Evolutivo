@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Sparkles, Lock, Check, Frame, Palette, LayoutGrid, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useEquippedRoomTheme } from '../lib/roomTheme';
 
 interface TiendaScreenProps {
   onBack: () => void;
@@ -415,6 +416,7 @@ const RARITY_COLORS = {
 
 export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5175';
+  const roomTheme = useEquippedRoomTheme();
   const [selectedCategory, setSelectedCategory] = useState<ShopCategory>('cards');
   const [selectedPack, setSelectedPack] = useState<string | null>(null);
   
@@ -589,16 +591,20 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
 
   return (
     <div 
-      className="min-h-screen text-white p-8 relative overflow-hidden"
+      className="min-h-screen text-white p-8 relative overflow-hidden transition-all duration-700"
       style={{
-        backgroundImage: "url('/classic/map-hero-1920.webp')",
+        backgroundImage: `url('${roomTheme.image}')`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/70"></div>
+      {/* Dark overlay adaptado */}
+      <div className="absolute inset-0 bg-black/75"></div>
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[350px] rounded-full blur-[130px] opacity-20 pointer-events-none transition-all duration-700"
+        style={{ background: roomTheme.accent }}
+      />
 
       {/* Header */}
       <div className="relative z-10 flex justify-between items-center mb-8">
