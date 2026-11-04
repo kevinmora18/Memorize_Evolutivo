@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { Container } from '../Container';
+import { requireAuth, optionalAuth } from '../core/middleware/auth';
 
 /**
  * Room Routes - Usando arquitectura POO
  * 
- * EXPLICACIÓN:
- * - Las rutas solo definen endpoints y delegan al controlador
- * - El controlador maneja toda la lógica HTTP
- * - El RoomManager maneja la lógica de negocio de salas
+ * SEGURIDAD:
+ * - Todas las mutaciones (crear, unirse, salir, ready, iniciar, eliminar)
+ *   requieren autenticación JWT válida.
+ * - Iniciar y eliminar sala validan que el usuario autenticado sea el host.
  */
 
 const router = Router();
@@ -15,34 +16,33 @@ const container = Container.getInstance();
 const roomController = container.roomController;
 
 // GET /api/rooms - Listar salas disponibles
-router.get('/', roomController.listRooms);
+router.get('/', optionalAuth, roomController.listRooms);
 
 // GET /api/rooms/stats - Estadísticas de salas
-router.get('/stats', roomController.getStats);
+router.get('/stats', optionalAuth, roomController.getStats);
 
 // GET /api/rooms/:roomId - Obtener información de una sala
-router.get('/:roomId', roomController.getRoom);
+router.get('/:roomId', optionalAuth, roomController.getRoom);
 
-// POST /api/rooms - Crear nueva sala
-router.post('/', roomController.createRoom);
+// POST /api/rooms - Crear nueva sala (requiere autenticación)
+router.post('/', requireAuth, roomController.createRoom);
 
-// POST /api/rooms/:roomId/join - Unirse a una sala
-router.post('/:roomId/join', roomController.joinRoom);
+// POST /api/rooms/:roomId/join - Unirse a una sala (requiere autenticación)
+router.post('/:roomId/join', requireAuth, roomController.joinRoom);
 
-// POST /api/rooms/:roomId/leave - Salir de una sala
-router.post('/:roomId/leave', roomController.leaveRoom);
+// POST /api/rooms/:roomId/leave - Salir de una sala (requiere autenticación)
+router.post('/:roomId/leave', requireAuth, roomController.leaveRoom);
 
-// PUT /api/rooms/:roomId/ready - Marcar como listo
-router.put('/:roomId/ready', roomController.setReady);
+// PUT /api/rooms/:roomId/ready - Marcar como listo (requiere autenticación)
+router.put('/:roomId/ready', requireAuth, roomController.setReady);
 
-// PUT /api/rooms/:roomId/start - Iniciar partida
-router.put('/:roomId/start', roomController.startGame);
+// PUT /api/rooms/:roomId/start - Iniciar partida (requiere autenticación; solo host)
+router.put('/:roomId/start', requireAuth, roomController.startGame);
 
-// DELETE /api/rooms/:roomId - Eliminar sala
-router.delete('/:roomId', roomController.deleteRoom);
+// DELETE /api/rooms/:roomId - Eliminar sala (requiere autenticación; solo host)
+router.delete('/:roomId', requireAuth, roomController.deleteRoom);
 
 // Exportar para compatibilidad con socket handlers antiguos
-// TODO: Migrar handlers.ts para usar RoomManager en lugar del Map
 export const rooms = new Map();
 
 export default router;

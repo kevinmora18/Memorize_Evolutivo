@@ -103,8 +103,7 @@ export class UserService extends BaseService implements IUserService {
         throw new Error('Usuario no encontrado');
       }
 
-      if (coins !== undefined) user.coins = coins;
-      if (gems !== undefined) user.gems = gems;
+      user.setCurrency(coins, gems);
 
       return await this.userRepository.update(userId, {
         coins: user.coins,
@@ -134,79 +133,6 @@ export class UserService extends BaseService implements IUserService {
       });
     } catch (error: any) {
       this.handleError(error, 'rewardCoins');
-    }
-  }
-
-  /**
-   * Registrar partida jugada y actualizar estadísticas
-   */
-  async recordGamePlayed(
-    userId: string,
-    gameData: {
-      score: number;
-      won: boolean;
-      matches: number;
-      perfectMatches: number;
-      combo: number;
-      xpEarned: number;
-      coinsEarned: number;
-    }
-  ): Promise<{
-    user: User;
-    stats: PlayerStats;
-    levelsGained: number;
-  }> {
-    try {
-      this.log(`Registrando partida para usuario: ${userId}`);
-
-      // Obtener usuario y estadísticas
-      const user = await this.userRepository.findById(userId);
-      if (!user) {
-        throw new Error('Usuario no encontrado');
-      }
-
-      let stats = await this.statsRepository.findByUserId(userId);
-      if (!stats) {
-        // Crear estadísticas si no existen
-        stats = await this.statsRepository.create({ userId });
-      }
-
-      // Actualizar estadísticas usando método del modelo
-      stats.recordGame(
-        gameData.score,
-        gameData.won,
-        gameData.matches,
-        gameData.perfectMatches,
-        gameData.combo
-      );
-
-      // Actualizar XP y monedas
-      const levelsGained = user.addXp(gameData.xpEarned);
-      user.addCoins(gameData.coinsEarned);
-
-      // Guardar cambios en UNA transacción ACID (todo o nada):
-      // antes era Promise.all con 2 transacciones separadas — si fallaba
-      // la segunda, la primera ya quedaba guardada. Ahora si algo falla,
-      // Prisma deshace ambas automáticamente (atomicidad).
-      const [updatedUser, updatedStats] = await this.userRepository.transaction(async (tx) => {
-        const u = await this.userRepository.update(userId, {
-          xp: user.xp,
-          level: user.level,
-          coins: user.coins,
-        }, tx);
-        const s = await this.statsRepository.update(stats.id, stats.toJSON(), tx);
-        return [u, s] as const;
-      });
-
-      this.log(`Partida registrada. Niveles ganados: ${levelsGained}`);
-
-      return {
-        user: updatedUser,
-        stats: updatedStats,
-        levelsGained,
-      };
-    } catch (error: any) {
-      this.handleError(error, 'recordGamePlayed');
     }
   }
 

@@ -18,7 +18,10 @@ router.get('/', async (req, res) => {
     const limit = clampLimit(req.query.limit, 100, 100);
 
     let orderBy: any = {};
-    let where: any = {};
+    const baseUserWhere = {
+      deletedAt: null,
+      isBanned: false,
+    };
 
     // Determinar ordenamiento según tipo de ranking
     switch (type) {
@@ -32,46 +35,47 @@ router.get('/', async (req, res) => {
         orderBy = { coins: 'desc' };
         break;
       case 'wins':
-        // Para wins necesitamos usar stats
-        break;
       case 'score':
-        // Para score necesitamos usar stats
         break;
       default:
         orderBy = { xp: 'desc' };
     }
 
-    // Si es ranking por wins o score, usar una consulta diferente
+    // Si es ranking por wins o score, consultar playerStats directamente con ORDER BY en BD
     if (type === 'wins' || type === 'score') {
-      const users = await prisma.user.findMany({
+      const statsList = await prisma.playerStats.findMany({
+        where: {
+          user: baseUserWhere,
+        },
+        orderBy: type === 'wins' ? { gamesWon: 'desc' } : { bestScore: 'desc' },
         take: limit,
         include: {
-          stats: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              level: true,
+              xp: true,
+              coins: true,
+              gems: true,
+            },
+          },
         },
       });
 
-      // Ordenar manualmente
-      const sorted = users.sort((a, b) => {
-        if (type === 'wins') {
-          return (b.stats?.gamesWon || 0) - (a.stats?.gamesWon || 0);
-        } else {
-          return (b.stats?.bestScore || 0) - (a.stats?.bestScore || 0);
-        }
-      });
-
-      const leaderboard = sorted.map((user, index) => ({
+      const leaderboard = statsList.map((st, index) => ({
         rank: index + 1,
-        id: user.id,
-        username: user.username,
-        level: user.level,
-        xp: user.xp,
-        coins: user.coins,
-        gems: user.gems,
-        gamesPlayed: user.stats?.gamesPlayed || 0,
-        gamesWon: user.stats?.gamesWon || 0,
-        bestScore: user.stats?.bestScore || 0,
-        totalScore: user.stats?.totalScore || 0,
-        maxCombo: user.stats?.maxCombo || 0,
+        id: st.userId,
+        username: st.user.username,
+        level: st.user.level,
+        xp: st.user.xp,
+        coins: st.user.coins,
+        gems: st.user.gems,
+        gamesPlayed: st.gamesPlayed,
+        gamesWon: st.gamesWon,
+        bestScore: st.bestScore,
+        totalScore: Number(st.totalScore),
+        maxCombo: st.maxCombo,
       }));
 
       return res.json({
@@ -82,9 +86,9 @@ router.get('/', async (req, res) => {
       });
     }
 
-    // Para otros tipos, consulta normal
+    // Para xp, level y coins: consulta a users ordenada en BD y filtrando baneados/eliminados
     const users = await prisma.user.findMany({
-      where,
+      where: baseUserWhere,
       orderBy,
       take: limit,
       include: {
@@ -103,7 +107,7 @@ router.get('/', async (req, res) => {
       gamesPlayed: user.stats?.gamesPlayed || 0,
       gamesWon: user.stats?.gamesWon || 0,
       bestScore: user.stats?.bestScore || 0,
-      totalScore: user.stats?.totalScore || 0,
+      totalScore: Number(user.stats?.totalScore || 0),
       maxCombo: user.stats?.maxCombo || 0,
     }));
 
@@ -141,44 +145,49 @@ router.get('/user/:userId', async (req, res) => {
     let rank = 0;
     let value = 0;
 
+    const activeFilter = { deletedAt: null, isBanned: false };
+
     switch (type) {
       case 'xp':
         value = user.xp;
         rank = await prisma.user.count({
-          where: { xp: { gt: user.xp } },
+          where: { xp: { gt: user.xp }, ...activeFilter },
         }) + 1;
         break;
       case 'level':
         value = user.level;
         rank = await prisma.user.count({
-          where: { level: { gt: user.level } },
+          where: { level: { gt: user.level }, ...activeFilter },
         }) + 1;
         break;
       case 'coins':
         value = user.coins;
         rank = await prisma.user.count({
-          where: { coins: { gt: user.coins } },
+          where: { coins: { gt: user.coins }, ...activeFilter },
         }) + 1;
         break;
       case 'wins':
         value = user.stats?.gamesWon || 0;
-        // Para wins necesitamos una consulta más compleja
-        const usersWithMoreWins = await prisma.playerStats.count({
-          where: { gamesWon: { gt: user.stats?.gamesWon || 0 } },
-        });
-        rank = usersWithMoreWins + 1;
+        rank = await prisma.playerStats.count({
+          where: {
+            gamesWon: { gt: user.stats?.gamesWon || 0 },
+            user: activeFilter,
+          },
+        }) + 1;
         break;
       case 'score':
         value = user.stats?.bestScore || 0;
-        const usersWithMoreScore = await prisma.playerStats.count({
-          where: { bestScore: { gt: user.stats?.bestScore || 0 } },
-        });
-        rank = usersWithMoreScore + 1;
+        rank = await prisma.playerStats.count({
+          where: {
+            bestScore: { gt: user.stats?.bestScore || 0 },
+            user: activeFilter,
+          },
+        }) + 1;
         break;
       default:
         value = user.xp;
         rank = await prisma.user.count({
-          where: { xp: { gt: user.xp } },
+          where: { xp: { gt: user.xp }, ...activeFilter },
         }) + 1;
     }
 

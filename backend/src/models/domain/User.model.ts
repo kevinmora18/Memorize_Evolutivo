@@ -86,10 +86,21 @@ export class User implements IUser {
   }
 
   /**
-   * Calcula el XP necesario para el siguiente nivel
+   * XP TOTAL acumulado necesario para alcanzar el siguiente nivel.
+   *
+   * FÓRMULA ÚNICA (compartida con PostgreSQL y las rutas de partidas):
+   *   nivel = floor(xp / 1000) + 1
+   * El XP es acumulativo y NUNCA se resta al subir de nivel.
    */
   getXpForNextLevel(): number {
-    return this.level * 100;
+    return this.level * 1000;
+  }
+
+  /**
+   * XP acumulado dentro del nivel actual (para barras de progreso).
+   */
+  getXpIntoCurrentLevel(): number {
+    return Math.max(0, this.xp - (this.level - 1) * 1000);
   }
 
   /**
@@ -100,30 +111,34 @@ export class User implements IUser {
   }
 
   /**
-   * Sube de nivel y ajusta el XP
+   * Sube de nivel. El XP total se conserva.
    */
   levelUp(): void {
     if (!this.canLevelUp()) {
       throw new Error('No hay suficiente XP para subir de nivel');
     }
-    
-    this.xp -= this.getXpForNextLevel();
+
     this.level++;
     this.updatedAt = new Date();
   }
 
   /**
-   * Añade XP y sube de nivel automáticamente si es posible
+   * Añade XP y sube de nivel automáticamente si es posible.
+   * Devuelve cuántos niveles se ganaron.
    */
   addXp(amount: number): number {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('La cantidad de XP debe ser un número positivo');
+    }
+
     this.xp += amount;
     let levelsGained = 0;
-    
-    while (this.canLevelUp()) {
+
+    while (this.xp >= this.level * 1000) {
       this.levelUp();
       levelsGained++;
     }
-    
+
     return levelsGained;
   }
 

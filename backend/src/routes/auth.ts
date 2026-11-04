@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { Container } from '../Container';
-import { requireAuth } from '../core/middleware/auth';
+import { requireSelfOrAdmin } from '../core/middleware/auth';
+import { JwtUtil } from '../core/JwtUtil';
 
 /**
  * Auth Routes - Usando arquitectura POO
@@ -13,6 +14,7 @@ import { requireAuth } from '../core/middleware/auth';
  *
  * SEGURIDAD:
  * - Rate limit estricto en login/register (anti fuerza bruta)
+ * - Logout revoca el JWT activo en el servidor.
  */
 
 const router = Router();
@@ -33,10 +35,20 @@ router.post('/register', authLimiter, authController.register);
 // POST /api/auth/login - Iniciar sesión
 router.post('/login', authLimiter, authController.login);
 
-// GET /api/auth/validate/:userId - Validar acceso de usuario (requiere token)
-router.get('/validate/:userId', requireAuth, authController.validateAccess);
+// POST /api/auth/logout - Revocar sesión
+router.post('/logout', (req, res) => {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    const token = header.slice(7).trim();
+    JwtUtil.revoke(token);
+  }
+  res.json({ message: 'Sesión cerrada exitosamente' });
+});
 
-// GET /api/auth/is-admin/:userId - Verificar si es admin (requiere token)
-router.get('/is-admin/:userId', requireAuth, authController.checkAdmin);
+// GET /api/auth/validate/:userId - Validar acceso (solo el propio usuario o admin)
+router.get('/validate/:userId', requireSelfOrAdmin, authController.validateAccess);
+
+// GET /api/auth/is-admin/:userId - Verificar si es admin (solo el propio usuario o admin)
+router.get('/is-admin/:userId', requireSelfOrAdmin, authController.checkAdmin);
 
 export default router;

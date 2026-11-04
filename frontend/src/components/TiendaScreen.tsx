@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Sparkles, Lock, Check, Frame, Palette, LayoutGrid, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { apiFetch, getStoredUser } from '../lib/api';
 
 interface TiendaScreenProps {
   onBack: () => void;
@@ -453,20 +454,37 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
   const [coins, setCoins] = useState(0);
   const [gems, setGems] = useState(0);
 
-  // Cargar monedas del usuario
-  useEffect(() => {
-    if (userId) {
-      fetch(`${API_BASE}/api/users/${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          setCoins(data.coins || 0);
-          setGems(data.gems || 0);
-        })
-        .catch(err => console.error('Error loading currency:', err));
-    }
-  }, [userId]);
+  const effectiveUserId = userId || getStoredUser()?.id;
 
-  const handleBuyPack = (pack: CardPack) => {
+  // Cargar monedas e inventario real del usuario desde la base de datos
+  useEffect(() => {
+    if (effectiveUserId) {
+      apiFetch<{ user: any; stats: any }>(`/api/users/${effectiveUserId}`)
+        .then(data => {
+          const u = data.user || data;
+          if (u.coins !== undefined) setCoins(u.coins);
+          if (u.gems !== undefined) setGems(u.gems);
+        })
+        .catch(err => console.error('Error cargando saldo:', err));
+
+      apiFetch<any>(`/api/users/${effectiveUserId}/inventory`)
+        .then(inv => {
+          if (inv) {
+            if (Array.isArray(inv.ownedPacks) && inv.ownedPacks.length > 0) setOwnedPacks(inv.ownedPacks);
+            if (Array.isArray(inv.ownedFrames) && inv.ownedFrames.length > 0) setOwnedFrames(inv.ownedFrames);
+            if (Array.isArray(inv.ownedSkins) && inv.ownedSkins.length > 0) setOwnedSkins(inv.ownedSkins);
+            if (Array.isArray(inv.ownedBoards) && inv.ownedBoards.length > 0) setOwnedBoards(inv.ownedBoards);
+            if (inv.equippedPack) setEquippedPack(inv.equippedPack);
+            if (inv.equippedFrame) setEquippedFrame(inv.equippedFrame);
+            if (inv.equippedSkin) setEquippedSkin(inv.equippedSkin);
+            if (inv.equippedBoard) setEquippedBoard(inv.equippedBoard);
+          }
+        })
+        .catch(err => console.error('Error cargando inventario:', err));
+    }
+  }, [effectiveUserId]);
+
+  const handleBuyPack = async (pack: CardPack) => {
     if (pack.owned || ownedPacks.includes(pack.id)) {
       alert('¡Ya tienes este pack!');
       return;
@@ -478,26 +496,43 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
     }
 
     const hasEnough = pack.currency === 'coins' ? coins >= pack.price : gems >= pack.price;
-    
     if (!hasEnough) {
       alert(`No tienes suficientes ${pack.currency === 'coins' ? 'monedas' : 'gemas'}`);
       return;
     }
 
-    // Simular compra
-    const newOwned = [...ownedPacks, pack.id];
-    setOwnedPacks(newOwned);
-    localStorage.setItem('ownedPacks', JSON.stringify(newOwned));
-    alert(`¡Has comprado ${pack.name}!`);
+    try {
+      if (effectiveUserId) {
+        const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
+          method: 'POST',
+          body: JSON.stringify({ itemType: 'pack', itemId: pack.id, price: pack.price, currency: pack.currency }),
+        });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+        if (res.inventory?.ownedPacks) setOwnedPacks(res.inventory.ownedPacks);
+      } else {
+        const newOwned = [...ownedPacks, pack.id];
+        setOwnedPacks(newOwned);
+      }
+      alert(`¡Has comprado ${pack.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Error procesando compra');
+    }
   };
 
-  const handleEquipPack = (packId: string) => {
+  const handleEquipPack = async (packId: string) => {
     setEquippedPack(packId);
     localStorage.setItem('equippedPack', packId);
+    if (effectiveUserId) {
+      await apiFetch(`/api/users/${effectiveUserId}/inventory/equip`, {
+        method: 'POST',
+        body: JSON.stringify({ itemType: 'pack', itemId: packId }),
+      }).catch(console.error);
+    }
     alert('¡Pack equipado! Se usará en tus próximas partidas.');
   };
 
-  const handleBuyFrame = (frame: ProfileFrame) => {
+  const handleBuyFrame = async (frame: ProfileFrame) => {
     if (frame.owned || ownedFrames.includes(frame.id)) {
       alert('¡Ya tienes este marco!');
       return;
@@ -509,25 +544,43 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
     }
 
     const hasEnough = frame.currency === 'coins' ? coins >= frame.price : gems >= frame.price;
-    
     if (!hasEnough) {
       alert(`No tienes suficientes ${frame.currency === 'coins' ? 'monedas' : 'gemas'}`);
       return;
     }
 
-    const newOwned = [...ownedFrames, frame.id];
-    setOwnedFrames(newOwned);
-    localStorage.setItem('ownedFrames', JSON.stringify(newOwned));
-    alert(`¡Has comprado ${frame.name}!`);
+    try {
+      if (effectiveUserId) {
+        const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
+          method: 'POST',
+          body: JSON.stringify({ itemType: 'frame', itemId: frame.id, price: frame.price, currency: frame.currency }),
+        });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+        if (res.inventory?.ownedFrames) setOwnedFrames(res.inventory.ownedFrames);
+      } else {
+        const newOwned = [...ownedFrames, frame.id];
+        setOwnedFrames(newOwned);
+      }
+      alert(`¡Has comprado ${frame.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Error procesando compra');
+    }
   };
 
-  const handleEquipFrame = (frameId: string) => {
+  const handleEquipFrame = async (frameId: string) => {
     setEquippedFrame(frameId);
     localStorage.setItem('equippedFrame', frameId);
+    if (effectiveUserId) {
+      await apiFetch(`/api/users/${effectiveUserId}/inventory/equip`, {
+        method: 'POST',
+        body: JSON.stringify({ itemType: 'frame', itemId: frameId }),
+      }).catch(console.error);
+    }
     alert('¡Marco equipado! Se mostrará en tu perfil.');
   };
 
-  const handleBuySkin = (skin: CardSkin) => {
+  const handleBuySkin = async (skin: CardSkin) => {
     if (skin.owned || ownedSkins.includes(skin.id)) {
       alert('¡Ya tienes este skin!');
       return;
@@ -539,25 +592,43 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
     }
 
     const hasEnough = skin.currency === 'coins' ? coins >= skin.price : gems >= skin.price;
-    
     if (!hasEnough) {
       alert(`No tienes suficientes ${skin.currency === 'coins' ? 'monedas' : 'gemas'}`);
       return;
     }
 
-    const newOwned = [...ownedSkins, skin.id];
-    setOwnedSkins(newOwned);
-    localStorage.setItem('ownedSkins', JSON.stringify(newOwned));
-    alert(`¡Has comprado ${skin.name}!`);
+    try {
+      if (effectiveUserId) {
+        const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
+          method: 'POST',
+          body: JSON.stringify({ itemType: 'skin', itemId: skin.id, price: skin.price, currency: skin.currency }),
+        });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+        if (res.inventory?.ownedSkins) setOwnedSkins(res.inventory.ownedSkins);
+      } else {
+        const newOwned = [...ownedSkins, skin.id];
+        setOwnedSkins(newOwned);
+      }
+      alert(`¡Has comprado ${skin.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Error procesando compra');
+    }
   };
 
-  const handleEquipSkin = (skinId: string) => {
+  const handleEquipSkin = async (skinId: string) => {
     setEquippedSkin(skinId);
     localStorage.setItem('equippedSkin', skinId);
+    if (effectiveUserId) {
+      await apiFetch(`/api/users/${effectiveUserId}/inventory/equip`, {
+        method: 'POST',
+        body: JSON.stringify({ itemType: 'skin', itemId: skinId }),
+      }).catch(console.error);
+    }
     alert('¡Skin equipado! Tus cartas tendrán este diseño.');
   };
 
-  const handleBuyBoard = (board: BoardTheme) => {
+  const handleBuyBoard = async (board: BoardTheme) => {
     if (board.owned || ownedBoards.includes(board.id)) {
       alert('¡Ya tienes este tablero!');
       return;
@@ -569,21 +640,39 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
     }
 
     const hasEnough = board.currency === 'coins' ? coins >= board.price : gems >= board.price;
-    
     if (!hasEnough) {
       alert(`No tienes suficientes ${board.currency === 'coins' ? 'monedas' : 'gemas'}`);
       return;
     }
 
-    const newOwned = [...ownedBoards, board.id];
-    setOwnedBoards(newOwned);
-    localStorage.setItem('ownedBoards', JSON.stringify(newOwned));
-    alert(`¡Has comprado ${board.name}!`);
+    try {
+      if (effectiveUserId) {
+        const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
+          method: 'POST',
+          body: JSON.stringify({ itemType: 'board', itemId: board.id, price: board.price, currency: board.currency }),
+        });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+        if (res.inventory?.ownedBoards) setOwnedBoards(res.inventory.ownedBoards);
+      } else {
+        const newOwned = [...ownedBoards, board.id];
+        setOwnedBoards(newOwned);
+      }
+      alert(`¡Has comprado ${board.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Error procesando compra');
+    }
   };
 
-  const handleEquipBoard = (boardId: string) => {
+  const handleEquipBoard = async (boardId: string) => {
     setEquippedBoard(boardId);
     localStorage.setItem('equippedBoard', boardId);
+    if (effectiveUserId) {
+      await apiFetch(`/api/users/${effectiveUserId}/inventory/equip`, {
+        method: 'POST',
+        body: JSON.stringify({ itemType: 'board', itemId: boardId }),
+      }).catch(console.error);
+    }
     alert('¡Tablero equipado! Se usará en tus partidas.');
   };
 

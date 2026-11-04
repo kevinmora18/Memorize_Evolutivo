@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "npm --prefix backend run dev",
-    "dev:all": "concurrently \"npm --prefix frontend run dev\" \"npm --prefix backend run dev\""
+    "dev:all": "concurrently \"npm --prefix frontend run dev\" \"npm --prefix backend run dev\"",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:db": "docker compose up -d postgres",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

@@ -43,8 +43,9 @@ export class UserRepository extends BaseRepository<User, string> {
    */
   async findById(id: string): Promise<User | null> {
     this.log(`Buscando usuario por ID: ${id}`);
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    // Los usuarios con soft-delete no deben ser visibles ni autenticables.
+    const user = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
     });
     return user ? this.toDomain(user) : null;
   }
@@ -54,8 +55,8 @@ export class UserRepository extends BaseRepository<User, string> {
    */
   async findByEmail(email: string): Promise<User | null> {
     this.log(`Buscando usuario por email: ${email}`);
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    const user = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
     });
     return user ? this.toDomain(user) : null;
   }
@@ -125,6 +126,7 @@ export class UserRepository extends BaseRepository<User, string> {
   }): Promise<User[]> {
     this.log('Listando usuarios');
     const users = await this.prisma.user.findMany({
+      where: { deletedAt: null },
       skip: options?.skip,
       take: options?.take,
       orderBy: options?.orderBy ? { [options.orderBy]: 'desc' } : undefined,
@@ -138,7 +140,7 @@ export class UserRepository extends BaseRepository<User, string> {
   async findBannedUsers(): Promise<User[]> {
     this.log('Buscando usuarios baneados');
     const users = await this.prisma.user.findMany({
-      where: { isBanned: true },
+      where: { isBanned: true, deletedAt: null },
     });
     return users.map(user => this.toDomain(user));
   }

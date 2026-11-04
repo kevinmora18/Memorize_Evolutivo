@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: memorize-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+      POSTGRES_DB: ${POSTGRES_DB:-memorize}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-memorize}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Servidor Backend (Express + Socket.IO + Prisma)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: memorize-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@postgres:5432/${POSTGRES_DB:-memorize}?schema=public"
+      PORT: ${PORT:-5175}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    ports:
+      - "${PORT:-5175}:5175"
+
+  # Cliente Frontend (React + Vite + Tailwind + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:5175}
+    container_name: memorize-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+    driver: local

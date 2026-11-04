@@ -160,6 +160,18 @@ export function calculateXPForAction(action: string, value: number = 0): number 
   return (xpTable[action] || 0) + value;
 }
 
+export function calculateLevelFromXP(xp: number): number {
+  return Math.floor(Math.max(0, xp) / 1000) + 1;
+}
+
+export function getXpIntoCurrentLevel(xp: number): number {
+  return Math.max(0, xp) % 1000;
+}
+
+export function getProgressToNextLevel(xp: number): number {
+  return Math.floor((Math.max(0, xp) % 1000) / 10);
+}
+
 export function getProgressToNextRank(xp: number): number {
   const currentRank = getRankByXP(xp);
   const nextRank = getNextRank(currentRank.id);
@@ -192,16 +204,25 @@ export function savePlayerStats(stats: PlayerStats): void {
 
 export function loadPlayerStats(): PlayerStats {
   const saved = localStorage.getItem('memorize_player_stats');
-  return saved ? JSON.parse(saved) : initializePlayerStats();
+  if (!saved) return initializePlayerStats();
+  try {
+    const parsed = JSON.parse(saved);
+    parsed.level = calculateLevelFromXP(parsed.xp || 0);
+    return parsed;
+  } catch {
+    return initializePlayerStats();
+  }
 }
 
 export function addXP(currentStats: PlayerStats, xp: number): PlayerStats {
   const newXP = currentStats.xp + xp;
   const newRank = getRankByXP(newXP);
+  const newLevel = calculateLevelFromXP(newXP);
   
   return {
     ...currentStats,
     xp: newXP,
+    level: newLevel,
     rankId: newRank.id,
   };
 }

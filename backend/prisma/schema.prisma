@@ -96,10 +96,13 @@ model Match {
   combo     Int?
   timeLeft  Int?
   won       Boolean   @default(false)
+  /// Clave de idempotencia generada por el cliente (UUID).
+  matchKey  String?
   createdAt DateTime  @default(now())
   deletedAt DateTime?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, matchKey], map: "uq_matches_user_match_key")
   @@index([userId])
   @@index([createdAt])
   @@index([deletedAt], map: "idx_matches_deleted")

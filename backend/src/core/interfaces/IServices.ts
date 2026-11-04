@@ -139,22 +139,6 @@ export interface IUserService {
   }>;
   updateCurrency(userId: string, coins?: number, gems?: number): Promise<User>;
   rewardCoins(userId: string, amount: number): Promise<User>;
-  recordGamePlayed(
-    userId: string,
-    gameData: {
-      score: number;
-      won: boolean;
-      matches: number;
-      perfectMatches: number;
-      combo: number;
-      xpEarned: number;
-      coinsEarned: number;
-    }
-  ): Promise<{
-    user: User;
-    stats: PlayerStats;
-    levelsGained: number;
-  }>;
   getUserAchievements(userId: string): Promise<string[]>;
   getPlayerRanking(userId: string): Promise<{
     rank: number;

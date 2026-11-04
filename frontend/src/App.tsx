@@ -79,8 +79,8 @@ export default function App() {
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/rooms`);
-        if (res.ok) setRooms(await res.json());
+        const res = await apiFetch<Room[]>('/api/rooms');
+        if (Array.isArray(res)) setRooms(res);
       } catch (err) {
         console.error('Error fetching rooms', err);
       }
@@ -162,13 +162,11 @@ export default function App() {
     if (!currentUser || !currentRoom) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/rooms/${currentRoom.id}/join`, {
+        const updatedRoom = await apiFetch<Room>(`/api/rooms/${currentRoom.id}/join`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player: { ...currentUser, teamId }, teamId }),
+          body: JSON.stringify({ teamId }),
         });
-        if (res.ok) {
-          const updatedRoom = await res.json() as Room;
+        if (updatedRoom) {
           setRooms(prev => prev.map(r => r.id === updatedRoom.id ? updatedRoom : r));
           setCurrentUser(prev => prev ? { ...prev, teamId } : null);
           setCurrentRoom(updatedRoom);
@@ -195,11 +193,10 @@ export default function App() {
     if (!currentRoom) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/rooms/${currentRoom.id}/start`, {
+        const updated = await apiFetch<Room>(`/api/rooms/${currentRoom.id}/start`, {
           method: 'PUT',
         });
-        if (res.ok) {
-          const updated = await res.json() as Room;
+        if (updated) {
           setRooms(prev => prev.map(r => r.id === updated.id ? updated : r));
           setCurrentScreen('multiplayerGame');
           return;

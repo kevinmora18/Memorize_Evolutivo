@@ -205,9 +205,13 @@ export class RoomManager {
    * Iniciar tarea de limpieza periódica
    */
   private startCleanupTask(): void {
-    setInterval(() => {
+    const timer = setInterval(() => {
       this.cleanupOldRooms();
     }, 10 * 60 * 1000); // Cada 10 minutos
+
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
 
     console.log('🧹 Tarea de limpieza de salas iniciada');
   }

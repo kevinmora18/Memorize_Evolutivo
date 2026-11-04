@@ -20,6 +20,7 @@ import {
 import { PetCanvas3D } from './PetCanvas3D';
 import { AN } from '../lib/archivoTokens';
 import type { Player } from '../App';
+import { apiFetch, getStoredUser } from '../lib/api';
 
 interface LobbyScreenProps {
   onStartMode: (mode: string) => void;
@@ -192,12 +193,13 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       // Ignorar error
     }
 
-    if (userId) {
-      fetch(`${API_BASE}/api/users/${userId}`)
-        .then(res => res.json())
+    const effectiveId = userId || getStoredUser()?.id;
+    if (effectiveId) {
+      apiFetch<{ user: any; stats: any }>(`/api/users/${effectiveId}`)
         .then(data => {
-          if (data.coins !== undefined) setCoins(data.coins);
-          if (data.gems !== undefined) setGems(data.gems);
+          const u = data.user || data;
+          if (u.coins !== undefined) setCoins(u.coins);
+          if (u.gems !== undefined) setGems(u.gems);
         })
         .catch(err => console.error('Error sincronizando divisas:', err));
     }
@@ -215,13 +217,27 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
     setTimeout(() => setNotificationMsg(null), 3200);
   };
 
-  const handleClaimDailyBonus = () => {
+  const handleClaimDailyBonus = async () => {
     if (claimedBonus) return;
     const today = new Date().toISOString().slice(0, 10);
     localStorage.setItem('memorize_daily_bonus_date', today);
     setClaimedBonus(true);
-    setCoins(prev => prev + 150);
-    setGems(prev => prev + 1);
+
+    const effectiveId = userId || getStoredUser()?.id;
+    if (effectiveId) {
+      try {
+        const res = await apiFetch<any>(`/api/users/${effectiveId}/daily-bonus`, { method: 'POST' });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+      } catch (err) {
+        console.warn('Error persistiendo bono en BD:', err);
+        setCoins(prev => prev + 150);
+        setGems(prev => prev + 1);
+      }
+    } else {
+      setCoins(prev => prev + 150);
+      setGems(prev => prev + 1);
+    }
 
     const updatedPet = addBrains(25);
     setPetState(updatedPet);
@@ -236,14 +252,30 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
     }
   };
 
-  const handleClaimMission = (missionId: string, rewardCoins: number, rewardGems = 0, rewardXP = 50) => {
+  const handleClaimMission = async (missionId: string, rewardCoins: number, rewardGems = 0, rewardXP = 50) => {
     if (claimedMissions[missionId]) return;
     const nextClaims = { ...claimedMissions, [missionId]: true };
     setClaimedMissions(nextClaims);
     localStorage.setItem('memorize_daily_claims', JSON.stringify(nextClaims));
 
-    setCoins(prev => prev + rewardCoins);
-    if (rewardGems > 0) setGems(prev => prev + rewardGems);
+    const effectiveId = userId || getStoredUser()?.id;
+    if (effectiveId) {
+      try {
+        const res = await apiFetch<any>(`/api/users/${effectiveId}/claim-mission`, {
+          method: 'POST',
+          body: JSON.stringify({ missionId, rewardCoins, rewardGems, rewardXP }),
+        });
+        if (res.coins !== undefined) setCoins(res.coins);
+        if (res.gems !== undefined) setGems(res.gems);
+      } catch (err) {
+        console.warn('Error persistiendo misión en BD:', err);
+        setCoins(prev => prev + rewardCoins);
+        if (rewardGems > 0) setGems(prev => prev + rewardGems);
+      }
+    } else {
+      setCoins(prev => prev + rewardCoins);
+      if (rewardGems > 0) setGems(prev => prev + rewardGems);
+    }
 
     const updatedPet = addBrains(15);
     setPetState(updatedPet);

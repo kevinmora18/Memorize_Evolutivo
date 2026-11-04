@@ -12,6 +12,12 @@ router.use(requireAdmin);
 // Helper: id del admin autenticado (para logs de auditoría)
 const getAdminId = (req: any): string => req.auth?.userId;
 
+// Nunca devolver el hash de contraseña al cliente (ni siquiera al admin).
+function withoutPasswordHash<T extends { passwordHash?: unknown }>(user: T): Omit<T, 'passwordHash'> {
+  const { passwordHash, ...safe } = user;
+  return safe;
+}
+
 // ============================================
 // GESTIÓN DE USUARIOS
 // ============================================
@@ -61,7 +67,7 @@ router.get('/users', async (req, res) => {
     ]);
 
     res.json({
-      users,
+      users: users.map(withoutPasswordHash),
       pagination: {
         total,
         page,
@@ -99,7 +105,7 @@ router.get('/users/:id', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    res.json(user);
+    res.json(withoutPasswordHash(user));
   } catch (error) {
     console.error('Error obteniendo usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -117,6 +123,11 @@ router.put('/users/:id/role', async (req, res) => {
       return res.status(400).json({ error: 'Rol inválido' });
     }
 
+    const previous = await prisma.user.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+
     const user = await prisma.user.update({
       where: { id },
       data: { role },
@@ -128,11 +139,11 @@ router.put('/users/:id/role', async (req, res) => {
         adminId,
         action: 'change_role',
         targetId: id,
-        details: JSON.stringify({ oldRole: user.role, newRole: role }),
+        details: JSON.stringify({ oldRole: previous?.role ?? null, newRole: role }),
       },
     });
 
-    res.json(user);
+    res.json(withoutPasswordHash(user));
   } catch (error) {
     console.error('Error cambiando rol:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -164,7 +175,7 @@ router.put('/users/:id/currency', async (req, res) => {
       },
     });
 
-    res.json(user);
+    res.json(withoutPasswordHash(user));
   } catch (error) {
     console.error('Error modificando monedas:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -203,7 +214,7 @@ router.put('/users/:id/ban', async (req, res) => {
       },
     });
 
-    res.json(user);
+    res.json(withoutPasswordHash(user));
   } catch (error) {
     console.error('Error baneando usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -235,7 +246,7 @@ router.put('/users/:id/unban', async (req, res) => {
       },
     });
 
-    res.json(user);
+    res.json(withoutPasswordHash(user));
   } catch (error) {
     console.error('Error desbaneando usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -323,7 +334,7 @@ router.get('/stats', async (req, res) => {
         totalGems: totalGems._sum.gems || 0,
       },
       matchesByMode,
-      topPlayers,
+      topPlayers: topPlayers.map(withoutPasswordHash),
     });
   } catch (error) {
     console.error('Error obteniendo estadísticas:', error);
@@ -395,7 +406,7 @@ router.get('/banned-users', async (req, res) => {
       },
     });
 
-    res.json(bannedUsers);
+    res.json(bannedUsers.map(withoutPasswordHash));
   } catch (error) {
     console.error('Error listando usuarios baneados:', error);
     res.status(500).json({ error: 'Error en el servidor' });

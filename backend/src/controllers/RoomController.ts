@@ -10,6 +10,11 @@ import { UserRepository } from '../repositories/UserRepository';
  * - SRP: Solo maneja peticiones HTTP de salas
  * - DEPENDENCY INJECTION: Recibe dependencias necesarias
  * - SEPARACIÓN DE RESPONSABILIDADES: No contiene lógica de negocio compleja
+ * 
+ * SEGURIDAD:
+ * - La identidad del host o jugador SIEMPRE se deriva de req.auth!.userId (JWT).
+ * - Nunca se confía en hostId o userId enviados en el body.
+ * - Solo el host puede iniciar o eliminar una sala.
  */
 export class RoomController {
   private roomManager: RoomManager;
@@ -62,45 +67,43 @@ export class RoomController {
 
   /**
    * POST /api/rooms
-   * Crear nueva sala
+   * Crear nueva sala (requiere autenticación; hostId se toma del token)
    */
   createRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, hostId, maxPlayers, mode, difficulty, isPrivate, password } = req.body;
+      const hostId = req.auth!.userId;
+      const { name, maxPlayers, mode, difficulty, isPrivate, password } = req.body;
 
-      // Validaciones
-      if (!name || !hostId) {
-        res.status(400).json({ error: 'Datos incompletos' });
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ error: 'El nombre de la sala es requerido' });
         return;
       }
 
-      if (maxPlayers < 2 || maxPlayers > 8) {
+      const parsedMaxPlayers = Number(maxPlayers) || 4;
+      if (parsedMaxPlayers < 2 || parsedMaxPlayers > 8) {
         res.status(400).json({ error: 'Número de jugadores debe estar entre 2 y 8' });
         return;
       }
 
-      // Verificar que el usuario existe
       const user = await this.userRepository.findById(hostId);
-
       if (!user) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
 
-      // Crear sala
       const room = this.roomManager.createRoom({
-        name,
+        name: name.trim().slice(0, 50),
         hostId,
         hostName: user.username || user.email,
         hostLevel: user.level,
-        maxPlayers: maxPlayers || 4,
+        maxPlayers: parsedMaxPlayers,
         mode: mode || 'classic',
         difficulty: difficulty || 'normal',
-        isPrivate: isPrivate || false,
-        password: isPrivate ? password : undefined,
+        isPrivate: Boolean(isPrivate),
+        password: isPrivate && typeof password === 'string' ? password : undefined,
       });
 
-      res.json(room.toJSON());
+      res.status(201).json(room.toJSON());
     } catch (error) {
       next(error);
     }
@@ -108,33 +111,25 @@ export class RoomController {
 
   /**
    * POST /api/rooms/:roomId/join
-   * Unirse a una sala
+   * Unirse a una sala (requiere autenticación; userId se toma del token)
    */
   joinRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = req.params.roomId as string;
-      const { userId, password } = req.body;
+      const userId = req.auth!.userId;
+      const { password } = req.body;
 
-      // Validaciones
-      if (!userId) {
-        res.status(400).json({ error: 'Datos incompletos' });
-        return;
-      }
-
-      // Verificar que el usuario existe
       const user = await this.userRepository.findById(userId);
-
       if (!user) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
 
-      // Unirse a la sala
       const room = this.roomManager.joinRoom(
         roomId,
         {
           id: userId,
-          socketId: '', // Se actualizará por socket
+          socketId: '',
           name: user.username || user.email,
           level: user.level,
           isReady: false,
@@ -161,17 +156,16 @@ export class RoomController {
 
   /**
    * POST /api/rooms/:roomId/leave
-   * Salir de una sala
+   * Salir de una sala (requiere autenticación; userId se toma del token)
    */
   leaveRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = req.params.roomId as string;
-      const { userId } = req.body;
+      const userId = req.auth!.userId;
 
       this.roomManager.leaveRoom(roomId, userId);
 
       const room = this.roomManager.getRoom(roomId);
-
       if (!room) {
         res.json({ message: 'Sala eliminada' });
         return;
@@ -185,21 +179,21 @@ export class RoomController {
 
   /**
    * PUT /api/rooms/:roomId/ready
-   * Marcar jugador como listo
+   * Marcar jugador como listo (requiere autenticación; userId se toma del token)
    */
   setReady = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = req.params.roomId as string;
-      const { userId, isReady } = req.body;
+      const userId = req.auth!.userId;
+      const { isReady } = req.body;
 
       const room = this.roomManager.getRoom(roomId);
-
       if (!room) {
         res.status(404).json({ error: 'Sala no encontrada' });
         return;
       }
 
-      room.setPlayerReady(userId, isReady);
+      room.setPlayerReady(userId, Boolean(isReady));
 
       res.json(room.toJSON());
     } catch (error: any) {
@@ -213,27 +207,25 @@ export class RoomController {
 
   /**
    * PUT /api/rooms/:roomId/start
-   * Iniciar partida
+   * Iniciar partida (requiere autenticación; solo el host autenticado)
    */
   startGame = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = req.params.roomId as string;
-      const { hostId, cards } = req.body;
+      const hostId = req.auth!.userId;
+      const { cards } = req.body;
 
       const room = this.roomManager.getRoom(roomId);
-
       if (!room) {
         res.status(404).json({ error: 'Sala no encontrada' });
         return;
       }
 
-      // Verificar que quien inicia es el host
       if (room.hostId !== hostId) {
         res.status(403).json({ error: 'Solo el host puede iniciar la partida' });
         return;
       }
 
-      // Iniciar el juego
       room.startGame(cards);
 
       res.json(room.toJSON());
@@ -248,21 +240,19 @@ export class RoomController {
 
   /**
    * DELETE /api/rooms/:roomId
-   * Eliminar sala (solo host)
+   * Eliminar sala (requiere autenticación; solo el host autenticado)
    */
   deleteRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = req.params.roomId as string;
-      const { hostId } = req.body;
+      const hostId = req.auth!.userId;
 
       const room = this.roomManager.getRoom(roomId);
-
       if (!room) {
         res.status(404).json({ error: 'Sala no encontrada' });
         return;
       }
 
-      // Verificar que quien elimina es el host
       if (room.hostId !== hostId) {
         res.status(403).json({ error: 'Solo el host puede eliminar la sala' });
         return;
