@@ -198,52 +198,16 @@ export default function App() {
     if (!currentUser || !currentRoom) return;
     (async () => {
       try {
-        const updatedRoom = await apiFetch<Room>(`/api/rooms/${currentRoom.id}/join`, {
-          method: 'POST',
+        const updatedRoom = await apiFetch<Room>(`/api/rooms/${currentRoom.id}/team`, {
+          method: 'PUT',
           body: JSON.stringify({ teamId }),
         });
-        if (updatedRoom) {
-          setRooms(prev => prev.map(r => r.id === updatedRoom.id ? updatedRoom : r));
-          setCurrentUser(prev => prev ? { ...prev, teamId } : null);
-          setCurrentRoom(updatedRoom);
-          return;
-        }
+        setRooms(prev => prev.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+        setCurrentUser(prev => prev ? { ...prev, teamId } : null);
+        setCurrentRoom(updatedRoom);
       } catch (err) {
         console.error('Error changing team', err);
       }
-
-      setCurrentUser(prevUser => prevUser ? { ...prevUser, teamId } : null);
-      setRooms(prevRooms => 
-        prevRooms.map(r => {
-          if (r.id === currentRoom.id) {
-            const updatedPlayers = r.players.map(p => p.id === currentUser.id ? { ...p, teamId } : p);
-            return { ...r, players: updatedPlayers };
-          }
-          return r;
-        }));
-      setCurrentRoom(prev => prev ? { ...prev, players: prev.players.map(p => p.id === currentUser.id ? { ...p, teamId } : p) } : prev);
-    })();
-  };
-
-  const handleStartGame = () => {
-    if (!currentRoom) return;
-    (async () => {
-      try {
-        const updated = await apiFetch<Room>(`/api/rooms/${currentRoom.id}/start`, {
-          method: 'PUT',
-        });
-        if (updated) {
-          setRooms(prev => prev.map(r => r.id === updated.id ? updated : r));
-          setCurrentScreen('multiplayerGame');
-          return;
-        }
-      } catch (err) {
-        console.error('Error starting game', err);
-      }
-
-      const updatedRoom = { ...currentRoom, isStarted: true };
-      setRooms(prevRooms => prevRooms.map(r => r.id === currentRoom.id ? updatedRoom : r));
-      setCurrentScreen('multiplayerGame');
     })();
   };
 
@@ -352,7 +316,6 @@ export default function App() {
         <RoomWaiting
           room={currentRoom}
           currentUser={currentUser}
-          onStartGame={handleStartGame}
           onChangeTeam={handleChangeTeam}
           onBackToLobby={handleBackToLobby}
         />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Award, Star, Zap, Target, Flame, RotateCcw,
@@ -8,7 +8,7 @@ import {
   getLevel, recordLevelResult, computeStars, STAR_RULES, TOTAL_LEVELS,
   type LevelRewards, type LevelOutcome
 } from '../lib/classicCampaign';
-import { apiFetch } from '../lib/api';
+import { apiFetch, createMatchKey } from '../lib/api';
 import { CardArt } from './cards/CardArt';
 
 interface ClassicResultsProps {
@@ -48,6 +48,10 @@ export function ClassicResults({
   const [rewards, setRewards] = useState<LevelRewards | null>(null);
   const [serverRewards, setServerRewards] = useState<{ xpGained: number; coinsGained: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Clave estable por resultado: StrictMode reejecuta el efecto, pero el
+  // backend deduplica por matchKey y este guard evita el segundo envío.
+  const matchKeyRef = useRef<string>(createMatchKey());
+  const submittedRef = useRef(false);
 
   useEffect(() => {
     // 1. Guardar y procesar recompensas locales (estrellas, reliquia, poder, corona)
@@ -62,9 +66,12 @@ export function ClassicResults({
     const local = recordLevelResult(level, outcome);
     setRewards(local);
 
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+
     // 2. Enviar resultado al servidor para acreditar XP y Monedas oficiales
     setIsSubmitting(true);
-    apiFetch<{ xpGained: number; coinsGained: number }>('/api/matches', {
+    apiFetch<{ xpGained: number; coinsGained: number; duplicate?: boolean }>('/api/matches', {
       method: 'POST',
       body: JSON.stringify({
         mode: 'classic',
@@ -74,6 +81,7 @@ export function ClassicResults({
         combo: maxCombo,
         timeLeft: Math.round(timeLeft),
         won,
+        matchKey: matchKeyRef.current,
       }),
     })
       .then((data) => {

@@ -507,7 +507,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
       if (effectiveUserId) {
         const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
           method: 'POST',
-          body: JSON.stringify({ itemType: 'pack', itemId: pack.id, price: pack.price, currency: pack.currency }),
+          body: JSON.stringify({ itemType: 'pack', itemId: pack.id }),
         });
         if (res.coins !== undefined) setCoins(res.coins);
         if (res.gems !== undefined) setGems(res.gems);
@@ -555,7 +555,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
       if (effectiveUserId) {
         const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
           method: 'POST',
-          body: JSON.stringify({ itemType: 'frame', itemId: frame.id, price: frame.price, currency: frame.currency }),
+          body: JSON.stringify({ itemType: 'frame', itemId: frame.id }),
         });
         if (res.coins !== undefined) setCoins(res.coins);
         if (res.gems !== undefined) setGems(res.gems);
@@ -603,7 +603,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
       if (effectiveUserId) {
         const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
           method: 'POST',
-          body: JSON.stringify({ itemType: 'skin', itemId: skin.id, price: skin.price, currency: skin.currency }),
+          body: JSON.stringify({ itemType: 'skin', itemId: skin.id }),
         });
         if (res.coins !== undefined) setCoins(res.coins);
         if (res.gems !== undefined) setGems(res.gems);
@@ -651,7 +651,7 @@ export function TiendaScreen({ onBack, userId }: TiendaScreenProps) {
       if (effectiveUserId) {
         const res = await apiFetch<any>(`/api/users/${effectiveUserId}/inventory/buy`, {
           method: 'POST',
-          body: JSON.stringify({ itemType: 'board', itemId: board.id, price: board.price, currency: board.currency }),
+          body: JSON.stringify({ itemType: 'board', itemId: board.id }),
         });
         if (res.coins !== undefined) setCoins(res.coins);
         if (res.gems !== undefined) setGems(res.gems);

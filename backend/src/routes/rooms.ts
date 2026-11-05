@@ -36,6 +36,9 @@ router.post('/:roomId/leave', requireAuth, roomController.leaveRoom);
 // PUT /api/rooms/:roomId/ready - Marcar como listo (requiere autenticación)
 router.put('/:roomId/ready', requireAuth, roomController.setReady);
 
+// PUT /api/rooms/:roomId/team - Cambiar de equipo (requiere autenticación)
+router.put('/:roomId/team', requireAuth, roomController.setTeam);
+
 // PUT /api/rooms/:roomId/start - Iniciar partida (requiere autenticación; solo host)
 router.put('/:roomId/start', requireAuth, roomController.startGame);
 

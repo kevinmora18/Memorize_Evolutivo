@@ -6,48 +6,180 @@ const router = Router();
 
 // NOTA DE SEGURIDAD: las respuestas del leaderboard son públicas y NO deben
 // incluir email u otros datos personales de los jugadores (solo username).
+// Tampoco deben listar cuentas eliminadas (soft-delete) ni baneadas.
+
+const ACTIVE_USER = { deletedAt: null, isBanned: false } as const;
+
+const VALID_TYPES = ['xp', 'level', 'coins', 'wins', 'score'] as const;
+type LeaderboardType = (typeof VALID_TYPES)[number];
+
+const VALID_PERIODS = ['all', 'weekly', 'monthly'] as const;
+type LeaderboardPeriod = (typeof VALID_PERIODS)[number];
+
+const VALID_MODES = ['classic', 'infinite', 'challenge', 'boss', 'multiplayer', 'ai-friends'];
+
+function parseType(raw: unknown): LeaderboardType {
+  return VALID_TYPES.includes(raw as LeaderboardType) ? (raw as LeaderboardType) : 'xp';
+}
+
+function parsePeriod(raw: unknown): LeaderboardPeriod {
+  return VALID_PERIODS.includes(raw as LeaderboardPeriod) ? (raw as LeaderboardPeriod) : 'all';
+}
+
+function parseMode(raw: unknown): string | undefined {
+  return typeof raw === 'string' && VALID_MODES.includes(raw) ? raw : undefined;
+}
+
+/** Inicio del periodo solicitado (null = histórico completo). */
+function periodStart(period: LeaderboardPeriod): Date | null {
+  const now = new Date();
+  if (period === 'weekly') {
+    const start = new Date(now);
+    const dayFromMonday = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - dayFromMonday);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+  if (period === 'monthly') {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return null;
+}
+
+interface AggregatedEntry {
+  rank: number;
+  id: string;
+  username: string | null;
+  level: number;
+  xp: number;
+  coins: number;
+  gems: number;
+  gamesPlayed: number;
+  gamesWon: number;
+  bestScore: number;
+  totalScore: number;
+  maxCombo: number;
+}
+
+type RankBy = 'wins' | 'score' | 'total';
+
+/**
+ * Agrega partidas por usuario. Se usa para rankings por modo y por periodo,
+ * donde `player_stats` (acumulado global) no puede responder la consulta.
+ */
+async function aggregateMatches(options: {
+  mode?: string;
+  since?: Date;
+  limit?: number;
+  rankBy: RankBy;
+}): Promise<AggregatedEntry[]> {
+  const matches = await prisma.match.findMany({
+    where: {
+      ...(options.mode ? { mode: options.mode } : {}),
+      ...(options.since ? { createdAt: { gte: options.since } } : {}),
+      user: ACTIVE_USER,
+    },
+    select: {
+      userId: true,
+      score: true,
+      won: true,
+      combo: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          level: true,
+          xp: true,
+          coins: true,
+          gems: true,
+        },
+      },
+    },
+  });
+
+  const byUser = new Map<string, Omit<AggregatedEntry, 'rank'>>();
+
+  for (const match of matches) {
+    let entry = byUser.get(match.userId);
+    if (!entry) {
+      entry = {
+        id: match.userId,
+        username: match.user.username,
+        level: match.user.level,
+        xp: match.user.xp,
+        coins: match.user.coins,
+        gems: match.user.gems,
+        gamesPlayed: 0,
+        gamesWon: 0,
+        bestScore: 0,
+        totalScore: 0,
+        maxCombo: 0,
+      };
+      byUser.set(match.userId, entry);
+    }
+
+    entry.gamesPlayed += 1;
+    entry.totalScore += match.score;
+    if (match.won) entry.gamesWon += 1;
+    if (match.score > entry.bestScore) entry.bestScore = match.score;
+    if (match.combo > entry.maxCombo) entry.maxCombo = match.combo;
+  }
+
+  const sorted = Array.from(byUser.values()).sort((a, b) => {
+    if (options.rankBy === 'wins') {
+      return b.gamesWon - a.gamesWon || b.totalScore - a.totalScore;
+    }
+    if (options.rankBy === 'score') {
+      return b.bestScore - a.bestScore || b.totalScore - a.totalScore;
+    }
+    return b.totalScore - a.totalScore || b.gamesWon - a.gamesWon;
+  });
+
+  const limited = typeof options.limit === 'number' ? sorted.slice(0, options.limit) : sorted;
+
+  return limited.map((entry, index) => ({ rank: index + 1, ...entry }));
+}
+
+function rankByFor(type: LeaderboardType): RankBy {
+  if (type === 'wins') return 'wins';
+  if (type === 'score') return 'score';
+  return 'total';
+}
 
 // GET /api/leaderboard - Obtener ranking global
 router.get('/', async (req, res) => {
   try {
-    const { 
-      type = 'xp', 
-      mode,
-      period = 'all' 
-    } = req.query;
-    const limit = clampLimit(req.query.limit, 100, 100);
+    const type = parseType(req.query.type);
+    const period = parsePeriod(req.query.period);
+    const mode = parseMode(req.query.mode);
+    const limit = clampLimit(req.query.limit, 50, 100);
 
-    let orderBy: any = {};
-    const baseUserWhere = {
-      deletedAt: null,
-      isBanned: false,
-    };
+    // Rankings por modo o por periodo se calculan desde las partidas.
+    if (period !== 'all' || mode) {
+      const leaderboard = await aggregateMatches({
+        mode,
+        since: periodStart(period) ?? undefined,
+        limit,
+        rankBy: rankByFor(type),
+      });
 
-    // Determinar ordenamiento según tipo de ranking
-    switch (type) {
-      case 'xp':
-        orderBy = { xp: 'desc' };
-        break;
-      case 'level':
-        orderBy = { level: 'desc' };
-        break;
-      case 'coins':
-        orderBy = { coins: 'desc' };
-        break;
-      case 'wins':
-      case 'score':
-        break;
-      default:
-        orderBy = { xp: 'desc' };
+      return res.json({
+        type,
+        period,
+        mode: mode ?? null,
+        leaderboard,
+        total: leaderboard.length,
+      });
     }
 
-    // Si es ranking por wins o score, consultar playerStats directamente con ORDER BY en BD
+    // Rankings históricos por victorias / mejor score: player_stats es la fuente.
     if (type === 'wins' || type === 'score') {
       const statsList = await prisma.playerStats.findMany({
-        where: {
-          user: baseUserWhere,
-        },
-        orderBy: type === 'wins' ? { gamesWon: 'desc' } : { bestScore: 'desc' },
+        where: { user: ACTIVE_USER },
+        orderBy:
+          type === 'wins'
+            ? [{ gamesWon: 'desc' }, { bestScore: 'desc' }]
+            : [{ bestScore: 'desc' }, { gamesWon: 'desc' }],
         take: limit,
         include: {
           user: {
@@ -81,19 +213,21 @@ router.get('/', async (req, res) => {
       return res.json({
         type,
         period,
+        mode: null,
         leaderboard,
         total: leaderboard.length,
       });
     }
 
-    // Para xp, level y coins: consulta a users ordenada en BD y filtrando baneados/eliminados
+    // XP, nivel y monedas: consulta directa a users.
+    const orderBy =
+      type === 'level' ? { level: 'desc' as const } : type === 'coins' ? { coins: 'desc' as const } : { xp: 'desc' as const };
+
     const users = await prisma.user.findMany({
-      where: baseUserWhere,
+      where: ACTIVE_USER,
       orderBy,
       take: limit,
-      include: {
-        stats: true,
-      },
+      include: { stats: true },
     });
 
     const leaderboard = users.map((user, index) => ({
@@ -114,6 +248,7 @@ router.get('/', async (req, res) => {
     res.json({
       type,
       period,
+      mode: null,
       leaderboard,
       total: leaderboard.length,
     });
@@ -127,77 +262,77 @@ router.get('/', async (req, res) => {
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { type = 'xp' } = req.query;
+    const type = parseType(req.query.type);
+    const period = parsePeriod(req.query.period);
+    const mode = parseMode(req.query.mode);
 
-    // Obtener el usuario
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        stats: true,
-      },
+      include: { stats: true },
     });
 
-    if (!user) {
+    // No revelar la existencia de cuentas eliminadas o baneadas.
+    if (!user || user.deletedAt || user.isBanned) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Calcular posición según el tipo
     let rank = 0;
     let value = 0;
 
-    const activeFilter = { deletedAt: null, isBanned: false };
+    if (period !== 'all' || mode) {
+      const all = await aggregateMatches({
+        mode,
+        since: periodStart(period) ?? undefined,
+        rankBy: rankByFor(type),
+      });
+      const index = all.findIndex((entry) => entry.id === user.id);
+      if (index === -1) {
+        return res.status(404).json({ error: 'El usuario no tiene partidas en este periodo' });
+      }
+      rank = all[index].rank;
+      value =
+        type === 'wins'
+          ? all[index].gamesWon
+          : type === 'score'
+          ? all[index].bestScore
+          : all[index].totalScore;
+
+      return res.json({ userId: user.id, username: user.username, rank, value, type, period, mode: mode ?? null });
+    }
 
     switch (type) {
       case 'xp':
         value = user.xp;
-        rank = await prisma.user.count({
-          where: { xp: { gt: user.xp }, ...activeFilter },
-        }) + 1;
+        rank =
+          (await prisma.user.count({ where: { xp: { gt: user.xp }, ...ACTIVE_USER } })) + 1;
         break;
       case 'level':
         value = user.level;
-        rank = await prisma.user.count({
-          where: { level: { gt: user.level }, ...activeFilter },
-        }) + 1;
+        rank =
+          (await prisma.user.count({ where: { level: { gt: user.level }, ...ACTIVE_USER } })) + 1;
         break;
       case 'coins':
         value = user.coins;
-        rank = await prisma.user.count({
-          where: { coins: { gt: user.coins }, ...activeFilter },
-        }) + 1;
+        rank =
+          (await prisma.user.count({ where: { coins: { gt: user.coins }, ...ACTIVE_USER } })) + 1;
         break;
       case 'wins':
         value = user.stats?.gamesWon || 0;
-        rank = await prisma.playerStats.count({
-          where: {
-            gamesWon: { gt: user.stats?.gamesWon || 0 },
-            user: activeFilter,
-          },
-        }) + 1;
+        rank =
+          (await prisma.playerStats.count({
+            where: { gamesWon: { gt: value }, user: ACTIVE_USER },
+          })) + 1;
         break;
       case 'score':
         value = user.stats?.bestScore || 0;
-        rank = await prisma.playerStats.count({
-          where: {
-            bestScore: { gt: user.stats?.bestScore || 0 },
-            user: activeFilter,
-          },
-        }) + 1;
+        rank =
+          (await prisma.playerStats.count({
+            where: { bestScore: { gt: value }, user: ACTIVE_USER },
+          })) + 1;
         break;
-      default:
-        value = user.xp;
-        rank = await prisma.user.count({
-          where: { xp: { gt: user.xp }, ...activeFilter },
-        }) + 1;
     }
 
-    res.json({
-      userId: user.id,
-      username: user.username,
-      rank,
-      value,
-      type,
-    });
+    res.json({ userId: user.id, username: user.username, rank, value, type, period, mode: null });
   } catch (error) {
     console.error('Error obteniendo posición:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -207,56 +342,23 @@ router.get('/user/:userId', async (req, res) => {
 // GET /api/leaderboard/mode/:mode - Ranking por modo de juego
 router.get('/mode/:mode', async (req, res) => {
   try {
-    const { mode } = req.params;
-    const limit = clampLimit(req.query.limit, 100, 100);
+    const mode = parseMode(req.params.mode);
+    if (!mode) {
+      return res.status(400).json({ error: 'Modo de juego inválido' });
+    }
 
-    // Obtener mejores puntuaciones por modo
-    const matches = await prisma.match.findMany({
-      where: { mode },
-      orderBy: { score: 'desc' },
-      take: limit,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            level: true,
-          },
-        },
-      },
-    });
+    const limit = clampLimit(req.query.limit, 50, 100);
+    const type = parseType(req.query.type);
+    const period = parsePeriod(req.query.period);
 
-    // Agrupar por usuario (solo mejor puntuación de cada uno)
-    const userBestScores = new Map();
-    
-    matches.forEach(match => {
-      if (!userBestScores.has(match.userId) || 
-          match.score > userBestScores.get(match.userId).score) {
-        userBestScores.set(match.userId, {
-          userId: match.userId,
-          username: match.user.username,
-          level: match.user.level,
-          score: match.score,
-          accuracy: match.accuracy,
-          combo: match.combo,
-          timeLeft: match.timeLeft,
-          createdAt: match.createdAt,
-        });
-      }
-    });
-
-    const leaderboard = Array.from(userBestScores.values())
-      .sort((a, b) => b.score - a.score)
-      .map((entry, index) => ({
-        rank: index + 1,
-        ...entry,
-      }));
-
-    res.json({
+    const leaderboard = await aggregateMatches({
       mode,
-      leaderboard,
-      total: leaderboard.length,
+      since: periodStart(period) ?? undefined,
+      limit,
+      rankBy: rankByFor(type),
     });
+
+    res.json({ mode, type, period, leaderboard, total: leaderboard.length });
   } catch (error) {
     console.error('Error obteniendo ranking por modo:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -266,62 +368,24 @@ router.get('/mode/:mode', async (req, res) => {
 // GET /api/leaderboard/weekly - Ranking semanal
 router.get('/weekly', async (req, res) => {
   try {
-    const limit = clampLimit(req.query.limit, 100, 100);
-
-    // Calcular inicio de la semana
+    const limit = clampLimit(req.query.limit, 50, 100);
+    const type = parseType(req.query.type);
+    const mode = parseMode(req.query.mode);
+    const start = periodStart('weekly')!;
     const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
 
-    // Obtener partidas de la semana
-    const matches = await prisma.match.findMany({
-      where: {
-        createdAt: { gte: startOfWeek },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            level: true,
-          },
-        },
-      },
+    const leaderboard = await aggregateMatches({
+      mode,
+      since: start,
+      limit,
+      rankBy: rankByFor(type),
     });
-
-    // Agrupar por usuario y sumar puntuaciones
-    const userScores = new Map();
-
-    matches.forEach(match => {
-      if (!userScores.has(match.userId)) {
-        userScores.set(match.userId, {
-          userId: match.userId,
-          username: match.user.username,
-          level: match.user.level,
-          totalScore: 0,
-          gamesPlayed: 0,
-          gamesWon: 0,
-        });
-      }
-
-      const userData = userScores.get(match.userId);
-      userData.totalScore += match.score;
-      userData.gamesPlayed++;
-      if (match.won) userData.gamesWon++;
-    });
-
-    const leaderboard = Array.from(userScores.values())
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, limit)
-      .map((entry, index) => ({
-        rank: index + 1,
-        ...entry,
-      }));
 
     res.json({
       period: 'weekly',
-      startDate: startOfWeek,
+      type,
+      mode: mode ?? null,
+      startDate: start,
       endDate: now,
       leaderboard,
       total: leaderboard.length,
@@ -335,60 +399,24 @@ router.get('/weekly', async (req, res) => {
 // GET /api/leaderboard/monthly - Ranking mensual
 router.get('/monthly', async (req, res) => {
   try {
-    const limit = clampLimit(req.query.limit, 100, 100);
-
-    // Calcular inicio del mes
+    const limit = clampLimit(req.query.limit, 50, 100);
+    const type = parseType(req.query.type);
+    const mode = parseMode(req.query.mode);
+    const start = periodStart('monthly')!;
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Obtener partidas del mes
-    const matches = await prisma.match.findMany({
-      where: {
-        createdAt: { gte: startOfMonth },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            level: true,
-          },
-        },
-      },
+    const leaderboard = await aggregateMatches({
+      mode,
+      since: start,
+      limit,
+      rankBy: rankByFor(type),
     });
-
-    // Agrupar por usuario y sumar puntuaciones
-    const userScores = new Map();
-
-    matches.forEach(match => {
-      if (!userScores.has(match.userId)) {
-        userScores.set(match.userId, {
-          userId: match.userId,
-          username: match.user.username,
-          level: match.user.level,
-          totalScore: 0,
-          gamesPlayed: 0,
-          gamesWon: 0,
-        });
-      }
-
-      const userData = userScores.get(match.userId);
-      userData.totalScore += match.score;
-      userData.gamesPlayed++;
-      if (match.won) userData.gamesWon++;
-    });
-
-    const leaderboard = Array.from(userScores.values())
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, limit)
-      .map((entry, index) => ({
-        rank: index + 1,
-        ...entry,
-      }));
 
     res.json({
       period: 'monthly',
-      startDate: startOfMonth,
+      type,
+      mode: mode ?? null,
+      startDate: start,
       endDate: now,
       leaderboard,
       total: leaderboard.length,

@@ -121,13 +121,16 @@ export class RoomController {
     try {
       const roomId = req.params.roomId as string;
       const userId = req.auth!.userId;
-      const { password } = req.body;
+      const { password, teamId } = req.body;
 
       const user = await this.userRepository.findById(userId);
       if (!user) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
+
+      const parsedTeam = Number(teamId);
+      const safeTeam = Number.isInteger(parsedTeam) && parsedTeam >= 0 && parsedTeam <= 5 ? parsedTeam : 0;
 
       let targetRoom = this.roomManager.getRoom(roomId);
       if (!targetRoom) {
@@ -150,6 +153,7 @@ export class RoomController {
           score: 0,
           matches: 0,
           isConnected: true,
+          teamId: safeTeam,
         },
         password
       );
@@ -286,6 +290,48 @@ export class RoomController {
       res.json({ message: 'Sala eliminada correctamente' });
     } catch (error) {
       next(error);
+    }
+  };
+
+  /**
+   * PUT /api/rooms/:roomId/team
+   * Cambiar de equipo (requiere autenticación; userId se toma del token)
+   */
+  setTeam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const roomId = req.params.roomId as string;
+      const userId = req.auth!.userId;
+      const teamId = Number(req.body.teamId);
+
+      if (!Number.isInteger(teamId) || teamId < 0 || teamId > 5) {
+        res.status(400).json({ error: 'Equipo inválido (0-5)' });
+        return;
+      }
+
+      let room = this.roomManager.getRoom(roomId);
+      if (!room) {
+        room = this.roomManager.getRoomByCode(roomId);
+      }
+      if (!room) {
+        res.status(404).json({ error: 'Sala no encontrada' });
+        return;
+      }
+
+      if (!room.hasPlayer(userId)) {
+        res.status(403).json({ error: 'No perteneces a esta sala' });
+        return;
+      }
+
+      room.setPlayerTeam(userId, teamId);
+      this.roomManager.notifyChange();
+
+      res.json(room.toJSON());
+    } catch (error: any) {
+      if (error.message.includes('no encontrado')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        next(error);
+      }
     }
   };
 

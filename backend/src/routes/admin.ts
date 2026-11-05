@@ -12,6 +12,16 @@ router.use(requireAdmin);
 // Helper: id del admin autenticado (para logs de auditoría)
 const getAdminId = (req: any): string => req.auth?.userId;
 
+/** Valida importes de moneda: entero no negativo (o ausente). */
+function parseAmount(raw: unknown): { provided: boolean; valid: boolean; value: number } {
+  if (raw === undefined || raw === null || raw === '') {
+    return { provided: false, valid: true, value: 0 };
+  }
+  const parsed = Number(raw);
+  const valid = Number.isInteger(parsed) && parsed >= 0 && parsed <= 1_000_000_000;
+  return { provided: true, valid, value: valid ? parsed : 0 };
+}
+
 // Nunca devolver el hash de contraseña al cliente (ni siquiera al admin).
 function withoutPasswordHash<T extends { passwordHash?: unknown }>(user: T): Omit<T, 'passwordHash'> {
   const { passwordHash, ...safe } = user;
@@ -30,7 +40,7 @@ router.get('/users', async (req, res) => {
     const limit = clampLimit(req.query.limit, 50, 100);
 
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = { deletedAt: null };
 
     // Filtro de búsqueda
     if (search) {
@@ -123,28 +133,38 @@ router.put('/users/:id/role', async (req, res) => {
       return res.status(400).json({ error: 'Rol inválido' });
     }
 
-    const previous = await prisma.user.findUnique({
-      where: { id },
-      select: { role: true },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const previous = await tx.user.findUnique({
+        where: { id },
+        select: { role: true },
+      });
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: { role },
-    });
+      if (!previous) {
+        throw new Error('Usuario no encontrado');
+      }
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'change_role',
-        targetId: id,
-        details: JSON.stringify({ oldRole: previous?.role ?? null, newRole: role }),
-      },
+      const updated = await tx.user.update({
+        where: { id },
+        data: { role },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'change_role',
+          targetId: id,
+          details: JSON.stringify({ oldRole: previous.role, newRole: role }),
+        },
+      });
+
+      return updated;
     });
 
     res.json(withoutPasswordHash(user));
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === 'Usuario no encontrado') {
+      return res.status(404).json({ error: error.message });
+    }
     console.error('Error cambiando rol:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -157,26 +177,46 @@ router.put('/users/:id/currency', async (req, res) => {
     const { coins, gems } = req.body;
     const adminId = getAdminId(req);
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(coins !== undefined && { coins }),
-        ...(gems !== undefined && { gems }),
-      },
-    });
+    const coinsInput = parseAmount(coins);
+    const gemsInput = parseAmount(gems);
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'give_currency',
-        targetId: id,
-        details: JSON.stringify({ coins, gems }),
-      },
+    if (!coinsInput.valid || !gemsInput.valid) {
+      return res.status(400).json({ error: 'Monedas y gemas deben ser enteros no negativos' });
+    }
+
+    if (!coinsInput.provided && !gemsInput.provided) {
+      return res.status(400).json({ error: 'Debe especificar coins o gems' });
+    }
+
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          ...(coinsInput.provided && { coins: coinsInput.value }),
+          ...(gemsInput.provided && { gems: gemsInput.value }),
+        },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'give_currency',
+          targetId: id,
+          details: JSON.stringify({
+            coins: coinsInput.provided ? coinsInput.value : undefined,
+            gems: gemsInput.provided ? gemsInput.value : undefined,
+          }),
+        },
+      });
+
+      return updated;
     });
 
     res.json(withoutPasswordHash(user));
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
     console.error('Error modificando monedas:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -189,33 +229,42 @@ router.put('/users/:id/ban', async (req, res) => {
     const { reason, duration } = req.body; // duration en horas, null = permanente
     const adminId = getAdminId(req);
 
-    let bannedUntil = null;
-    if (duration) {
-      bannedUntil = new Date();
-      bannedUntil.setHours(bannedUntil.getHours() + duration);
+    let bannedUntil: Date | null = null;
+    if (duration !== undefined && duration !== null && duration !== '') {
+      const hours = Number(duration);
+      if (!Number.isFinite(hours) || hours <= 0 || hours > 24 * 365 * 10) {
+        return res.status(400).json({ error: 'Duración inválida (horas positivas)' });
+      }
+      bannedUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        isBanned: true,
-        bannedUntil,
-        banReason: reason || 'Sin razón especificada',
-      },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          isBanned: true,
+          bannedUntil,
+          banReason: reason || 'Sin razón especificada',
+        },
+      });
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'ban_user',
-        targetId: id,
-        details: JSON.stringify({ reason, duration, bannedUntil }),
-      },
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'ban_user',
+          targetId: id,
+          details: JSON.stringify({ reason, duration, bannedUntil }),
+        },
+      });
+
+      return updated;
     });
 
     res.json(withoutPasswordHash(user));
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
     console.error('Error baneando usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -227,27 +276,33 @@ router.put('/users/:id/unban', async (req, res) => {
     const { id } = req.params;
     const adminId = getAdminId(req);
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        isBanned: false,
-        bannedUntil: null,
-        banReason: null,
-      },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          isBanned: false,
+          bannedUntil: null,
+          banReason: null,
+        },
+      });
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'unban_user',
-        targetId: id,
-        details: JSON.stringify({ unbannedAt: new Date() }),
-      },
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'unban_user',
+          targetId: id,
+          details: JSON.stringify({ unbannedAt: new Date() }),
+        },
+      });
+
+      return updated;
     });
 
     res.json(withoutPasswordHash(user));
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
     console.error('Error desbaneando usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -259,22 +314,29 @@ router.delete('/users/:id', async (req, res) => {
     const { id } = req.params;
     const adminId = getAdminId(req);
 
-    await prisma.user.delete({
-      where: { id },
-    });
+    // Soft-delete: conserva el historial y evita romper referencias (partidas,
+    // inventario, logs). Los repositorios ya excluyen usuarios con deletedAt.
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { deletedAt: new Date(), isBanned: false, bannedUntil: null, banReason: null },
+      });
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'delete_user',
-        targetId: id,
-        details: JSON.stringify({ deletedAt: new Date() }),
-      },
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'delete_user',
+          targetId: id,
+          details: JSON.stringify({ deletedAt: new Date() }),
+        },
+      });
     });
 
     res.json({ message: 'Usuario eliminado correctamente' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
     console.error('Error eliminando usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -295,18 +357,19 @@ router.get('/stats', async (req, res) => {
       totalCoins,
       totalGems,
     ] = await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({ where: { deletedAt: null } }),
       prisma.match.count(),
       prisma.user.count({
         where: {
+          deletedAt: null,
           updatedAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Últimos 7 días
           },
         },
       }),
-      prisma.user.count({ where: { isBanned: true } }),
-      prisma.user.aggregate({ _sum: { coins: true } }),
-      prisma.user.aggregate({ _sum: { gems: true } }),
+      prisma.user.count({ where: { deletedAt: null, isBanned: true } }),
+      prisma.user.aggregate({ where: { deletedAt: null }, _sum: { coins: true } }),
+      prisma.user.aggregate({ where: { deletedAt: null }, _sum: { gems: true } }),
     ]);
 
     // Estadísticas de partidas por modo
@@ -315,8 +378,9 @@ router.get('/stats', async (req, res) => {
       _count: { mode: true },
     });
 
-    // Top jugadores por puntuación
+    // Top jugadores por puntuación (solo cuentas activas)
     const topPlayers = await prisma.user.findMany({
+      where: { deletedAt: null, isBanned: false },
       orderBy: { xp: 'desc' },
       take: 10,
       include: {
@@ -441,24 +505,27 @@ router.post('/announcements', async (req, res) => {
       return res.status(400).json({ error: 'Título y mensaje requeridos' });
     }
 
-    const announcement = await prisma.announcement.create({
-      data: {
-        title,
-        message,
-        type: type || 'info',
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        isActive: true,
-      },
-    });
+    const announcement = await prisma.$transaction(async (tx) => {
+      const created = await tx.announcement.create({
+        data: {
+          title,
+          message,
+          type: type || 'info',
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          isActive: true,
+        },
+      });
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'create_announcement',
-        targetId: announcement.id,
-        details: JSON.stringify({ title, type }),
-      },
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'create_announcement',
+          targetId: created.id,
+          details: JSON.stringify({ title, type }),
+        },
+      });
+
+      return created;
     });
 
     res.json(announcement);
@@ -473,14 +540,35 @@ router.put('/announcements/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
+    const adminId = getAdminId(req);
 
-    const announcement = await prisma.announcement.update({
-      where: { id },
-      data: { isActive },
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: 'isActive debe ser booleano' });
+    }
+
+    const announcement = await prisma.$transaction(async (tx) => {
+      const updated = await tx.announcement.update({
+        where: { id },
+        data: { isActive },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'toggle_announcement',
+          targetId: id,
+          details: JSON.stringify({ isActive }),
+        },
+      });
+
+      return updated;
     });
 
     res.json(announcement);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Anuncio no encontrado' });
+    }
     console.error('Error actualizando anuncio:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -490,13 +578,25 @@ router.put('/announcements/:id/toggle', async (req, res) => {
 router.delete('/announcements/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const adminId = getAdminId(req);
 
-    await prisma.announcement.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      await tx.announcement.delete({ where: { id } });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'delete_announcement',
+          targetId: id,
+        },
+      });
     });
 
     res.json({ message: 'Anuncio eliminado correctamente' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Anuncio no encontrado' });
+    }
     console.error('Error eliminando anuncio:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -526,30 +626,52 @@ router.post('/promotions', async (req, res) => {
     const { name, description, type, value, startDate, endDate } = req.body;
     const adminId = getAdminId(req);
 
-    if (!name || !type || !value || !endDate) {
+    if (typeof name !== 'string' || !name.trim() || typeof type !== 'string' || !type.trim()) {
       return res.status(400).json({ error: 'Datos incompletos' });
     }
 
-    const promotion = await prisma.promotion.create({
-      data: {
-        name,
-        description: description || '',
-        type,
-        value,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: new Date(endDate),
-        isActive: true,
-      },
-    });
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return res.status(400).json({ error: 'Valor de promoción inválido' });
+    }
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'create_promotion',
-        targetId: promotion.id,
-        details: JSON.stringify({ name, type, value }),
-      },
+    const parsedEnd = new Date(endDate);
+    if (!endDate || Number.isNaN(parsedEnd.getTime())) {
+      return res.status(400).json({ error: 'Fecha de fin inválida' });
+    }
+
+    const parsedStart = startDate ? new Date(startDate) : new Date();
+    if (Number.isNaN(parsedStart.getTime())) {
+      return res.status(400).json({ error: 'Fecha de inicio inválida' });
+    }
+
+    if (parsedEnd <= parsedStart) {
+      return res.status(400).json({ error: 'La fecha de fin debe ser posterior al inicio' });
+    }
+
+    const promotion = await prisma.$transaction(async (tx) => {
+      const created = await tx.promotion.create({
+        data: {
+          name: name.trim(),
+          description: description || '',
+          type: type.trim(),
+          value: numericValue,
+          startDate: parsedStart,
+          endDate: parsedEnd,
+          isActive: true,
+        },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'create_promotion',
+          targetId: created.id,
+          details: JSON.stringify({ name: created.name, type: created.type, value: created.value }),
+        },
+      });
+
+      return created;
     });
 
     res.json(promotion);
@@ -563,13 +685,25 @@ router.post('/promotions', async (req, res) => {
 router.delete('/promotions/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const adminId = getAdminId(req);
 
-    await prisma.promotion.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      await tx.promotion.delete({ where: { id } });
+
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'delete_promotion',
+          targetId: id,
+        },
+      });
     });
 
     res.json({ message: 'Promoción eliminada correctamente' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Promoción no encontrada' });
+    }
     console.error('Error eliminando promoción:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -688,29 +822,45 @@ router.post('/give-currency-all', async (req, res) => {
     const { coins, gems } = req.body;
     const adminId = getAdminId(req);
 
-    if (!coins && !gems) {
-      return res.status(400).json({ error: 'Debe especificar coins o gems' });
+    const coinsInput = parseAmount(coins);
+    const gemsInput = parseAmount(gems);
+
+    if (!coinsInput.valid || !gemsInput.valid) {
+      return res.status(400).json({ error: 'Monedas y gemas deben ser enteros no negativos' });
+    }
+
+    // En una entrega masiva el incremento debe ser positivo (0 no aporta nada).
+    const coinsToAdd = coinsInput.provided && coinsInput.value > 0 ? coinsInput.value : 0;
+    const gemsToAdd = gemsInput.provided && gemsInput.value > 0 ? gemsInput.value : 0;
+
+    if (coinsToAdd === 0 && gemsToAdd === 0) {
+      return res.status(400).json({ error: 'Debe especificar una cantidad positiva de coins o gems' });
     }
 
     const updateData: any = {};
-    if (coins) {
-      updateData.coins = { increment: coins };
-    }
-    if (gems) {
-      updateData.gems = { increment: gems };
-    }
+    if (coinsToAdd > 0) updateData.coins = { increment: coinsToAdd };
+    if (gemsToAdd > 0) updateData.gems = { increment: gemsToAdd };
 
-    const result = await prisma.user.updateMany({
-      data: updateData,
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      // Solo cuentas activas: no se premia a baneados ni eliminados.
+      const updateResult = await tx.user.updateMany({
+        where: { deletedAt: null, isBanned: false },
+        data: updateData,
+      });
 
-    // Registrar acción en logs
-    await prisma.adminLog.create({
-      data: {
-        adminId,
-        action: 'give_currency_all',
-        details: JSON.stringify({ coins, gems, affectedUsers: result.count }),
-      },
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'give_currency_all',
+          details: JSON.stringify({
+            coins: coinsToAdd || undefined,
+            gems: gemsToAdd || undefined,
+            affectedUsers: updateResult.count,
+          }),
+        },
+      });
+
+      return updateResult;
     });
 
     res.json({

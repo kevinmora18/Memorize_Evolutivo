@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { Player, Room } from '../App';
 import socket from '../lib/socket';
+import { apiFetch } from '../lib/api';
 import { useEquippedRoomTheme } from '../lib/roomTheme';
 
 interface AIRoomLobbyProps {
@@ -28,7 +29,6 @@ interface AIRoom {
 }
 
 export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRealRoom }: AIRoomLobbyProps) {
-  const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:5175';
   const roomTheme = useEquippedRoomTheme();
 
   // Pestaña principal: 'online' (Multijugador Real 1v1) o 'bots' (Práctica con IA)
@@ -54,11 +54,8 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
   const fetchRealRooms = async () => {
     setIsLoadingRooms(true);
     try {
-      const res = await fetch(`${API_BASE}/api/rooms`);
-      if (res.ok) {
-        const data = await res.json();
-        setRealRooms(Array.isArray(data) ? data : []);
-      }
+      const data = await apiFetch<any[]>('/api/rooms');
+      setRealRooms(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error cargando salas:', err);
     } finally {
@@ -87,12 +84,10 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
     if (!createName.trim() || !currentUser) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/rooms`, {
+      const createdRoom = await apiFetch<any>('/api/rooms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: createName.trim(),
-          hostId: currentUser.id,
           maxPlayers: createMaxPlayers,
           mode: createMode,
           difficulty: 'easy',
@@ -100,20 +95,14 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
         }),
       });
 
-      if (res.ok) {
-        const createdRoom = await res.json();
-        setShowCreateModal(false);
-        setCreateName('');
-        if (onJoinRealRoom) {
-          onJoinRealRoom(createdRoom);
-        }
-      } else {
-        const err = await res.json();
-        setJoinError(err.error || 'Error al crear la sala');
+      setShowCreateModal(false);
+      setCreateName('');
+      if (onJoinRealRoom) {
+        onJoinRealRoom(createdRoom);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creando sala:', err);
-      setJoinError('No se pudo conectar con el servidor');
+      setJoinError(err?.message || 'Error al crear la sala');
     }
   };
 
@@ -124,26 +113,17 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
 
     try {
       const cleanTarget = roomIdOrCode.trim();
-      const res = await fetch(`${API_BASE}/api/rooms/${cleanTarget}/join`, {
+      const room = await apiFetch<any>(`/api/rooms/${cleanTarget}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({}),
       });
 
-      if (res.ok) {
-        const room = await res.json();
-        if (onJoinRealRoom) {
-          onJoinRealRoom(room);
-        }
-      } else {
-        const err = await res.json();
-        setJoinError(err.error || 'No se pudo unir a la sala');
+      if (onJoinRealRoom) {
+        onJoinRealRoom(room);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error uniéndose a la sala:', err);
-      setJoinError('Error al unirse a la sala');
+      setJoinError(err?.message || 'No se pudo unir a la sala');
     }
   };
 

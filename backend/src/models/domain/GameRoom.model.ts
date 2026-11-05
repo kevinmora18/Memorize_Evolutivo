@@ -22,6 +22,7 @@ export interface IPlayer {
   score: number;
   matches: number;
   isConnected: boolean;
+  teamId?: number;
 }
 
 export enum GameStatus {
@@ -67,6 +68,7 @@ export class Player implements IPlayer {
   score: number;
   matches: number;
   isConnected: boolean;
+  teamId: number;
 
   constructor(data: IPlayer) {
     this.id = data.id;
@@ -77,6 +79,7 @@ export class Player implements IPlayer {
     this.score = data.score || 0;
     this.matches = data.matches || 0;
     this.isConnected = data.isConnected !== undefined ? data.isConnected : true;
+    this.teamId = typeof data.teamId === 'number' ? data.teamId : 0;
   }
 
   /**
@@ -84,6 +87,13 @@ export class Player implements IPlayer {
    */
   setReady(ready: boolean): void {
     this.isReady = ready;
+  }
+
+  /**
+   * Asigna al jugador a un equipo (0 = sin equipo).
+   */
+  setTeam(teamId: number): void {
+    this.teamId = teamId;
   }
 
   /**
@@ -125,6 +135,7 @@ export class Player implements IPlayer {
       score: this.score,
       matches: this.matches,
       isConnected: this.isConnected,
+      teamId: this.teamId,
     };
   }
 }
@@ -240,6 +251,17 @@ export class GameRoom extends BaseEntity<any> {
       throw new Error('Jugador no encontrado');
     }
     player.setReady(ready);
+  }
+
+  /**
+   * Asigna un jugador a un equipo (0-5). Debe pertenecer a la sala.
+   */
+  setPlayerTeam(playerId: string, teamId: number): void {
+    const player = this.players.get(playerId);
+    if (!player) {
+      throw new Error('Jugador no encontrado');
+    }
+    player.setTeam(teamId);
   }
 
   areAllPlayersReady(): boolean {

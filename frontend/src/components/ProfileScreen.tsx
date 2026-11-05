@@ -85,7 +85,7 @@ export function ProfileScreen({ onBack, currentUser, currentRoom, userId }: Prof
   const nextRank = getNextRank(currentRank.id);
   const progressToNext = getProgressToNextRank(totalXP);
   const calculatedLvl = Math.max(1, Math.floor(totalXP / 1000) + 1);
-  const userLevel = currentUser?.level || calculatedLvl || stats.level || 1;
+  const userLevel = dbUser?.level ?? currentUser?.level ?? calculatedLvl ?? 1;
 
   const earnedStars = totalStars(classicProgress);
   const unlockedLvls = highestUnlocked(classicProgress);

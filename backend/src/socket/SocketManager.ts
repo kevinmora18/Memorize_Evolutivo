@@ -174,6 +174,7 @@ export class SocketManager {
             score: 0,
             matches: 0,
             isConnected: true,
+            teamId: 0,
           });
         }
 

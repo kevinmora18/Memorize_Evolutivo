@@ -10,7 +10,7 @@ import { CARD_CATALOG, getCardsForUniverse, type CardDef, type GameUniverse } fr
 import { UNIVERSE_TOKENS, type UniverseId } from '../lib/archivoTokens';
 import { ParticleExplosion, ComboPopup, FreezeOverlay } from './ClassicEffects';
 import { InGameCompanionWidget } from './InGameCompanionWidget';
-import { apiFetch } from '../lib/api';
+import { apiFetch, createMatchKey } from '../lib/api';
 
 interface InfiniteModeProps {
   onBackToLobby: () => void;
@@ -409,6 +409,9 @@ export function InfiniteMode({ onBackToLobby }: InfiniteModeProps) {
   const lockRef = useRef(false);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Idempotencia del registro de partida (evita doble envío por timers/StrictMode).
+  const matchKeyRef = useRef<string>(createMatchKey());
+  const submittedRef = useRef(false);
 
   const sector = getSectorForWave(wave);
   const isFever = combo >= 3;
@@ -474,6 +477,9 @@ export function InfiniteMode({ onBackToLobby }: InfiniteModeProps) {
 
   // Manejador del fin de partida
   const handleGameOver = useCallback(() => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
     audio.playGameOver();
     setPhase('game_over');
@@ -494,7 +500,7 @@ export function InfiniteMode({ onBackToLobby }: InfiniteModeProps) {
     const accuracy = totalClicks > 0 ? Math.min(100, Math.round(((totalMatches * 2) / totalClicks) * 100)) : 100;
 
     // Enviar partida al backend para registrar XP y monedas
-    apiFetch<{ xpGained: number; coinsGained: number }>('/api/matches', {
+    apiFetch<{ xpGained: number; coinsGained: number; duplicate?: boolean }>('/api/matches', {
       method: 'POST',
       body: JSON.stringify({
         mode: 'infinite',
@@ -504,6 +510,7 @@ export function InfiniteMode({ onBackToLobby }: InfiniteModeProps) {
         combo: maxCombo,
         timeLeft: 0,
         won: wave >= 5,
+        matchKey: matchKeyRef.current,
       }),
     })
       .then((data) => {
@@ -761,6 +768,8 @@ export function InfiniteMode({ onBackToLobby }: InfiniteModeProps) {
     setServerRewards(null);
     setFlippedIndices([]);
     lockRef.current = false;
+    matchKeyRef.current = createMatchKey();
+    submittedRef.current = false;
     startWave(1);
   };
 

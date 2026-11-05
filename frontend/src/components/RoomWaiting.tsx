@@ -19,12 +19,11 @@ interface ChatMessage {
 interface RoomWaitingProps {
   room: Room;
   currentUser: Player;
-  onStartGame: () => void;
   onChangeTeam?: (teamId: number) => void;
   onBackToLobby: () => void;
 }
 
-export function RoomWaiting({ room, currentUser, onStartGame, onBackToLobby }: RoomWaitingProps) {
+export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: RoomWaitingProps) {
   const [copiedCode, setCopiedCode] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
@@ -97,8 +96,10 @@ export function RoomWaiting({ room, currentUser, onStartGame, onBackToLobby }: R
 
   const handleStartGame = () => {
     if (!isHost || !canStart) return;
+    // El servidor es la única fuente de verdad: el motor valida host/estado y
+    // difunde `game:started` a TODOS los jugadores de la sala. No se inicia
+    // también por HTTP para evitar una doble ejecución y condiciones de carrera.
     socket.emit('game:start', { roomId: room.id });
-    onStartGame();
   };
 
   const handleSendMessage = () => {
@@ -228,6 +229,34 @@ export function RoomWaiting({ room, currentUser, onStartGame, onBackToLobby }: R
                 : 'Esperando que el jugador invitado confirme "Listo"'}
             </span>
           </div>
+
+          {/* Selector de equipo (solo salas de más de 2 jugadores) */}
+          {onChangeTeam && (room.maxPlayers || 2) > 2 && (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[#9AA3B2]">
+                Tu equipo
+              </span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((team) => {
+                  const selected = currentUser.teamId === team;
+                  return (
+                    <button
+                      key={team}
+                      onClick={() => onChangeTeam(team)}
+                      className={`w-7 h-7 rounded-md border font-mono text-xs font-bold transition-all cursor-pointer ${
+                        selected
+                          ? 'border-[#35E0C8] bg-[#35E0C8]/20 text-[#35E0C8]'
+                          : 'border-[#1E2836] bg-[#0D1119] text-[#9AA3B2] hover:border-[#35E0C8]/50'
+                      }`}
+                      title={`Unirse al equipo ${team}`}
+                    >
+                      {team}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sección Central: Duelo 1v1 (Jugador 1 vs Jugador 2) + Chat */}

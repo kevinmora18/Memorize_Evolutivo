@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/UserService';
 import { User } from '../models/domain/User.model';
 import { Container } from '../Container';
+import {
+  findShopItem,
+  INVENTORY_FIELD,
+  EQUIPPED_FIELD,
+  DEFAULT_EQUIPPED,
+} from '../core/shopCatalog';
 
 /**
  * Datos de usuario seguros para endpoints públicos.
@@ -71,12 +77,13 @@ export class UserController {
       const userId = req.params.userId as string;
       const { xpAmount } = req.body;
 
-      if (!xpAmount || xpAmount <= 0) {
-        res.status(400).json({ error: 'XP amount debe ser positivo' });
+      const amount = Number(xpAmount);
+      if (!Number.isInteger(amount) || amount <= 0 || amount > 1_000_000) {
+        res.status(400).json({ error: 'XP amount debe ser un entero positivo' });
         return;
       }
 
-      const result = await this.userService.addXpToUser(userId, xpAmount);
+      const result = await this.userService.addXpToUser(userId, amount);
 
       res.json(result);
     } catch (error: any) {
@@ -97,7 +104,27 @@ export class UserController {
       const userId = req.params.userId as string;
       const { coins, gems } = req.body;
 
-      const user = await this.userService.updateCurrency(userId, coins, gems);
+      const parseCurrency = (raw: unknown): number | undefined | null => {
+        if (raw === undefined || raw === null) return undefined;
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < 0 || value > 1_000_000_000) return null;
+        return value;
+      };
+
+      const safeCoins = parseCurrency(coins);
+      const safeGems = parseCurrency(gems);
+
+      if (safeCoins === null || safeGems === null) {
+        res.status(400).json({ error: 'Monedas y gemas deben ser enteros no negativos' });
+        return;
+      }
+
+      if (safeCoins === undefined && safeGems === undefined) {
+        res.status(400).json({ error: 'Debe especificar coins o gems' });
+        return;
+      }
+
+      const user = await this.userService.updateCurrency(userId, safeCoins, safeGems);
 
       res.json(user.toJSON());
     } catch (error: any) {
@@ -118,12 +145,13 @@ export class UserController {
       const userId = req.params.userId as string;
       const { amount } = req.body;
 
-      if (!amount || amount <= 0) {
-        res.status(400).json({ error: 'Amount debe ser positivo' });
+      const reward = Number(amount);
+      if (!Number.isInteger(reward) || reward <= 0 || reward > 1_000_000_000) {
+        res.status(400).json({ error: 'Amount debe ser un entero positivo' });
         return;
       }
 
-      const user = await this.userService.rewardCoins(userId, amount);
+      const user = await this.userService.rewardCoins(userId, reward);
 
       res.json(user.toJSON());
     } catch (error: any) {
@@ -291,19 +319,30 @@ export class UserController {
   buyItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.params.userId as string;
-      const { itemType, itemId, price, currency } = req.body;
+      const { itemType, itemId } = req.body;
 
-      if (!itemType || !itemId || typeof price !== 'number' || price <= 0) {
-        res.status(400).json({ error: 'Datos de compra inválidos' });
+      // Precio y moneda SIEMPRE desde el catálogo del servidor. Ignoramos
+      // cualquier `price`/`currency` enviado por el cliente.
+      const item = findShopItem(itemType, itemId);
+      if (!item) {
+        res.status(400).json({ error: 'Artículo no encontrado' });
         return;
       }
+      if (!item.available) {
+        res.status(400).json({ error: 'Este artículo aún no está disponible' });
+        return;
+      }
+
+      const price = item.price;
+      const useCoins = item.currency === 'coins';
+      const field = INVENTORY_FIELD[item.itemType];
 
       const prisma = Container.getInstance().prisma;
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({ where: { id: userId } });
         if (!user) throw new Error('Usuario no encontrado');
+        if (user.deletedAt || user.isBanned) throw new Error('Cuenta no disponible');
 
-        const useCoins = currency !== 'gems';
         if (useCoins && user.coins < price) {
           throw new Error('No tienes suficientes monedas');
         }
@@ -324,25 +363,15 @@ export class UserController {
           });
         }
 
-        const fieldMap: Record<string, 'ownedPacks' | 'ownedFrames' | 'ownedSkins' | 'ownedBoards'> = {
-          pack: 'ownedPacks',
-          frame: 'ownedFrames',
-          skin: 'ownedSkins',
-          board: 'ownedBoards',
-        };
-
-        const field = fieldMap[itemType];
-        if (!field) throw new Error('Tipo de item inválido');
-
         const ownedList = (inv[field] as string[]) || [];
-        if (ownedList.includes(itemId)) {
+        if (ownedList.includes(item.itemId)) {
           throw new Error('Ya posees este artículo');
         }
 
         const updatedInv = await tx.inventory.update({
           where: { userId },
           data: {
-            [field]: [...ownedList, itemId],
+            [field]: [...ownedList, item.itemId],
           },
         });
 
@@ -372,33 +401,48 @@ export class UserController {
       const userId = req.params.userId as string;
       const { itemType, itemId } = req.body;
 
-      const fieldMap: Record<string, string> = {
-        pack: 'equippedPack',
-        frame: 'equippedFrame',
-        skin: 'equippedSkin',
-        board: 'equippedBoard',
-      };
-
-      const field = fieldMap[itemType];
-      if (!field || typeof itemId !== 'string') {
+      const item = findShopItem(itemType, itemId);
+      if (!item) {
         res.status(400).json({ error: 'Tipo de item o itemId inválido' });
         return;
       }
 
+      const ownedField = INVENTORY_FIELD[item.itemType];
+      const equippedField = EQUIPPED_FIELD[item.itemType];
+
       const prisma = Container.getInstance().prisma;
-      const updated = await prisma.inventory.upsert({
-        where: { userId },
-        create: {
-          userId,
-          [field]: itemId,
-        },
-        update: {
-          [field]: itemId,
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        let inv = await tx.inventory.findUnique({ where: { userId } });
+        if (!inv) {
+          inv = await tx.inventory.create({
+            data: {
+              userId,
+              ownedPacks: ['frutas'],
+              ownedFrames: ['basic'],
+              ownedSkins: ['classic'],
+              ownedBoards: ['default'],
+            },
+          });
+        }
+
+        const ownedList = (inv[ownedField] as string[]) || [];
+        const isDefault = DEFAULT_EQUIPPED[item.itemType] === item.itemId;
+        if (!isDefault && !ownedList.includes(item.itemId)) {
+          throw new Error('No posees este artículo');
+        }
+
+        return tx.inventory.update({
+          where: { userId },
+          data: { [equippedField]: item.itemId },
+        });
       });
 
       res.json(updated);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === 'No posees este artículo') {
+        res.status(403).json({ error: error.message });
+        return;
+      }
       next(error);
     }
   };
