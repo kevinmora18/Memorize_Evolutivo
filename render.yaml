@@ -1,35 +1,37 @@
-# Archivo de configuración para Render
-# Despliegue: Backend en web service, Frontend en static site
+# Configuración de despliegue en Render (Blueprint)
+# Backend: Web Service (Node) + Frontend: Static Site
 
 services:
   - type: web
     name: memorize-backend
-    env: node
+    runtime: node
     plan: free
     branch: main
-    buildCommand: npm --prefix backend install && npm --prefix backend run build && npm --prefix backend run prisma:deploy
+    buildCommand: npm --prefix backend ci && npm --prefix backend run prisma:generate && npm --prefix backend run build && npm --prefix backend run prisma:deploy
     startCommand: npm --prefix backend run start
+    healthCheckPath: /health
     envVars:
-      - key: PORT
-        value: 10000
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://memorize-evolutivo.onrender.com
+        value: https://memorize-evolutivo.onrender.com,https://memorize-frontend.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
 
-  - type: static_site
+  - type: web
     name: memorize-frontend
-    env: node
-    plan: free
+    runtime: static
     branch: main
-    buildCommand: npm --prefix frontend install && npm --prefix frontend run build
-    publishPath: frontend/dist
+    buildCommand: npm --prefix frontend ci && npm --prefix frontend run build
+    staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE
         value: https://memorize-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
