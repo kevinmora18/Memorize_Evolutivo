@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Brain, Zap, Target, Award, Clock, Sparkles,
   Volume2, VolumeX, Eye, Snowflake, RotateCcw, Home, CheckCircle2,
-  Layers, Flame
+  Layers, Flame, ArrowRight, ChevronRight
 } from "lucide-react";
 import type { Universe } from '../App';
 import { ParticleExplosion, FreezeOverlay } from './ClassicEffects';
@@ -51,6 +51,7 @@ interface InGameCard {
   chainDescription: string;
   chainSteps: { step: number; name: string; stepName: string; imageSrc?: string }[];
   item: TriadCardItem;
+  totalStepsInGroup: number;
   isFlipped: boolean;
   isMatched: boolean;
   isHinted?: boolean;
@@ -117,6 +118,29 @@ class TriadsAudio {
       gain.connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.22);
+    } catch {}
+  }
+
+  playPairMatch() {
+    if (this.isMuted()) return;
+    try {
+      const ctx = this.initCtx();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      // Acorde armónico de 2 notas brillantes (Do y Sol)
+      const freqs = [523.25, 783.99];
+      freqs.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+        gain.gain.setValueAtTime(0.14, now + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.45);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + idx * 0.06);
+        osc.stop(now + idx * 0.06 + 0.45);
+      });
     } catch {}
   }
 
@@ -1599,7 +1623,7 @@ function RealisticCardEmblem({ iconType, color }: { iconType: string; color: str
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Componente Principal: TriadasConexiones (Modo Tríadas)
+   Componente Principal: TriadasConexiones / RelacionesConexiones (Modo Relaciones)
    ────────────────────────────────────────────────────────────────────────── */
 export function TriadasConexiones({
   modo = "ecosistema",
@@ -1607,7 +1631,12 @@ export function TriadasConexiones({
   onBackToMenu,
   level = 1,
 }: TriadasConexionesProps) {
+  const [currentLevel, setCurrentLevel] = useState(level || 1);
   const activeCatalog = TRIADS_CATALOG[modo] || TRIADS_CATALOG.ecosistema;
+
+  // En niveles 1 y 2: conectar 2 cartas (pareja causa-efecto/transformación directa).
+  // En niveles 3 y 4+: conectar 3 cartas (tríada evolutiva completa de 3 eslabones).
+  const cardsPerGroup = currentLevel <= 2 ? 2 : 3;
 
   const [cards, setCards] = useState<InGameCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
@@ -1630,6 +1659,13 @@ export function TriadasConexiones({
   const lockRef = useRef(false);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Sincronizar nivel si cambia la prop
+  useEffect(() => {
+    if (level && level !== currentLevel) {
+      setCurrentLevel(level);
+    }
+  }, [level]);
+
   // Toggle de sonido
   const toggleSound = () => {
     const next = !soundMuted;
@@ -1637,38 +1673,72 @@ export function TriadasConexiones({
     localStorage.setItem("memorize_sound_muted", String(next));
   };
 
-  // Número de tríadas según nivel
-  const getTriadsCount = (lvl: number) => {
-    if (lvl <= 1) return 3; // 9 cartas
-    if (lvl <= 3) return 4; // 12 cartas
-    return 5; // 15 cartas
+  // Configuración de dificultad por nivel:
+  // Nivel 1: 3 grupos x 2 cartas = 6 cartas (Parejas simples)
+  // Nivel 2: 4 grupos x 2 cartas = 8 cartas (Parejas ampliadas)
+  // Nivel 3: 3 grupos x 3 cartas = 9 cartas (Tríadas básicas)
+  // Nivel 4: 4 grupos x 3 cartas = 12 cartas (Tríadas avanzadas)
+  // Nivel 5: 5 grupos x 3 cartas = 15 cartas (Desafío maestro)
+  const getGroupsCount = (lvl: number) => {
+    if (lvl === 1) return 3;
+    if (lvl === 2) return 4;
+    if (lvl === 3) return 3;
+    if (lvl === 4) return 4;
+    return 5;
+  };
+
+  const getBaseTime = (lvl: number) => {
+    if (lvl === 1) return 60;
+    if (lvl === 2) return 75;
+    if (lvl === 3) return 90;
+    if (lvl === 4) return 105;
+    return 120;
+  };
+
+  const handleSelectLevel = (newLevel: number) => {
+    setCurrentLevel(newLevel);
+    setSelectedCards([]);
+    setCards([]);
   };
 
   // Inicializar partida
   const initializeGame = useCallback(() => {
-    const count = getTriadsCount(level);
-    const selectedDefs = activeCatalog.slice(0, count);
+    const groupsCount = getGroupsCount(currentLevel);
+    const selectedDefs = activeCatalog.slice(0, groupsCount);
+    const perGroup = currentLevel <= 2 ? 2 : 3;
 
     const deck: InGameCard[] = [];
     selectedDefs.forEach((triad) => {
-      const chainSteps = triad.items.map((it) => ({
+      // En niveles 1 y 2 tomamos los primeros 2 eslabones (Paso 1 y Paso 2)
+      const groupItems = triad.items.slice(0, perGroup);
+
+      const chainSteps = groupItems.map((it) => ({
         step: it.step,
         name: it.name,
         stepName: it.stepName,
         imageSrc: it.imageSrc,
       }));
 
-      triad.items.forEach((item) => {
+      const chainTitle = perGroup === 2
+        ? `${groupItems[0].name.split(" ")[0]} ➔ ${groupItems[1].name.split(" ")[0]}`
+        : triad.chainTitle;
+
+      const chainDescription = perGroup === 2
+        ? `${groupItems[0].name} se relaciona directamente con ${groupItems[1].name}`
+        : triad.chainDescription;
+
+      groupItems.forEach((item) => {
         deck.push({
           uniqueId: `${item.id}-${Math.random().toString(36).substring(2, 6)}`,
           triadId: triad.id,
           triadName: triad.name,
           triadThemeColor: triad.themeColor,
-          chainTitle: triad.chainTitle,
-          chainDescription: triad.chainDescription,
+          chainTitle,
+          chainDescription,
           chainSteps,
           item,
-          isFlipped: true, // Revelado en preview
+          totalStepsInGroup: perGroup,
+          isFlipped: true, // Revelado en preview inicial
           isMatched: false,
           isHinted: false,
         });
@@ -1678,9 +1748,10 @@ export function TriadasConexiones({
     const shuffled = deck.sort(() => Math.random() - 0.5);
     setCards(shuffled);
     setPhase("preview");
-    setPreviewCountdown(3.5);
+    setPreviewCountdown(currentLevel <= 2 ? 3.0 : 3.5);
     setSelectedCards([]);
     setCompletedTriads([]);
+    setTimeLeft(getBaseTime(currentLevel));
     lockRef.current = false;
 
     // Conteo regresivo del escaneo previo
@@ -1696,7 +1767,7 @@ export function TriadasConexiones({
         return prev - 0.5;
       });
     }, 500);
-  }, [activeCatalog, level]);
+  }, [activeCatalog, currentLevel]);
 
   useEffect(() => {
     initializeGame();
@@ -1729,7 +1800,7 @@ export function TriadasConexiones({
   const handleCardClick = (idx: number) => {
     if (phase !== "playing") return;
     if (lockRef.current) return;
-    if (selectedCards.length >= 3) return;
+    if (selectedCards.length >= cardsPerGroup) return;
 
     const card = cards[idx];
     if (card.isFlipped || card.isMatched) return;
@@ -1743,42 +1814,61 @@ export function TriadasConexiones({
     const newSelected = [...selectedCards, idx];
     setSelectedCards(newSelected);
 
-    const stepSoFar = newSelected.length as 1 | 2 | 3;
-    if (stepSoFar === 1 || stepSoFar === 2) {
-      audio.playCardStep(stepSoFar);
+    const stepSoFar = newSelected.length;
+    if (stepSoFar === 1) {
+      audio.playCardStep(1);
+    } else if (stepSoFar === 2 && cardsPerGroup === 3) {
+      audio.playCardStep(2);
     }
 
-    // Si se seleccionaron 3 cartas -> comprobar si forman la tríada
-    if (newSelected.length === 3) {
+    // Comprobar si se completó el número de cartas requeridas (2 en Nv 1-2, 3 en Nv 3+)
+    if (newSelected.length === cardsPerGroup) {
       lockRef.current = true;
-      const [first, second, third] = newSelected;
-      const card1 = cards[first];
-      const card2 = cards[second];
-      const card3 = cards[third];
 
-      if (card1.triadId === card2.triadId && card2.triadId === card3.triadId) {
-        // ¡TRÍADA CORRECTA Y COMPLETA!
+      const firstIdx = newSelected[0];
+      const secondIdx = newSelected[1];
+      const card1 = cards[firstIdx];
+      const card2 = cards[secondIdx];
+
+      const isMatch = cardsPerGroup === 2
+        ? card1.triadId === card2.triadId
+        : (newSelected.length === 3 && card1.triadId === card2.triadId && card2.triadId === cards[newSelected[2]].triadId);
+
+      if (isMatch) {
+        // MATCH EXITOSO
         const newCombo = combo + 1;
         setCombo(newCombo);
         setMaxCombo((m) => Math.max(m, newCombo));
-        const pts = 300 * newCombo;
+        const pts = (cardsPerGroup === 2 ? 200 : 350) * newCombo;
         setScore((s) => s + pts);
-        setTimeLeft((t) => t + 6); // +6s bonificación
+        setTimeLeft((t) => t + (cardsPerGroup === 2 ? 5 : 8));
 
-        audio.playTriadMatch();
+        if (cardsPerGroup === 2) {
+          audio.playPairMatch();
+        } else {
+          audio.playTriadMatch();
+        }
 
         const triadDef = activeCatalog.find((t) => t.id === card1.triadId);
         if (triadDef) {
+          const bannerTitle = cardsPerGroup === 2
+            ? `¡RELACIÓN CONECTADA: ${triadDef.name.toUpperCase()}!`
+            : `¡TRÍADA CONECTADA: ${triadDef.name.toUpperCase()}!`;
+          const bannerDesc = cardsPerGroup === 2
+            ? `${triadDef.items[0].name} ➔ ${triadDef.items[1].name}`
+            : triadDef.chainDescription;
+
           setActiveBanner({
-            title: `¡TRÍADA CONECTADA: ${triadDef.name.toUpperCase()}!`,
-            desc: triadDef.chainDescription,
+            title: bannerTitle,
+            desc: bannerDesc,
             color: triadDef.themeColor,
           });
           setTimeout(() => setActiveBanner(null), 2500);
         }
 
-        // Explosión de partículas en la carta central
-        const rect = cardRefs.current[second]?.getBoundingClientRect();
+        // Explosión de partículas en la carta
+        const explosionTargetIdx = cardsPerGroup === 2 ? secondIdx : newSelected[1];
+        const rect = cardRefs.current[explosionTargetIdx]?.getBoundingClientRect();
         if (rect) {
           setExplosion({
             x: rect.left + rect.width / 2,
@@ -1791,9 +1881,9 @@ export function TriadasConexiones({
         setTimeout(() => {
           setCards((curr) => {
             const updated = [...curr];
-            updated[first] = { ...updated[first], isMatched: true };
-            updated[second] = { ...updated[second], isMatched: true };
-            updated[third] = { ...updated[third], isMatched: true };
+            newSelected.forEach((i) => {
+              if (updated[i]) updated[i] = { ...updated[i], isMatched: true };
+            });
 
             const allMatched = updated.every((c) => c.isMatched);
             if (allMatched) {
@@ -1808,36 +1898,35 @@ export function TriadasConexiones({
           lockRef.current = false;
         }, 500);
       } else {
-        // DESENCUENTRO / ERROR EN LA TRÍADA
+        // ERROR / DESENCUENTRO
         audio.playMismatch();
         setCombo(0);
-        setShakingIdx([first, second, third]);
+        setShakingIdx(newSelected);
 
         setTimeout(() => {
           setCards((curr) => {
             const updated = [...curr];
-            if (updated[first]) updated[first] = { ...updated[first], isFlipped: false };
-            if (updated[second]) updated[second] = { ...updated[second], isFlipped: false };
-            if (updated[third]) updated[third] = { ...updated[third], isFlipped: false };
+            newSelected.forEach((i) => {
+              if (updated[i]) updated[i] = { ...updated[i], isFlipped: false };
+            });
             return updated;
           });
 
           setShakingIdx([]);
           setSelectedCards([]);
           lockRef.current = false;
-        }, 800);
+        }, 750);
       }
     }
   };
 
-  // Habilidad del Compañero 3D: Revelar un eslabón oculto
+  // Habilidad del Compañero 3D: Revelar cartas afines
   const handleCompanionReveal = useCallback(() => {
     if (phase !== "playing") return;
     const unmatched = cards.filter((c) => !c.isMatched && !c.isFlipped);
     if (unmatched.length === 0) return;
 
     audio.playPower();
-    // Revelar hasta 2 cartas de la misma tríada
     const targetTriad = unmatched[0].triadId;
     setCards((curr) =>
       curr.map((c) => (c.triadId === targetTriad && !c.isMatched ? { ...c, isFlipped: true, isHinted: true } : c))
@@ -1864,10 +1953,9 @@ export function TriadasConexiones({
     }, 6000);
   }, [phase]);
 
-  const targetCount = getTriadsCount(level);
-  const cols = cards.length <= 9 ? 3 : cards.length <= 12 ? 4 : 5;
+  const targetCount = getGroupsCount(currentLevel);
 
-  // Bandeja de Ensamblaje en vivo de la Tríada seleccionada
+  // Bandeja de Ensamblaje en vivo adaptativa (2 o 3 casillas)
   const activeTriadAssembly = (() => {
     if (selectedCards.length === 0) return null;
     const firstCard = cards[selectedCards[0]];
@@ -1876,12 +1964,14 @@ export function TriadasConexiones({
     const triadDef = activeCatalog.find((t) => t.id === firstCard.triadId);
     if (!triadDef) return null;
 
-    const selectedInTriad = selectedCards
+    const selectedInGroup = selectedCards
       .map((idx) => cards[idx])
       .filter((c) => c && c.triadId === firstCard.triadId);
 
-    const steps = triadDef.items.map((it) => {
-      const isSelected = selectedInTriad.some((c) => c.item.id === it.id);
+    const groupItems = triadDef.items.slice(0, cardsPerGroup);
+
+    const steps = groupItems.map((it) => {
+      const isSelected = selectedInGroup.some((c) => c.item.id === it.id);
       return {
         step: it.step,
         name: it.name,
@@ -1894,12 +1984,27 @@ export function TriadasConexiones({
     return {
       name: triadDef.name,
       themeColor: triadDef.themeColor,
-      chainTitle: triadDef.chainTitle,
+      chainTitle: cardsPerGroup === 2
+        ? `${groupItems[0].name.split(" ")[0]} ➔ ${groupItems[1].name.split(" ")[0]}`
+        : triadDef.chainTitle,
       chainDescription: triadDef.chainDescription,
-      selectedCount: selectedInTriad.length,
+      selectedCount: selectedInGroup.length,
+      totalRequired: cardsPerGroup,
       steps,
     };
   })();
+
+  // Distribución responsiva según total de cartas
+  const totalCards = cards.length;
+  const gridClasses = totalCards <= 6
+    ? "grid-cols-3 max-w-md"
+    : totalCards === 8
+    ? "grid-cols-4 max-w-xl"
+    : totalCards <= 9
+    ? "grid-cols-3 max-w-lg"
+    : totalCards <= 12
+    ? "grid-cols-3 sm:grid-cols-4 max-w-3xl"
+    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 max-w-4xl";
 
   return (
     <div
@@ -1959,9 +2064,15 @@ export function TriadasConexiones({
 
         <div className="flex items-center gap-1.5">
           <Layers className="w-4 h-4 text-purple-400" />
-          <span className="font-black text-xs tracking-wider uppercase text-white">TRÍADAS</span>
-          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border border-purple-500/40 text-purple-300 bg-purple-500/15">
-            {modo.slice(0, 4).toUpperCase()} · N{level}
+          <span className="font-black text-xs tracking-wider uppercase text-white">
+            {cardsPerGroup === 2 ? "RELACIONES" : "TRÍADAS"}
+          </span>
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
+            cardsPerGroup === 2
+              ? "border-amber-500/40 text-amber-300 bg-amber-500/15"
+              : "border-purple-500/40 text-purple-300 bg-purple-500/15"
+          }`}>
+            N{currentLevel} · {cardsPerGroup} CARTAS
           </span>
         </div>
 
@@ -1984,19 +2095,41 @@ export function TriadasConexiones({
           <span>SALIR</span>
         </button>
 
-        <div className="flex flex-col items-center">
+        {/* Centro: Título + Selector Rápido de Nivel */}
+        <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-purple-400" />
             <h1 className="font-black text-base tracking-[0.2em] uppercase text-white drop-shadow">
-              MODO TRÍADAS
+              MODO RELACIONES
             </h1>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-widest border border-purple-500/40 text-purple-300 bg-purple-500/15">
-              {modo.toUpperCase()} · NIVEL {level}
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-widest border ${
+              cardsPerGroup === 2
+                ? "border-amber-500/40 text-amber-300 bg-amber-500/15"
+                : "border-purple-500/40 text-purple-300 bg-purple-500/15"
+            }`}>
+              {modo.toUpperCase()} · NIVEL {currentLevel} ({cardsPerGroup === 2 ? "2 CARTAS POR RELACIÓN" : "3 CARTAS POR TRÍADA"})
             </span>
           </div>
-          <span className="text-[11px] font-mono text-gray-400 tracking-wider">
-            Combina 3 cartas para forjar una cadena sinérgica completa
-          </span>
+
+          {/* Selector de Nivel Interactivo */}
+          <div className="flex items-center gap-1.5 bg-black/50 p-1 rounded-xl border border-white/10">
+            <span className="text-[10px] font-mono text-gray-400 uppercase px-1.5 font-bold">Nivel:</span>
+            {[1, 2, 3, 4].map((lvl) => (
+              <button
+                key={lvl}
+                onClick={() => handleSelectLevel(lvl)}
+                className={`px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all ${
+                  currentLevel === lvl
+                    ? lvl <= 2
+                      ? "bg-amber-500 text-black shadow-[0_0_12px_rgba(245,158,11,0.5)] font-black"
+                      : "bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] font-black"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                Nv {lvl} {lvl <= 2 ? "(2 cartas)" : "(3 cartas)"}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button
@@ -2007,6 +2140,25 @@ export function TriadasConexiones({
           {soundMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
         </button>
       </header>
+
+      {/* ── Selector Móvil de Nivel Compacto ─────────────────────────────────── */}
+      <div className="px-2 pt-1 sm:hidden flex items-center justify-center gap-1 z-20 shrink-0">
+        {[1, 2, 3, 4].map((lvl) => (
+          <button
+            key={lvl}
+            onClick={() => handleSelectLevel(lvl)}
+            className={`px-2 py-0.5 rounded-md text-[9px] font-mono font-bold transition-all ${
+              currentLevel === lvl
+                ? lvl <= 2
+                  ? "bg-amber-500 text-black font-black"
+                  : "bg-purple-600 text-white font-black"
+                : "bg-black/40 text-gray-400 border border-white/5"
+            }`}
+          >
+            Nv{lvl}: {lvl <= 2 ? "2 cartas" : "3 cartas"}
+          </button>
+        ))}
+      </div>
 
       {/* ── HUD Móvil de 1 Línea (sm:hidden) ─────────────────────────────────── */}
       <div className="px-2 pt-1 relative z-20 sm:hidden shrink-0">
@@ -2037,7 +2189,7 @@ export function TriadasConexiones({
             <span className="font-black text-xs">{timeLeft}s</span>
           </div>
 
-          {/* Tríadas */}
+          {/* Conexiones */}
           <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg shrink-0">
             <Award className="w-3 h-3 text-emerald-400 shrink-0" />
             <span className="font-black text-emerald-300 text-xs">{completedTriads.length}/{targetCount}</span>
@@ -2046,7 +2198,7 @@ export function TriadasConexiones({
       </div>
 
       {/* ── HUD Escritorio Completo (hidden sm:block) ────────────────────────── */}
-      <div className="max-w-4xl w-full mx-auto px-4 pt-3 relative z-20 hidden sm:block shrink-0">
+      <div className="max-w-4xl w-full mx-auto px-4 pt-2 relative z-20 hidden sm:block shrink-0">
         <div className="grid grid-cols-4 gap-3">
           {/* Puntos */}
           <div className="px-3.5 py-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
@@ -2095,11 +2247,13 @@ export function TriadasConexiones({
             </span>
           </div>
 
-          {/* Tríadas Conectadas */}
+          {/* Conexiones Resueltas */}
           <div className="px-3.5 py-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-emerald-400" />
-              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">TRÍADAS</span>
+              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">
+                {cardsPerGroup === 2 ? "RELACIONES" : "TRÍADAS"}
+              </span>
             </div>
             <div className="flex items-center gap-1 font-mono text-xl font-black">
               <span className="text-emerald-300">{completedTriads.length}</span>
@@ -2109,14 +2263,16 @@ export function TriadasConexiones({
         </div>
       </div>
 
-      {/* ── Bandeja Flotante de Ensamblaje en Vivo (Cuando hay cartas seleccionadas) ── */}
+      {/* ── Bandeja Flotante de Ensamblaje en Vivo (Adaptativa: 2 o 3 cartas) ── */}
       <AnimatePresence>
         {activeTriadAssembly && (
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
-            className="max-w-2xl w-full mx-auto px-3 sm:px-4 pt-1 z-30 shrink-0"
+            className={`w-full mx-auto px-3 sm:px-4 pt-1 z-30 shrink-0 ${
+              activeTriadAssembly.totalRequired === 2 ? "max-w-lg" : "max-w-2xl"
+            }`}
           >
             <div
               className="p-2 sm:p-2.5 rounded-2xl border-2 backdrop-blur-xl shadow-2xl flex flex-col gap-1.5 transition-all"
@@ -2132,15 +2288,19 @@ export function TriadasConexiones({
                   style={{ color: activeTriadAssembly.themeColor }}
                 >
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">ENSAMBLANDO: {activeTriadAssembly.name}</span>
+                  <span className="truncate">CONECTANDO: {activeTriadAssembly.name}</span>
                 </span>
-                <span className="font-mono text-[10px] text-gray-300 shrink-0">
-                  {activeTriadAssembly.selectedCount}/3 eslabones
+                <span className="font-mono text-[10px] text-gray-300 shrink-0 font-bold">
+                  {activeTriadAssembly.selectedCount}/{activeTriadAssembly.totalRequired} {activeTriadAssembly.totalRequired === 2 ? "cartas" : "eslabones"}
                 </span>
               </div>
 
-              {/* 3 Slots del flujo */}
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              {/* Slots del flujo: 2 columnas en Nv 1-2, 3 columnas en Nv 3+ */}
+              <div
+                className={`grid gap-1.5 sm:gap-2 ${
+                  activeTriadAssembly.totalRequired === 2 ? "grid-cols-2" : "grid-cols-3"
+                }`}
+              >
                 {activeTriadAssembly.steps.map((st) => (
                   <div
                     key={st.step}
@@ -2175,7 +2335,7 @@ export function TriadasConexiones({
         )}
       </AnimatePresence>
 
-      {/* ── Banner Flotante de Tríada (Overlay que no empuja cartas) ─────────── */}
+      {/* ── Banner Flotante de Conexión (Overlay que no empuja cartas) ─────────── */}
       <AnimatePresence>
         {activeBanner && (
           <motion.div
@@ -2205,21 +2365,21 @@ export function TriadasConexiones({
       {/* ── Tablero de Juego (Cartas Realistas de Gran Formato con Viewport Lock) ─── */}
       <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-2 relative z-20 w-full max-w-5xl mx-auto overflow-hidden">
         <div className="relative p-1.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center justify-center overflow-hidden">
-          {/* Indicador de Escaneo Previo */}
+          {/* Indicador de Escaneo Previo con Pista del Objetivo */}
           {phase === "preview" && (
             <div className="mb-1 sm:mb-2 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs text-purple-300 font-bold bg-purple-500/20 px-3 py-1 rounded-full border border-purple-400/40 animate-pulse shrink-0">
-              <Sparkles className="w-3 h-3" />
-              <span>MEMORIZA LAS TRÍADAS: {previewCountdown.toFixed(1)}s</span>
+              <Sparkles className="w-3 h-3 text-amber-300" />
+              <span>
+                {cardsPerGroup === 2
+                  ? `MEMORIZA LAS PAREJAS (2 CARTAS): ${previewCountdown.toFixed(1)}s`
+                  : `MEMORIZA LAS TRÍADAS (3 CARTAS): ${previewCountdown.toFixed(1)}s`}
+              </span>
             </div>
           )}
 
           {/* Cuadrícula de Cartas Coleccionables */}
           <div
-            className={`grid gap-2 sm:gap-3.5 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${
-              cols === 3
-                ? "grid-cols-3 max-w-lg"
-                : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 max-w-4xl"
-            }`}
+            className={`grid gap-2 sm:gap-3.5 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${gridClasses}`}
           >
             {cards.map((card, idx) => {
               const isSelected = selectedCards.includes(idx);
@@ -2264,7 +2424,9 @@ export function TriadasConexiones({
                       }}
                     >
                       <div className="w-full flex justify-between items-center text-[8px] sm:text-[10px] font-mono text-purple-400/70 uppercase">
-                        <span className="font-bold tracking-widest">TRÍADA</span>
+                        <span className="font-bold tracking-widest">
+                          {card.totalStepsInGroup === 2 ? "RELACIÓN" : "TRÍADA"}
+                        </span>
                         <span>#{String(idx + 1).padStart(2, "0")}</span>
                       </div>
 
@@ -2300,7 +2462,7 @@ export function TriadasConexiones({
                           : `inset 0 0 16px ${card.triadThemeColor}25, 0 8px 20px rgba(0,0,0,0.6)`,
                       }}
                     >
-                      {/* 1. Cabecera Unificada de la Tríada / Familia */}
+                      {/* 1. Cabecera Unificada de la Relación / Familia */}
                       <div
                         className="flex items-center justify-between gap-1 w-full pb-1 border-b border-white/10 shrink-0"
                         style={{ borderColor: `${card.triadThemeColor}30` }}
@@ -2322,7 +2484,7 @@ export function TriadasConexiones({
                           className="px-1.5 py-0.2 sm:py-0.5 rounded text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-wider text-black shrink-0 shadow-sm"
                           style={{ background: card.triadThemeColor }}
                         >
-                          {card.item.step}/3
+                          {card.item.step}/{card.totalStepsInGroup}
                         </span>
                       </div>
 
@@ -2355,7 +2517,7 @@ export function TriadasConexiones({
                         </div>
                       </div>
 
-                      {/* 3. Título del Objeto y Mini-Diagrama de Conexión de la Tríada */}
+                      {/* 3. Título del Objeto y Mini-Diagrama de Conexión */}
                       <div className="w-full pt-0.5 shrink-0 text-center flex flex-col gap-0.5">
                         <h4
                           className="font-serif font-black text-[11px] sm:text-xs text-white tracking-tight uppercase truncate leading-tight"
@@ -2364,7 +2526,7 @@ export function TriadasConexiones({
                           {card.item.name}
                         </h4>
 
-                        {/* Mini Diagrama de Flujo (Paso 1 -> Paso 2 -> Paso 3) */}
+                        {/* Mini Diagrama de Flujo (2 pasos o 3 pasos según nivel) */}
                         <div className="flex items-center justify-center gap-0.5 sm:gap-1 font-mono text-[7px] sm:text-[8px] text-gray-400 bg-black/40 py-0.5 px-1 rounded-md border border-white/5 truncate">
                           {card.chainSteps?.map((st, i) => {
                             const isCurrent = st.step === card.item.step;
@@ -2382,14 +2544,14 @@ export function TriadasConexiones({
                                 >
                                   {shortName}
                                 </span>
-                                {i < 2 && <span className="text-gray-600 text-[6px]">➔</span>}
+                                {i < (card.totalStepsInGroup - 1) && <span className="text-gray-600 text-[6px]">➔</span>}
                               </span>
                             );
                           })}
                         </div>
                       </div>
 
-                      {/* Badge de Selección (1, 2, 3) */}
+                      {/* Badge de Selección (1, 2 ó 3) */}
                       {isSelected && !card.isMatched && (
                         <motion.div
                           initial={{ scale: 0 }}
@@ -2400,7 +2562,7 @@ export function TriadasConexiones({
                         </motion.div>
                       )}
 
-                      {/* Sello de Tríada Resuelta */}
+                      {/* Sello de Relación Resuelta */}
                       {card.isMatched && (
                         <div className="absolute inset-0 bg-emerald-950/50 backdrop-blur-[2px] flex items-center justify-center z-20">
                           <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.7)]" />
@@ -2417,11 +2579,15 @@ export function TriadasConexiones({
 
       {/* ── Pie Informativo (hidden sm:flex) ─────────────────────────────────── */}
       <footer className="px-4 py-1.5 relative z-20 hidden sm:flex items-center justify-between text-[11px] font-mono text-gray-400 border-t border-white/5 bg-black/30 backdrop-blur-sm shrink-0">
-        <span>CONECTA LAS 3 CARTAS DEL MISMO CICLO EVOLUTIVO O LÓGICO</span>
-        <span>MODO TRÍADAS · MEMORIZE EVOLUTIVO</span>
+        <span>
+          {cardsPerGroup === 2
+            ? "CONECTA LAS 2 CARTAS EN RELACIÓN CAUSA-EFECTO DIRECTA"
+            : "CONECTA LAS 3 CARTAS DEL MISMO CICLO EVOLUTIVO O LÓGICO"}
+        </span>
+        <span>MODO RELACIONES · MEMORIZE EVOLUTIVO</span>
       </footer>
 
-      {/* ── Modal de Victoria / Final del Nivel ──────────────────────────────── */}
+      {/* ── Modal de Victoria / Final del Nivel con Progresión Pedagógica ────── */}
       <AnimatePresence>
         {phase === "victory" && (
           <motion.div
@@ -2441,42 +2607,89 @@ export function TriadasConexiones({
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-black mb-1 bg-gradient-to-r from-purple-300 via-white to-pink-300 bg-clip-text text-transparent">
-                ¡NIVEL SUPERADO!
+                ¡NIVEL {currentLevel} SUPERADO!
               </h2>
-              <p className="text-xs font-mono text-gray-400 mb-6">
-                Todas las sinapsis de la tríada fueron conectadas con éxito
+
+              <p className="text-xs font-mono text-gray-300 mb-4">
+                {currentLevel === 1 && "¡Excelente intuición! Conectaste las parejas causa-efecto con éxito."}
+                {currentLevel === 2 && "¡Dominio de parejas alcanzado! Has superado la fase de 2 cartas."}
+                {currentLevel === 3 && "¡Increíble! Dominaste la primera fase de Tríadas de 3 cartas."}
+                {currentLevel >= 4 && "¡Maestría absoluta en cadenas evolutivas completas!"}
               </p>
 
-              {/* Puntuación */}
-              <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 mb-4 backdrop-blur-sm">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-gray-400 block mb-1">
-                  Puntuación Obtenida
-                </span>
-                <span className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-400">
-                  {score.toLocaleString()}
-                </span>
+              {/* Hito pedagógico: desbloqueo de tríadas de 3 cartas al pasar nivel 2 */}
+              {currentLevel === 2 && (
+                <div className="p-3 mb-4 rounded-xl border border-amber-400/50 bg-amber-950/40 text-left">
+                  <div className="flex items-center gap-1.5 font-mono text-[11px] font-black uppercase text-amber-300 mb-1">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>¡DESAFÍO DE TRÍADAS DESBLOQUEADO!</span>
+                  </div>
+                  <p className="text-[11px] font-mono text-gray-300 leading-relaxed">
+                    A partir del <strong className="text-amber-200">Nivel 3</strong>, cada conexión evoluciona y requerirá encontrar las <strong className="text-amber-200">3 cartas</strong> de la cadena completa (Inicio ➔ Proceso ➔ Culminación).
+                  </p>
+                </div>
+              )}
+
+              {/* Puntuación y Estadísticas */}
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-white/[0.04] border border-white/10 mb-4 backdrop-blur-sm">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400 block mb-0.5">
+                    Puntos
+                  </span>
+                  <span className="text-2xl font-black font-mono text-purple-300">
+                    {score.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400 block mb-0.5">
+                    Combo Máx
+                  </span>
+                  <span className="text-2xl font-black font-mono text-cyan-300">
+                    ×{maxCombo}
+                  </span>
+                </div>
               </div>
 
               {/* Botones de Acción */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    initializeGame();
-                    setTimeLeft(90);
-                  }}
-                  className="flex-1 py-3 px-4 rounded-xl font-mono text-xs font-black tracking-wider uppercase bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Jugar de Nuevo</span>
-                </button>
+              <div className="flex flex-col gap-2">
+                {currentLevel < 4 ? (
+                  <button
+                    onClick={() => {
+                      handleSelectLevel(currentLevel + 1);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl font-mono text-xs font-black tracking-wider uppercase bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Siguiente: Nivel {currentLevel + 1} {currentLevel + 1 <= 2 ? "(2 cartas)" : "(3 cartas)"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={onComplete || onBackToMenu}
+                    className="w-full py-3 px-4 rounded-xl font-mono text-xs font-black tracking-wider uppercase bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-black shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Reclamar Recompensa y XP 🏆</span>
+                  </button>
+                )}
 
-                <button
-                  onClick={onComplete || onBackToMenu}
-                  className="py-3 px-4 rounded-xl font-mono text-xs font-bold tracking-wider uppercase bg-white/10 hover:bg-white/15 border border-white/10 text-gray-200 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Home className="w-4 h-4" />
-                  <span>Salir</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      initializeGame();
+                    }}
+                    className="flex-1 py-2.5 px-3 rounded-xl font-mono text-xs font-black tracking-wider uppercase bg-white/10 hover:bg-white/15 border border-white/10 text-white transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reintentar</span>
+                  </button>
+
+                  <button
+                    onClick={onBackToMenu}
+                    className="flex-1 py-2.5 px-3 rounded-xl font-mono text-xs font-bold tracking-wider uppercase bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Home className="w-3.5 h-3.5" />
+                    <span>Menú</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -2485,3 +2698,7 @@ export function TriadasConexiones({
     </div>
   );
 }
+
+// Alias de exportación para máxima compatibilidad
+export const RelacionesConexiones = TriadasConexiones;
+export default TriadasConexiones;

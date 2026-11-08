@@ -27,13 +27,13 @@ interface BossInfo {
 const BOSSES: BossInfo[] = [
   {
     id: 'ecosistema',
-    name: 'TRÍADAS ECOSISTEMA',
+    name: 'RELACIONES ECOSISTEMA',
     icon: Brain,
     emoji: '🌿',
     color: '#8b5cf6',
     gradient: 'from-purple-500 via-violet-500 to-purple-600',
-    description: 'Cadenas ecológicas vivas',
-    ability: 'Combina 3 cartas: Sol → Semilla → Árbol',
+    description: 'Cadenas ecológicas vivas y ciclos naturales',
+    ability: 'Nv. 1-2: 2 cartas (Sol → Semilla) · Nv. 3+: 3 cartas (+ Árbol)',
     difficulty: 5,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
@@ -41,13 +41,13 @@ const BOSSES: BossInfo[] = [
   },
   {
     id: 'tecnologia',
-    name: 'TRÍADAS TECNOLOGÍA',
+    name: 'RELACIONES TECNOLOGÍA',
     icon: Brain,
     emoji: '🤖',
     color: '#ec4899',
     gradient: 'from-pink-500 via-rose-500 to-red-500',
-    description: 'Sistemas cuánticos e innovación',
-    ability: 'Combina 3 cartas: Chip → Núcleo → Androide',
+    description: 'Sistemas computacionales e innovación evolutiva',
+    ability: 'Nv. 1-2: 2 cartas (Chip → Núcleo) · Nv. 3+: 3 cartas (+ Androide)',
     difficulty: 6,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
@@ -55,13 +55,13 @@ const BOSSES: BossInfo[] = [
   },
   {
     id: 'elementos',
-    name: 'TRÍADAS ELEMENTOS',
+    name: 'RELACIONES ELEMENTOS',
     icon: Brain,
     emoji: '🔥',
     color: '#f97316',
     gradient: 'from-amber-500 via-orange-500 to-red-600',
-    description: 'Fuerzas primordiales de la naturaleza',
-    ability: 'Combina 3 cartas: Chispa → Llama → Vórtice',
+    description: 'Fuerzas primordiales y transformaciones de energía',
+    ability: 'Nv. 1-2: 2 cartas (Chispa → Llama) · Nv. 3+: 3 cartas (+ Vórtice)',
     difficulty: 6,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
@@ -69,13 +69,13 @@ const BOSSES: BossInfo[] = [
   },
   {
     id: 'ciencia',
-    name: 'TRÍADAS CIENCIA',
+    name: 'RELACIONES CIENCIA',
     icon: Brain,
     emoji: '🔬',
     color: '#3b82f6',
     gradient: 'from-blue-500 via-cyan-500 to-sky-500',
-    description: 'Fronteras del cosmos y física cuántica',
-    ability: 'Combina 3 cartas: Lente → Estrella → Agujero Negro',
+    description: 'Fronteras del cosmos, partículas y leyes físicas',
+    ability: 'Nv. 1-2: 2 cartas (Lente → Estrella) · Nv. 3+: 3 cartas (+ Agujero)',
     difficulty: 7,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
@@ -83,13 +83,13 @@ const BOSSES: BossInfo[] = [
   },
   {
     id: 'humano',
-    name: 'TRÍADAS CIVILIZACIÓN',
+    name: 'RELACIONES CIVILIZACIÓN',
     icon: Crown,
     emoji: '🏛️',
     color: '#eab308',
     gradient: 'from-amber-500 via-yellow-500 to-orange-500',
-    description: 'Evolución humana y conquista cósmica',
-    ability: 'Combina 3 cartas: Pedernal → Hoguera → Forja',
+    description: 'Invenciones humanas e hitos del progreso histórico',
+    ability: 'Nv. 1-2: 2 cartas (Pedernal → Hoguera) · Nv. 3+: 3 cartas (+ Forja)',
     difficulty: 7,
     requiredRank: 1,
     unlockMessage: 'Modo disponible',
@@ -138,7 +138,7 @@ export function BossSelect({ onSelectBoss, onBack }: BossSelectProps) {
         </button>
         <div className="bg-gray-800/50 backdrop-blur-xl px-3 py-1 sm:px-6 sm:py-2 rounded-full border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)] text-center">
           <h1 className="text-xs sm:text-xl font-bold tracking-[0.12em] sm:tracking-[0.25em] uppercase text-purple-300">
-            MODO BOSS · CONEXIONES Y TRÍADAS
+            MODO RELACIONES · CADENAS EVOLUTIVAS
           </h1>
         </div>
         <div className="hidden sm:block sm:w-32 shrink-0" />

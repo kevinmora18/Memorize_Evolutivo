@@ -68,7 +68,7 @@ const MODES: GameModeItem[] = [
   {
     mode: 'boss',
     code: '04',
-    title: 'Modo Tríadas',
+    title: 'Modo Relaciones',
     icon: Sparkles,
     color: '#A855F7',
     glowColor: 'rgba(168, 85, 247, 0.4)',
