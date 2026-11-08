@@ -62,13 +62,13 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
       </div>
 
       {/* Brain Container */}
-      <div className="relative mb-8 z-10">
+      <div className="relative mb-4 sm:mb-8 z-10 flex flex-col items-center max-w-full px-2">
         {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-6 sm:mb-10 md:mb-12 max-w-full"
         >
           <motion.div
             animate={{
@@ -80,22 +80,22 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            <h1 className="text-7xl mb-3 font-black tracking-[0.3em] text-white" style={{ 
+            <h1 className="text-3xl sm:text-5xl md:text-7xl mb-2 sm:mb-3 font-black tracking-[0.15em] sm:tracking-[0.25em] md:tracking-[0.3em] text-white" style={{ 
               textShadow: '0 0 40px rgba(139,92,246,0.9), 0 0 80px rgba(168,85,247,0.6)'
             }}>
               MEMORIZE
             </h1>
-            <div className="flex items-center justify-center gap-4 mb-2">
-              <div className="h-px w-24 bg-gradient-to-r from-transparent via-purple-400 to-purple-400"></div>
-              <h2 className="text-2xl font-light tracking-[0.4em] text-purple-200">
+            <div className="flex items-center justify-center gap-2 sm:gap-4 mb-2">
+              <div className="h-px w-6 sm:w-16 md:w-24 bg-gradient-to-r from-transparent via-purple-400 to-purple-400"></div>
+              <h2 className="text-xs sm:text-lg md:text-2xl font-light tracking-[0.25em] sm:tracking-[0.35em] md:tracking-[0.4em] text-purple-200">
                 EVOLUTIVO
               </h2>
-              <div className="h-px w-24 bg-gradient-to-l from-transparent via-purple-400 to-purple-400"></div>
+              <div className="h-px w-6 sm:w-16 md:w-24 bg-gradient-to-l from-transparent via-purple-400 to-purple-400"></div>
             </div>
           </motion.div>
         </motion.div>
 
-        <svg viewBox="0 0 240 180" className="w-[500px] h-[400px] drop-shadow-[0_0_60px_rgba(139,92,246,1)]">
+        <svg viewBox="0 0 240 180" className="w-[280px] sm:w-[400px] md:w-[500px] max-w-[85vw] h-auto max-h-[30vh] sm:max-h-[360px] md:max-h-[400px] drop-shadow-[0_0_35px_rgba(139,92,246,0.8)] sm:drop-shadow-[0_0_60px_rgba(139,92,246,1)]">
           <defs>
             {/* Liquid Fill Gradient */}
             <linearGradient id="liquidGradient" x1="0" y1="1" x2="0" y2="0">
@@ -247,15 +247,15 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-[500px] px-8 z-10">
-        <div className="mb-4">
-          <div className="flex justify-center items-center mb-4">
-            <span className="text-sm font-light tracking-[0.3em] text-purple-200 uppercase">
+      <div className="w-full max-w-[320px] sm:max-w-[420px] md:max-w-[500px] px-4 sm:px-8 z-10">
+        <div className="mb-2 sm:mb-4">
+          <div className="flex justify-center items-center mb-2 sm:mb-4">
+            <span className="text-xs sm:text-sm font-light tracking-[0.25em] sm:tracking-[0.3em] text-purple-200 uppercase">
               CARGANDO...
             </span>
           </div>
           <div className="relative">
-            <div className="h-3 bg-gray-900/80 rounded-full overflow-hidden border-2 border-purple-500/50 shadow-lg">
+            <div className="h-2.5 sm:h-3 bg-gray-900/80 rounded-full overflow-hidden border-2 border-purple-500/50 shadow-lg">
               <motion.div
                 className="h-full bg-gradient-to-r from-purple-600 via-purple-400 to-purple-600 rounded-full relative"
                 style={{
@@ -279,9 +279,9 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
               </motion.div>
             </div>
             {/* Percentage Display */}
-            <div className="flex justify-center mt-3">
+            <div className="flex justify-center mt-2 sm:mt-3">
               <motion.span 
-                className="text-3xl font-bold text-white"
+                className="text-2xl sm:text-3xl font-bold text-white"
                 style={{
                   textShadow: '0 0 20px rgba(139,92,246,0.9), 0 0 40px rgba(168,85,247,0.6)',
                 }}

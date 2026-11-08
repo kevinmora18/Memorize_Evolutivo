@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Crown, Users, Play, Copy, Check, Send,
-  MessageCircle, Swords, CheckCircle2, Clock, ShieldCheck, Globe
+  MessageCircle, Swords, CheckCircle2, Clock, ShieldCheck, Globe, QrCode
 } from 'lucide-react';
 import type { Room, Player } from '../App';
 import socket from '../lib/socket';
 import { useEquippedRoomTheme, type RoomThemeDef } from '../lib/roomTheme';
+import { QRCodeModal } from './QRCodeModal';
 
 interface ChatMessage {
   id: string;
@@ -28,6 +29,7 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [isReady, setIsReady] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const roomTheme = useEquippedRoomTheme();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -158,10 +160,10 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
       <div className="absolute inset-0 pointer-events-none an-vignette" />
 
       {/* Header */}
-      <header className="relative z-20 px-6 py-4 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
+      <header className="relative z-20 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
         <button
           onClick={handleLeave}
-          className="an-focusable flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#FF4D5E]/50 transition-all group cursor-pointer"
+          className="an-focusable self-start sm:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#FF4D5E]/50 transition-all group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           <span className="font-mono text-xs uppercase tracking-widest">Abandonar Sala</span>
@@ -171,13 +173,13 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
           <div className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#35E0C8]">
             SALA MULTIJUGADOR 1V1
           </div>
-          <h1 className="font-serif text-2xl text-white font-bold tracking-tight">
+          <h1 className="font-serif text-xl sm:text-2xl text-white font-bold tracking-tight">
             {room.name || 'Sala de Duelo'}
           </h1>
         </div>
 
         {/* Código de Sala y Entorno Vinculado */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-center sm:self-auto">
           <div
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs"
             style={{
@@ -190,6 +192,15 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
             <span>{roomTheme.icon}</span>
             <span>{roomTheme.name}</span>
           </div>
+
+          <button
+            onClick={() => setShowQRModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#35E0C8]/10 text-[#35E0C8] hover:bg-[#35E0C8]/20 transition-all font-mono text-xs cursor-pointer shadow-[0_0_15px_rgba(53,224,200,0.15)]"
+            title="Escanear Código QR para unirse a la sala"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">QR INVITAR</span>
+          </button>
 
           <button
             onClick={copyRoomCode}
@@ -521,6 +532,15 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
         </div>
 
       </main>
+
+      {/* Modal QR para unirse a la sala */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        roomCode={room.code || room.id}
+        title="Invitar a tu Compañero (1v1)"
+        subtitle="Que tu amigo escanee este código con su celular para unirse directamente como Rival"
+      />
     </div>
   );
 }

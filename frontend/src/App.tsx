@@ -163,6 +163,29 @@ export default function App() {
     })();
   }, []);
 
+  /**
+   * Unirse automáticamente a una sala si la URL contiene ?join=CODIGO (al escanear QR)
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinCode = params.get('join');
+    if (!joinCode || !currentUser) return;
+
+    (async () => {
+      try {
+        const room = await apiFetch<any>(`/api/rooms/${joinCode}/join`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        setCurrentRoom(room);
+        setCurrentScreen('roomWaiting');
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (err) {
+        console.error('Error uniéndose a la sala por QR:', err);
+      }
+    })();
+  }, [currentUser]);
+
   const toPlayer = (user: AuthUser): Player => ({
     id: user.id,
     email: user.email,

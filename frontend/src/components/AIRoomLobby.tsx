@@ -161,10 +161,10 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
       <div className="absolute inset-0 pointer-events-none an-vignette" />
 
       {/* Header */}
-      <header className="relative z-20 px-6 py-4 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
+      <header className="relative z-20 px-4 sm:px-6 py-3 sm:py-4 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0 border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
         <button
           onClick={onBackToLobby}
-          className="an-focusable flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#35E0C8]/50 transition-all font-mono text-xs cursor-pointer"
+          className="an-focusable self-start md:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#35E0C8]/50 transition-all font-mono text-xs cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="uppercase tracking-widest">Lobby Principal</span>
@@ -176,13 +176,13 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
             <span>•</span>
             <span style={{ color: roomTheme.accent }}>{roomTheme.name}</span>
           </div>
-          <h1 className="font-serif text-2xl text-white font-bold tracking-tight">
+          <h1 className="font-serif text-xl sm:text-2xl text-white font-bold tracking-tight">
             Salas y Duelos en Línea
           </h1>
         </div>
 
         {/* Pestañas de Modo (Online 1v1 vs Bots IA) */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl border border-[#1E2836] bg-[#0D1119]">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl border border-[#1E2836] bg-[#0D1119] self-center md:self-auto">
           <button
             onClick={() => setTab('online')}
             className={`px-3 py-1.5 rounded-lg font-mono text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${

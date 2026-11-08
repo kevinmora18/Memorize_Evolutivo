@@ -4,8 +4,9 @@ import {
   Mail, Users, Boxes, Infinity as InfinityIcon, Settings,
   Target, Skull, Gamepad2, LogOut, X, TrendingUp, Coins, Gem,
   Volume2, VolumeX, Play, Award, ChevronRight,
-  Sparkles, Brain, Gift, Trophy, ArrowRightLeft, Shield
+  Sparkles, Brain, Gift, Trophy, ArrowRightLeft, Shield, QrCode, Smartphone
 } from 'lucide-react';
+import { QRCodeModal } from './QRCodeModal';
 import {
   loadPlayerStats, savePlayerStats, getRankByXP, getProgressToNextRank,
   getNextRank, type PlayerStats, RANKS
@@ -163,6 +164,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
   const [isMuted, setIsMuted] = useState(() => localStorage.getItem('memorize_sound_muted') === 'true');
   const [showMessages, setShowMessages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [showRanksModal, setShowRanksModal] = useState(false);
   const [showOperationsDrawer, setShowOperationsDrawer] = useState(false);
   const [claimedBonus, setClaimedBonus] = useState(false);
@@ -507,6 +509,14 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
 
           <div className="flex items-center gap-0.5 sm:gap-1 pl-1.5 sm:pl-2 border-l border-white/10">
             <button
+              onClick={() => { playSfx('click'); setShowQRModal(true); }}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(53,224,200,0.2)]"
+              title="Abrir juego en Celular con Código QR"
+            >
+              <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
+              <span className="hidden xl:inline font-mono text-[10px] font-bold tracking-wider text-cyan-300">CELL QR</span>
+            </button>
+            <button
               onClick={toggleSound}
               className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               title={isMuted ? 'Habilitar sonido' : 'Silenciar sonido'}
@@ -539,7 +549,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       </header>
 
       {/* ──────────────── 2. Escenario Heroico Abierto del Avatar 3D + HUD Flotante ──────────────── */}
-      <main className="flex-grow flex flex-col justify-between relative z-10 w-full min-h-0 overflow-hidden">
+      <main className="flex-grow flex flex-col justify-between relative z-10 w-full min-h-0 overflow-y-auto sm:overflow-hidden select-none">
         
         {/* ── BARRA SUPERIOR DE WIDGETS FLOTANTES (Bajo el Header) ── */}
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 flex items-start justify-between pointer-events-none z-20 shrink-0">
@@ -646,11 +656,11 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
         {/* ── ÁREA CENTRAL HEROICA: EL AVATAR 3D LIBRE EN EL ESCENARIO ── */}
         <div className="relative flex-1 w-full flex flex-col items-center justify-center my-auto min-h-0 pointer-events-auto">
           
-          {/* Identidad Flotante del Compañero */}
+          {/* Identidad Flotante del Compañero (posicionada arriba con holgura para no tapar orejas) */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#07090F]/60 backdrop-blur-md shadow-lg mb-1"
+            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#07090F]/60 backdrop-blur-md shadow-lg -mt-3 sm:-mt-5 mb-4 sm:mb-6"
           >
             <span className="text-xl">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
             <span className="font-serif text-sm font-bold text-white tracking-wide">
@@ -683,7 +693,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                 initial={{ opacity: 0, y: 15, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                className="absolute top-10 z-30 px-5 py-2.5 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-sm text-center"
+                className="absolute top-12 sm:top-14 z-30 px-5 py-2.5 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-sm text-center"
                 style={{
                   borderColor: petDef.themeColor,
                   background: 'rgba(8, 12, 22, 0.95)',
@@ -696,7 +706,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
           </AnimatePresence>
 
           {/* Canvas 3D a tamaño heroico (100% libre, sin contenedor negro opaco) */}
-          <div className="w-full flex-1 max-w-4xl min-h-[280px] sm:min-h-[340px] md:min-h-[400px] max-h-[540px] flex items-center justify-center relative select-none">
+          <div className="w-full flex-1 max-w-4xl min-h-[220px] sm:min-h-[340px] md:min-h-[400px] max-h-[540px] flex items-center justify-center relative select-none">
             <PetCanvas3D
               petType={petState.type}
               level={petState.level}
@@ -776,7 +786,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                       playSfx('launch');
                       onStartMode(item.mode);
                     }}
-                    className="rounded-2xl p-2 sm:p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer"
+                    className="rounded-2xl p-2 sm:p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer last:col-span-2 sm:last:col-span-1"
                     style={{
                       background: isSelected
                         ? 'linear-gradient(180deg, rgba(20, 30, 48, 0.95) 0%, rgba(10, 15, 26, 0.95) 100%)'
@@ -1207,6 +1217,14 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
           </div>
         </div>
       )}
+
+      {/* Modal Código QR para Celular */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        title="Juega desde tu Celular"
+        subtitle="Escanea el código con la cámara de tu teléfono para entrar a jugar"
+      />
     </div>
   );
 }

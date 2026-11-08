@@ -110,9 +110,9 @@ export function PetCanvas3D({
       camera.position.set(0, 0.22, 4.45);
       camera.lookAt(0, 0.22, 0);
     } else {
-      // En el Lobby Heroico: encuadre heroico de cuerpo completo, protagonista imponente
-      camera.position.set(0, 0.22, 3.85);
-      camera.lookAt(0, 0.10, 0);
+      // En el Lobby Heroico: encuadre heroico de cuerpo completo, protagonista imponente con holgura superior para orejas
+      camera.position.set(0, 0.25, 4.20);
+      camera.lookAt(0, 0.18, 0);
     }
 
     const renderer = new THREE.WebGLRenderer({

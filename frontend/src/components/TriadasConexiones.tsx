@@ -2245,17 +2245,52 @@ export function TriadasConexiones({
     };
   })();
 
-  // Distribución responsiva según total de cartas
+  // Distribución responsiva según total de cartas y nivel
   const totalCards = cards.length;
-  const gridClasses = totalCards <= 6
-    ? "grid-cols-3 max-w-md"
-    : totalCards === 8
-    ? "grid-cols-4 max-w-xl"
-    : totalCards <= 9
-    ? "grid-cols-3 max-w-lg"
-    : totalCards <= 12
-    ? "grid-cols-3 sm:grid-cols-4 max-w-3xl"
-    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 max-w-4xl";
+  const gridClasses = (() => {
+    if (totalCards <= 6) {
+      // Nivel 1: 6 cartas (3 parejas) -> 2 filas x 3 columnas
+      return "grid-cols-3 max-w-md sm:max-w-xl";
+    }
+    if (totalCards === 8) {
+      // Nivel 2: 8 cartas (4 parejas) -> 2 filas x 4 columnas
+      return "grid-cols-4 max-w-xl sm:max-w-2xl";
+    }
+    if (totalCards <= 9) {
+      // Nivel 3: 9 cartas (3 tríadas) -> 3 filas x 3 columnas
+      return "grid-cols-3 max-w-md sm:max-w-lg md:max-w-xl";
+    }
+    if (totalCards <= 12) {
+      // Nivel 4: 12 cartas (4 tríadas) -> 6 columnas (2 filas) en escritorio/panorámico, 4 cols en tablet/mediana
+      return "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 max-w-2xl sm:max-w-3xl lg:max-w-5xl xl:max-w-6xl";
+    }
+    // Modos con 15+ cartas
+    return "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 max-w-5xl xl:max-w-6xl";
+  })();
+
+  // Dimensiones máximas de cartas calculadas para encajar limpiamente en el viewport
+  const cardSizeClasses = (() => {
+    if (totalCards <= 6) {
+      // 2 filas de 3: cartas grandes y vistosas
+      return "max-w-[125px] sm:max-w-[160px] md:max-w-[185px] max-h-[28dvh] sm:max-h-[220px] md:max-h-[240px]";
+    }
+    if (totalCards === 8) {
+      // 2 filas de 4: cartas medianas-grandes
+      return "max-w-[115px] sm:max-w-[145px] md:max-w-[165px] max-h-[26dvh] sm:max-h-[210px] md:max-h-[230px]";
+    }
+    if (totalCards === 9) {
+      // 3 filas fijas (3x3): altura controlada para que 3 filas nunca choquen
+      return "max-w-[110px] sm:max-w-[135px] md:max-w-[155px] max-h-[21dvh] sm:max-h-[175px] md:max-h-[190px]";
+    }
+    if (totalCards <= 12) {
+      // 12 cartas:
+      // Móvil (3 cols = 4 filas): max-h 17dvh
+      // Tablet/Mediana (4 cols = 3 filas): sm:max-h-[170px]
+      // Escritorio (6 cols = 2 filas): lg:max-h-[215px]
+      return "max-w-[105px] sm:max-w-[130px] md:max-w-[145px] lg:max-w-[160px] max-h-[17dvh] sm:max-h-[170px] lg:max-h-[215px]";
+    }
+    return "max-w-[100px] sm:max-w-[125px] md:max-w-[140px] max-h-[16dvh] sm:max-h-[160px] lg:max-h-[190px]";
+  })();
 
   return (
     <div
@@ -2337,39 +2372,39 @@ export function TriadasConexiones({
       </header>
 
       {/* ── Barra Superior Escritorio (hidden sm:flex) ─────────────────────── */}
-      <header className="px-8 py-3 relative z-30 hidden sm:flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-black/25 shrink-0">
+      <header className="px-6 py-2 relative z-30 hidden sm:flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-black/25 shrink-0">
         <button
           onClick={onBackToMenu}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-400/50 transition-all text-xs font-mono tracking-wider text-gray-200"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-400/50 transition-all text-xs font-mono tracking-wider text-gray-200"
         >
           <ArrowLeft className="w-4 h-4 text-purple-400" />
           <span>SALIR</span>
         </button>
 
         {/* Centro: Título + Selector Rápido de Nivel */}
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-0.5">
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-purple-400" />
-            <h1 className="font-black text-base tracking-[0.2em] uppercase text-white drop-shadow">
+            <Layers className="w-4 h-4 text-purple-400" />
+            <h1 className="font-black text-sm tracking-[0.2em] uppercase text-white drop-shadow">
               MODO RELACIONES
             </h1>
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-widest border ${
+            <span className={`px-2 py-0.5 rounded-md text-[9px] font-mono font-bold uppercase tracking-widest border ${
               cardsPerGroup === 2
                 ? "border-amber-500/40 text-amber-300 bg-amber-500/15"
                 : "border-purple-500/40 text-purple-300 bg-purple-500/15"
             }`}>
-              {modo.toUpperCase()} · NIVEL {currentLevel} ({cardsPerGroup === 2 ? "2 CARTAS POR RELACIÓN" : "3 CARTAS POR TRÍADA"})
+              {modo.toUpperCase()} · NIVEL {currentLevel} ({cardsPerGroup === 2 ? "2 CARTAS" : "3 CARTAS"})
             </span>
           </div>
 
           {/* Selector de Nivel Interactivo */}
-          <div className="flex items-center gap-1.5 bg-black/50 p-1 rounded-xl border border-white/10">
-            <span className="text-[10px] font-mono text-gray-400 uppercase px-1.5 font-bold">Nivel:</span>
+          <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-xl border border-white/10">
+            <span className="text-[9px] font-mono text-gray-400 uppercase px-1.5 font-bold">Nivel:</span>
             {[1, 2, 3, 4].map((lvl) => (
               <button
                 key={lvl}
                 onClick={() => handleSelectLevel(lvl)}
-                className={`px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all ${
+                className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold transition-all ${
                   currentLevel === lvl
                     ? lvl <= 2
                       ? "bg-amber-500 text-black shadow-[0_0_12px_rgba(245,158,11,0.5)] font-black"
@@ -2377,7 +2412,7 @@ export function TriadasConexiones({
                     : "text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Nv {lvl} {lvl <= 2 ? "(2 cartas)" : "(3 cartas)"}
+                Nv {lvl} {lvl <= 2 ? "(2)" : "(3)"}
               </button>
             ))}
           </div>
@@ -2386,7 +2421,7 @@ export function TriadasConexiones({
         <button
           onClick={toggleSound}
           title={soundMuted ? "Activar audio" : "Silenciar"}
-          className="p-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
+          className="p-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
         >
           {soundMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
         </button>
@@ -2449,33 +2484,33 @@ export function TriadasConexiones({
       </div>
 
       {/* ── HUD Escritorio Completo (hidden sm:block) ────────────────────────── */}
-      <div className="max-w-4xl w-full mx-auto px-4 pt-2 relative z-20 hidden sm:block shrink-0">
-        <div className="grid grid-cols-4 gap-3">
+      <div className="max-w-4xl w-full mx-auto px-4 pt-1.5 pb-0.5 relative z-20 hidden sm:block shrink-0">
+        <div className="grid grid-cols-4 gap-2.5">
           {/* Puntos */}
-          <div className="px-3.5 py-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Brain className="w-4 h-4 text-purple-400" />
-              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">PUNTOS</span>
+          <div className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Brain className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">PUNTOS</span>
             </div>
-            <span className="font-mono text-xl font-black text-purple-300">
+            <span className="font-mono text-lg font-black text-purple-300">
               {score.toLocaleString()}
             </span>
           </div>
 
           {/* Combo */}
-          <div className="px-3.5 py-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">COMBO</span>
+          <div className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">COMBO</span>
             </div>
-            <span className="font-mono text-xl font-black text-cyan-300">
+            <span className="font-mono text-lg font-black text-cyan-300">
               ×{combo}
             </span>
           </div>
 
           {/* Tiempo */}
           <div
-            className={`px-3.5 py-2 rounded-2xl border backdrop-blur-md flex items-center justify-between transition-colors ${
+            className={`px-3 py-1.5 rounded-xl border backdrop-blur-md flex items-center justify-between transition-colors ${
               timeLeft <= 10
                 ? "bg-red-950/40 border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 : isTimeFrozen
@@ -2483,14 +2518,14 @@ export function TriadasConexiones({
                 : "bg-black/40 border-white/10"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <Clock className={`w-4 h-4 ${timeLeft <= 10 ? "text-red-400" : "text-yellow-400"}`} />
-              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5">
+              <Clock className={`w-3.5 h-3.5 ${timeLeft <= 10 ? "text-red-400" : "text-yellow-400"}`} />
+              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
                 {isTimeFrozen ? "CONGELADO" : "TIEMPO"}
               </span>
             </div>
             <span
-              className={`font-mono text-xl font-black ${
+              className={`font-mono text-lg font-black ${
                 timeLeft <= 10 ? "text-red-400" : "text-yellow-300"
               }`}
             >
@@ -2499,16 +2534,16 @@ export function TriadasConexiones({
           </div>
 
           {/* Conexiones Resueltas */}
-          <div className="px-3.5 py-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-emerald-400" />
-              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">
+          <div className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
                 {cardsPerGroup === 2 ? "RELACIONES" : "TRÍADAS"}
               </span>
             </div>
-            <div className="flex items-center gap-1 font-mono text-xl font-black">
+            <div className="flex items-center gap-1 font-mono text-lg font-black">
               <span className="text-emerald-300">{completedTriads.length}</span>
-              <span className="text-gray-600 text-sm">/{targetCount}</span>
+              <span className="text-gray-600 text-xs">/{targetCount}</span>
             </div>
           </div>
         </div>
@@ -2613,12 +2648,12 @@ export function TriadasConexiones({
         )}
       </AnimatePresence>
 
-      {/* ── Tablero de Juego (Cartas Realistas de Gran Formato con Viewport Lock) ─── */}
-      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-2 relative z-20 w-full max-w-5xl mx-auto overflow-hidden">
-        <div className="relative p-1.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center justify-center overflow-hidden">
+      {/* ── Tablero de Juego (Cartas Realistas con Viewport Lock y Auto-Scroll de Seguridad) ─── */}
+      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-1 sm:px-4 py-1 sm:py-1.5 relative z-20 w-full max-w-5xl lg:max-w-6xl mx-auto overflow-hidden">
+        <div className="relative p-1.5 sm:p-2.5 lg:p-3 rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 backdrop-blur-sm w-full h-full max-h-full flex flex-col items-center overflow-y-auto overflow-x-hidden scrollbar-thin">
           {/* Indicador de Escaneo Previo con Pista del Objetivo */}
           {phase === "preview" && (
-            <div className="mb-1 sm:mb-2 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs text-purple-300 font-bold bg-purple-500/20 px-3 py-1 rounded-full border border-purple-400/40 animate-pulse shrink-0">
+            <div className="mb-1 sm:mb-1.5 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs text-purple-300 font-bold bg-purple-500/20 px-3 py-0.5 sm:py-1 rounded-full border border-purple-400/40 animate-pulse shrink-0">
               <Sparkles className="w-3 h-3 text-amber-300" />
               <span>
                 {cardsPerGroup === 2
@@ -2630,7 +2665,7 @@ export function TriadasConexiones({
 
           {/* Cuadrícula de Cartas Coleccionables */}
           <div
-            className={`grid gap-2 sm:gap-3.5 w-full h-full max-h-full items-center justify-center justify-items-center content-center ${gridClasses}`}
+            className={`grid gap-1.5 sm:gap-2.5 lg:gap-3 w-full my-auto items-center justify-center justify-items-center content-center ${gridClasses}`}
           >
             {cards.map((card, idx) => {
               const isSelected = selectedCards.includes(idx);
@@ -2647,7 +2682,7 @@ export function TriadasConexiones({
                     aspectRatio: "2.7/4",
                     perspective: 1000,
                   }}
-                  className="w-full max-w-[125px] sm:max-w-[155px] md:max-w-[175px] h-full max-h-[25dvh] sm:max-h-[210px] md:max-h-[240px] relative cursor-pointer select-none touch-manipulation flex items-center justify-center group"
+                  className={`w-full h-full relative cursor-pointer select-none touch-manipulation flex items-center justify-center group ${cardSizeClasses}`}
                   whileHover={!card.isFlipped && !card.isMatched ? { y: -4, scale: 1.04 } : {}}
                   whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.95 } : {}}
                   animate={
@@ -2668,7 +2703,7 @@ export function TriadasConexiones({
                   >
                     {/* Reverso de Carta */}
                     <div
-                      className="absolute inset-0 rounded-2xl overflow-hidden border-2 border-white/10 bg-gradient-to-b from-[#180D2E] via-[#0E061D] to-[#070210] flex flex-col items-center justify-between p-2 sm:p-3 shadow-xl transition-all group-hover:border-purple-400/50"
+                      className="absolute inset-0 rounded-2xl overflow-hidden border-2 border-white/10 bg-gradient-to-b from-[#180D2E] via-[#0E061D] to-[#070210] flex flex-col items-center justify-between p-1.5 sm:p-2.5 shadow-xl transition-all group-hover:border-purple-400/50"
                       style={{
                         backfaceVisibility: "hidden",
                         boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
@@ -2682,7 +2717,7 @@ export function TriadasConexiones({
                       </div>
 
                       {/* Emblema Central del Reverso */}
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 border border-purple-400/30 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.2)] group-hover:scale-110 transition-transform">
+                      <div className="w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500/25 to-fuchsia-500/15 border border-purple-400/30 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.2)] group-hover:scale-110 transition-transform">
                         <Layers className="w-5 h-5 sm:w-7 sm:h-7 text-purple-300" />
                       </div>
 
@@ -2693,7 +2728,7 @@ export function TriadasConexiones({
 
                     {/* Frente de Carta (Boca Arriba) */}
                     <div
-                      className={`absolute inset-0 rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-2 sm:p-2.5 transition-all shadow-xl ${
+                      className={`absolute inset-0 rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-1.5 sm:p-2 lg:p-2.5 transition-all shadow-xl ${
                         card.isMatched
                           ? "opacity-60 border-emerald-400/70 bg-[#06140E]"
                           : isSelected
@@ -2715,16 +2750,16 @@ export function TriadasConexiones({
                     >
                       {/* 1. Cabecera Unificada de la Relación / Familia */}
                       <div
-                        className="flex items-center justify-between gap-1 w-full pb-1 border-b border-white/10 shrink-0"
+                        className="flex items-center justify-between gap-1 w-full pb-0.5 sm:pb-1 border-b border-white/10 shrink-0"
                         style={{ borderColor: `${card.triadThemeColor}30` }}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span
-                            className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                            className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 shadow-sm"
                             style={{ background: card.triadThemeColor, boxShadow: `0 0 8px ${card.triadThemeColor}` }}
                           />
                           <span
-                            className="font-mono text-[9px] sm:text-[11px] font-black uppercase tracking-tight truncate max-w-[85px] sm:max-w-[110px]"
+                            className="font-mono text-[8px] sm:text-[10px] font-black uppercase tracking-tight truncate max-w-[85px] sm:max-w-[110px]"
                             style={{ color: card.triadThemeColor }}
                             title={card.triadName}
                           >
@@ -2732,7 +2767,7 @@ export function TriadasConexiones({
                           </span>
                         </div>
                         <span
-                          className="px-1.5 py-0.2 sm:py-0.5 rounded text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-wider text-black shrink-0 shadow-sm"
+                          className="px-1.5 py-0.2 sm:py-0.5 rounded text-[7px] sm:text-[9px] font-mono font-black uppercase tracking-wider text-black shrink-0 shadow-sm"
                           style={{ background: card.triadThemeColor }}
                         >
                           {card.item.step}/{card.totalStepsInGroup}
@@ -2740,7 +2775,7 @@ export function TriadasConexiones({
                       </div>
 
                       {/* 2. Ilustración Realista Grande y Protagónica */}
-                      <div className="flex-1 w-full min-h-0 my-1 relative overflow-hidden rounded-xl bg-black/60 border border-white/10 flex items-center justify-center group shadow-inner">
+                      <div className="flex-1 w-full min-h-0 my-0.5 sm:my-1 relative overflow-hidden rounded-xl bg-black/60 border border-white/10 flex items-center justify-center group shadow-inner">
                         {/* Resplandor del color de familia detrás de la imagen */}
                         <div
                           className="absolute inset-0 pointer-events-none opacity-30 mix-blend-screen"
@@ -2761,8 +2796,8 @@ export function TriadasConexiones({
                         )}
 
                         {/* Subtítulo de función o rol del eslabón sobre la imagen */}
-                        <div className="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/10 text-center">
-                          <span className="font-mono text-[8px] sm:text-[9px] text-gray-200 uppercase tracking-wider truncate block font-medium">
+                        <div className="absolute bottom-0.5 sm:bottom-1 left-0.5 sm:left-1 right-0.5 sm:right-1 px-1 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/10 text-center">
+                          <span className="font-mono text-[7px] sm:text-[8px] text-gray-200 uppercase tracking-wider truncate block font-medium">
                             {card.item.stepName}
                           </span>
                         </div>
@@ -2771,7 +2806,7 @@ export function TriadasConexiones({
                       {/* 3. Título del Objeto y Mini-Diagrama de Conexión */}
                       <div className="w-full pt-0.5 shrink-0 text-center flex flex-col gap-0.5">
                         <h4
-                          className="font-serif font-black text-[11px] sm:text-xs text-white tracking-tight uppercase truncate leading-tight"
+                          className="font-serif font-black text-[10px] sm:text-xs text-white tracking-tight uppercase truncate leading-tight"
                           title={card.item.name}
                         >
                           {card.item.name}
@@ -2829,7 +2864,7 @@ export function TriadasConexiones({
       </main>
 
       {/* ── Pie Informativo (hidden sm:flex) ─────────────────────────────────── */}
-      <footer className="px-4 py-1.5 relative z-20 hidden sm:flex items-center justify-between text-[11px] font-mono text-gray-400 border-t border-white/5 bg-black/30 backdrop-blur-sm shrink-0">
+      <footer className="px-4 py-1 relative z-20 hidden sm:flex items-center justify-between text-[10px] font-mono text-gray-400 border-t border-white/5 bg-black/30 backdrop-blur-sm shrink-0">
         <span>
           {cardsPerGroup === 2
             ? "CONECTA LAS 2 CARTAS EN RELACIÓN CAUSA-EFECTO DIRECTA"

@@ -109,9 +109,11 @@ async function bootstrap() {
   const allowedOrigins = getAllowedOrigins();
 
   // Middleware de seguridad
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: false,
+  }));
   app.use(cors({
-    origin: allowedOrigins,
+    origin: process.env.NODE_ENV !== 'production' ? true : allowedOrigins,
     credentials: true,
   }));
   app.use(express.json({ limit: '100kb' }));
@@ -155,7 +157,7 @@ async function bootstrap() {
   // ============================================
   const io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigins,
+      origin: process.env.NODE_ENV !== 'production' ? true : allowedOrigins,
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
     },

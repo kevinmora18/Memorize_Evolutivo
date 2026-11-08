@@ -122,7 +122,7 @@ export function InGameCompanionWidget({
   const isReady = charge >= 100;
 
   return (
-    <div className="fixed top-12 left-1.5 sm:top-18 sm:left-3 z-40 select-none pointer-events-auto">
+    <div className="fixed bottom-2 left-2 sm:bottom-auto sm:top-18 sm:left-3 z-40 select-none pointer-events-auto">
       {/* Globo de diálogo flotante del compañero */}
       <AnimatePresence>
         {speech && !isCollapsed && (

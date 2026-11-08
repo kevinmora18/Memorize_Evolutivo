@@ -243,40 +243,40 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       <div className="absolute inset-0 pointer-events-none an-vignette" />
 
       {/* HEADER SUPERIOR */}
-      <header className="relative z-20 px-6 py-3.5 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
+      <header className="relative z-20 px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/80">
         <button
           onClick={onBackToLobby}
-          className="an-focusable flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#FF4D5E]/50 transition-all font-mono text-xs cursor-pointer"
+          className="an-focusable flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#FF4D5E]/50 transition-all font-mono text-xs cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Abandonar</span>
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden xs:inline">Abandonar</span>
         </button>
 
         {/* Indicador de Turno Central */}
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2">
+        <div className="text-center px-2">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2">
             <span
-              className={`w-2.5 h-2.5 rounded-full ${isMyTurn ? 'bg-[#35E0C8] animate-ping' : 'bg-[#E8B54A]'}`}
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${isMyTurn ? 'bg-[#35E0C8] animate-ping' : 'bg-[#E8B54A]'}`}
             />
-            <span className="font-mono text-xs uppercase tracking-widest font-bold" style={{ color: isMyTurn ? '#35E0C8' : '#E8B54A' }}>
+            <span className="font-mono text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-bold truncate max-w-[200px] sm:max-w-none" style={{ color: isMyTurn ? '#35E0C8' : '#E8B54A' }}>
               {isMyTurn ? '🎯 ¡TU TURNO!' : `⏳ TURNO DE ${getPlayerName(currentTurn).toUpperCase()}`}
             </span>
           </div>
-          <div className="font-mono text-[10px] text-[#9AA3B2] mt-0.5">
+          <div className="font-mono text-[9px] sm:text-[10px] text-[#9AA3B2] mt-0.5 hidden xs:block">
             {isMyTurn ? 'Elige 2 cartas para encontrar su par' : 'Observa y memoriza los movimientos del rival'}
           </div>
         </div>
 
         {/* Temporizador */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119] font-mono text-xs">
-          <Timer className="w-4 h-4 text-[#35E0C8]" />
+        <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119] font-mono text-xs">
+          <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#35E0C8]" />
           <span className="font-bold text-white">{turnTime}s</span>
         </div>
       </header>
 
       {/* MARCADOR 1V1 (HUD SUPERIOR) */}
-      <div className="relative z-10 px-6 py-4 max-w-4xl mx-auto w-full">
-        <div className="grid grid-cols-2 gap-4 items-center">
+      <div className="relative z-10 px-3 sm:px-6 py-2.5 sm:py-4 max-w-4xl mx-auto w-full">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 items-center">
           {/* Jugador 1 */}
           <div
             className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-between ${
@@ -361,7 +361,7 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
             <p>Sincronizando tablero del servidor...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3.5 max-w-4xl w-full p-2">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 sm:gap-3.5 max-w-4xl w-full p-1 sm:p-2">
             {cards.map((card, idx) => {
               const isFlipped = flippedCards.includes(idx);
               const isMatched = matchedCards.includes(idx);
