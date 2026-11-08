@@ -228,6 +228,255 @@ class TriadsAudio {
       osc.stop(now + 0.18);
     } catch {}
   }
+
+  /* ── Capa Sonora Temática Inmersiva (Fuego, Agua, Tecnología, Viento, etc.) ── */
+  playThematicSfx(triadId: number) {
+    if (this.isMuted()) return;
+    try {
+      const ctx = this.initCtx();
+      if (!ctx) return;
+
+      // 1. Fuego y Magma (Ciclo Ígneo, Forja de Montaña, Metalurgia)
+      if (triadId === 5 || triadId === 201 || triadId === 401) {
+        this.sfxFireCrackles(ctx);
+      }
+      // 2. Océano, Agua y Lluvia (Ciclo Hidrológico, Ciclo Glaciar)
+      else if (triadId === 3 || triadId === 202) {
+        this.sfxWaterDroplets(ctx);
+      }
+      // 3. Tecnología y Chiptune Retro-Futurista (Evolución Robótica, Red, Generación, Nanomedicina, Cuántica, Colisionador, Espacio)
+      else if ([101, 102, 103, 104, 105, 304, 405].includes(triadId)) {
+        this.sfxTechLaserSynth(ctx);
+      }
+      // 4. Viento y Tormenta Eléctrica (Ciclo Eólico, Ciclo Fulgurante)
+      else if (triadId === 204 || triadId === 205) {
+        this.sfxWindAndLightning(ctx);
+      }
+      // 5. Naturaleza, Vida y Polinización (Ciclo Solar, Danza Polinizadora, Metamorfosis, Agricultura)
+      else if ([1, 2, 4, 402].includes(triadId)) {
+        this.sfxOrganicChimes(ctx);
+      }
+      // 6. Tierra y Monolito Tectónico (Ciclo Telúrico)
+      else if (triadId === 203) {
+        this.sfxEarthquakeRumble(ctx);
+      }
+      // 7. Ciencia, Genética y Fusión Cósmica
+      else {
+        this.sfxCosmicResonance(ctx);
+      }
+    } catch {}
+  }
+
+  /* Sfx 1: Crepitar de fuego, brasas y soplido térmico */
+  private sfxFireCrackles(ctx: AudioContext) {
+    const now = ctx.currentTime;
+
+    // Soplido térmico grave (whoosh de calor)
+    const whooshOsc = ctx.createOscillator();
+    const whooshGain = ctx.createGain();
+    const whooshFilter = ctx.createBiquadFilter();
+    whooshOsc.type = "sawtooth";
+    whooshOsc.frequency.setValueAtTime(120, now);
+    whooshOsc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+    whooshFilter.type = "lowpass";
+    whooshFilter.frequency.setValueAtTime(260, now);
+    whooshGain.gain.setValueAtTime(0.09, now);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    whooshOsc.connect(whooshFilter);
+    whooshFilter.connect(whooshGain);
+    whooshGain.connect(ctx.destination);
+    whooshOsc.start(now);
+    whooshOsc.stop(now + 0.35);
+
+    // Micro-chispas crepitantes aleatorias (pop-pop-crackle)
+    const sparks = [0.03, 0.08, 0.14, 0.21, 0.29];
+    sparks.forEach((offset, i) => {
+      const sparkOsc = ctx.createOscillator();
+      const sparkGain = ctx.createGain();
+      const sparkFilter = ctx.createBiquadFilter();
+      sparkOsc.type = "square";
+      sparkOsc.frequency.setValueAtTime(1400 + (i % 3) * 600, now + offset);
+      sparkFilter.type = "bandpass";
+      sparkFilter.frequency.setValueAtTime(1800, now + offset);
+      sparkFilter.Q.value = 5;
+      sparkGain.gain.setValueAtTime(0.06, now + offset);
+      sparkGain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.025);
+      sparkOsc.connect(sparkFilter);
+      sparkFilter.connect(sparkGain);
+      sparkGain.connect(ctx.destination);
+      sparkOsc.start(now + offset);
+      sparkOsc.stop(now + offset + 0.03);
+    });
+  }
+
+  /* Sfx 2: Eco cristalino de gotas de agua descendiendo en estanque */
+  private sfxWaterDroplets(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    const droplets = [
+      { delay: 0.02, startFreq: 1850, endFreq: 640 },
+      { delay: 0.12, startFreq: 2280, endFreq: 790 },
+      { delay: 0.24, startFreq: 1540, endFreq: 520 },
+    ];
+
+    droplets.forEach((d) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(d.startFreq, now + d.delay);
+      osc.frequency.exponentialRampToValueAtTime(d.endFreq, now + d.delay + 0.07);
+      gain.gain.setValueAtTime(0.12, now + d.delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + d.delay + 0.16);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + d.delay);
+      osc.stop(now + d.delay + 0.18);
+    });
+
+    // Resonancia acuática cavernosa de fondo
+    const caveOsc = ctx.createOscillator();
+    const caveGain = ctx.createGain();
+    caveOsc.type = "sine";
+    caveOsc.frequency.setValueAtTime(520, now + 0.05);
+    caveGain.gain.setValueAtTime(0.05, now + 0.05);
+    caveGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    caveOsc.connect(caveGain);
+    caveGain.connect(ctx.destination);
+    caveOsc.start(now + 0.05);
+    caveOsc.stop(now + 0.55);
+  }
+
+  /* Sfx 3: Destello de sintetizador retro-futurista (Chiptune / Cyber beam) */
+  private sfxTechLaserSynth(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    // Arpegio ascendente hiperveloz de 5 notas
+    const notes = [659.25, 880, 1174.66, 1760, 2637.02];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const t = now + i * 0.035;
+
+      osc.type = i % 2 === 0 ? "sawtooth" : "square";
+      osc.frequency.setValueAtTime(freq, t);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(2000, t);
+      filter.frequency.exponentialRampToValueAtTime(8000, t + 0.06);
+      filter.Q.value = 6;
+
+      gain.gain.setValueAtTime(0.09, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.13);
+    });
+
+    // Sub-láser de barrido cuántico
+    const laserOsc = ctx.createOscillator();
+    const laserGain = ctx.createGain();
+    laserOsc.type = "triangle";
+    laserOsc.frequency.setValueAtTime(950, now + 0.08);
+    laserOsc.frequency.exponentialRampToValueAtTime(220, now + 0.32);
+    laserGain.gain.setValueAtTime(0.08, now + 0.08);
+    laserGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+    laserOsc.connect(laserGain);
+    laserGain.connect(ctx.destination);
+    laserOsc.start(now + 0.08);
+    laserOsc.stop(now + 0.32);
+  }
+
+  /* Sfx 4: Silbido de viento y descarga eléctrica sutil */
+  private sfxWindAndLightning(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    // Ráfaga de aire envolvente
+    const windOsc = ctx.createOscillator();
+    const windGain = ctx.createGain();
+    const windFilter = ctx.createBiquadFilter();
+    windOsc.type = "sawtooth";
+    windOsc.frequency.setValueAtTime(280, now);
+    windOsc.frequency.linearRampToValueAtTime(740, now + 0.18);
+    windOsc.frequency.linearRampToValueAtTime(320, now + 0.38);
+    windFilter.type = "bandpass";
+    windFilter.frequency.setValueAtTime(650, now);
+    windFilter.Q.value = 3;
+    windGain.gain.setValueAtTime(0.07, now);
+    windGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    windOsc.connect(windFilter);
+    windFilter.connect(windGain);
+    windGain.connect(ctx.destination);
+    windOsc.start(now);
+    windOsc.stop(now + 0.4);
+
+    // Chispazo electrostático agudo
+    const spark = ctx.createOscillator();
+    const sparkGain = ctx.createGain();
+    spark.type = "sawtooth";
+    spark.frequency.setValueAtTime(2200, now + 0.06);
+    spark.frequency.exponentialRampToValueAtTime(140, now + 0.14);
+    sparkGain.gain.setValueAtTime(0.08, now + 0.06);
+    sparkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    spark.connect(sparkGain);
+    sparkGain.connect(ctx.destination);
+    spark.start(now + 0.06);
+    spark.stop(now + 0.14);
+  }
+
+  /* Sfx 5: Campanillas orgánicas de bosque y vida */
+  private sfxOrganicChimes(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    const chimes = [1046.5, 1318.51, 1567.98, 2093.0];
+    chimes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const t = now + idx * 0.045;
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
+  }
+
+  /* Sfx 6: Resonancia telúrica y sacudida sísmica */
+  private sfxEarthquakeRumble(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(75, now);
+    osc.frequency.linearRampToValueAtTime(45, now + 0.38);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.45);
+  }
+
+  /* Sfx 7: Resonancia cósmica y armónicos estelares */
+  private sfxCosmicResonance(ctx: AudioContext) {
+    const now = ctx.currentTime;
+    const freqs = [392.0, 587.33, 880.0, 1396.91];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const t = now + idx * 0.05;
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.07, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.48);
+    });
+  }
 }
 
 const audio = new TriadsAudio();
@@ -1848,6 +2097,8 @@ export function TriadasConexiones({
         } else {
           audio.playTriadMatch();
         }
+        // Disparar capa de audio temático inmersivo (Fuego, Agua, Tecnología, Viento, etc.)
+        audio.playThematicSfx(card1.triadId);
 
         const triadDef = activeCatalog.find((t) => t.id === card1.triadId);
         if (triadDef) {
