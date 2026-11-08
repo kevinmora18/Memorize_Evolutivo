@@ -23,37 +23,45 @@ interface CardItem {
   isMatched?: boolean;
 }
 
-const EMOJI_MAP: Record<string, string> = {
-  apple: '🍎',
-  banana: '🍌',
-  cherry: '🍒',
-  dragon: '🐉',
-  elephant: '🐘',
-  fire: '🔥',
-  guitar: '🎸',
-  house: '🏠',
-  ice: '❄️',
-  jungle: '🌴',
-  king: '👑',
-  lion: '🦁',
-  mountain: '⛰️',
-  night: '🌙',
-  ocean: '🌊',
-  planet: '🪐',
-  queen: '👸',
-  rainbow: '🌈',
-  star: '⭐',
-  tree: '🌳',
-  universe: '🌌',
-  volcano: '🌋',
-  waterfall: '💧',
-  xylophone: '🎵',
-  yacht: '⛵',
-  zebra: '🦓',
-  angel: '👼',
-  book: '📖',
-  castle: '🏰',
-  diamond: '💎',
+interface MultiplayerCardMeta {
+  title: string;
+  image: string;
+  category: string;
+  color: string;
+  emoji: string;
+}
+
+const MULTIPLAYER_CARDS: Record<string, MultiplayerCardMeta> = {
+  apple: { title: 'Abeja Centinela', image: '/cards/triads/eco-abeja.webp', category: 'Ecosistema', color: '#E8B54A', emoji: '🐝' },
+  banana: { title: 'Semilla Lumínica', image: '/cards/triads/eco-semilla.webp', category: 'Ecosistema', color: '#2BE08F', emoji: '🌱' },
+  cherry: { title: 'Código Genómico', image: '/cards/triads/cie-adn.webp', category: 'Ciencia', color: '#35E0C8', emoji: '🧬' },
+  dragon: { title: 'Centella Espectral', image: '/cards/triads/ele-centella.webp', category: 'Elementos', color: '#B79CFF', emoji: '⚡' },
+  elephant: { title: 'Matriz de IA', image: '/cards/triads/tec-ia.webp', category: 'Tecnología', color: '#35E0C8', emoji: '🧠' },
+  fire: { title: 'Llama Sagrada', image: '/cards/triads/ele-llama.webp', category: 'Elementos', color: '#FF6B35', emoji: '🔥' },
+  guitar: { title: 'Néctar Dorado', image: '/cards/triads/eco-miel.webp', category: 'Ecosistema', color: '#E8B54A', emoji: '🍯' },
+  house: { title: 'Colonia Marciana', image: '/cards/triads/hum-colonia.webp', category: 'Humanidad', color: '#B79CFF', emoji: '🪐' },
+  ice: { title: 'Glaciar Eterno', image: '/cards/triads/ele-glaciar.webp', category: 'Elementos', color: '#35E0C8', emoji: '❄️' },
+  jungle: { title: 'Flor de Loto', image: '/cards/triads/eco-flor.webp', category: 'Ecosistema', color: '#FF6B8B', emoji: '🪷' },
+  king: { title: 'Coloso de Tierra', image: '/cards/triads/ele-coloso-tierra.webp', category: 'Elementos', color: '#E8B54A', emoji: '🗿' },
+  lion: { title: 'Androide Centinela', image: '/cards/triads/tec-androide.webp', category: 'Tecnología', color: '#35E0C8', emoji: '🤖' },
+  mountain: { title: 'Monolito Rocoso', image: '/cards/triads/ele-roca.webp', category: 'Elementos', color: '#9AA3B2', emoji: '⛰️' },
+  night: { title: 'Agujero Negro', image: '/cards/triads/cie-agujero-negro.webp', category: 'Ciencia', color: '#8A63D2', emoji: '🌌' },
+  ocean: { title: 'Masa Oceánica', image: '/cards/triads/eco-oceano.webp', category: 'Ecosistema', color: '#35E0C8', emoji: '🌊' },
+  planet: { title: 'Cohete Astral', image: '/cards/triads/hum-cohete.webp', category: 'Humanidad', color: '#35E0C8', emoji: '🚀' },
+  queen: { title: 'Mariposa Astral', image: '/cards/triads/eco-mariposa.webp', category: 'Ecosistema', color: '#B79CFF', emoji: '🦋' },
+  rainbow: { title: 'Vapor Celeste', image: '/cards/triads/eco-nube.webp', category: 'Ecosistema', color: '#35E0C8', emoji: '☁️' },
+  star: { title: 'Sol Primigenio', image: '/cards/triads/eco-sol.webp', category: 'Ecosistema', color: '#FFB800', emoji: '☀️' },
+  tree: { title: 'Árbol Ancestral', image: '/cards/triads/eco-arbol.webp', category: 'Ecosistema', color: '#2BE08F', emoji: '🌳' },
+  universe: { title: 'Supernova', image: '/cards/triads/cie-supernova.webp', category: 'Ciencia', color: '#FF4D5E', emoji: '✨' },
+  volcano: { title: 'Magma Viviente', image: '/cards/triads/ele-inferno.webp', category: 'Elementos', color: '#FF4D5E', emoji: '🌋' },
+  waterfall: { title: 'Gota de Cristal', image: '/cards/triads/eco-gota.webp', category: 'Ecosistema', color: '#35E0C8', emoji: '💧' },
+  xylophone: { title: 'Microchip Cuántico', image: '/cards/triads/tec-chip.webp', category: 'Tecnología', color: '#2BE08F', emoji: '💾' },
+  yacht: { title: 'Locomotora de Vapor', image: '/cards/triads/hum-locomotora.webp', category: 'Humanidad', color: '#E8B54A', emoji: '🚂' },
+  zebra: { title: 'Hoz Primitiva', image: '/cards/triads/hum-hoz.webp', category: 'Humanidad', color: '#9AA3B2', emoji: '🌾' },
+  angel: { title: 'Génesis Vital', image: '/cards/triads/eco-huevo.webp', category: 'Ecosistema', color: '#2BE08F', emoji: '🥚' },
+  book: { title: 'Biblioteca Humana', image: '/cards/triads/hum-biblioteca.webp', category: 'Humanidad', color: '#E8B54A', emoji: '📖' },
+  castle: { title: 'Estación Orbital', image: '/cards/triads/hum-estacion.webp', category: 'Humanidad', color: '#35E0C8', emoji: '🛰️' },
+  diamond: { title: 'Átomo Cuántico', image: '/cards/triads/cie-atomo.webp', category: 'Ciencia', color: '#35E0C8', emoji: '⚛️' },
 };
 
 export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }: MultiplayerGameProps) {
@@ -366,7 +374,13 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
               const isFlipped = flippedCards.includes(idx);
               const isMatched = matchedCards.includes(idx);
               const isRevealed = isFlipped || isMatched;
-              const emoji = EMOJI_MAP[card.value] || card.value || '💎';
+              const meta = MULTIPLAYER_CARDS[card.value] || {
+                title: card.value,
+                image: '/cards/triads/eco-sol.webp',
+                category: 'Especial',
+                color: '#35E0C8',
+                emoji: '💎',
+              };
 
               return (
                 <motion.div
@@ -389,27 +403,43 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
                     }`}
                   >
                     {isRevealed ? (
-                      /* Cara frontal (Revelada) */
-                      <div className="w-full h-full flex flex-col items-center justify-center p-2 relative overflow-hidden">
-                        <span className="text-3xl sm:text-4xl filter drop-shadow-md animate-in zoom-in-50 duration-300">
-                          {emoji}
-                        </span>
-                        <span className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2] mt-1.5 truncate max-w-full">
-                          {card.value}
-                        </span>
+                      /* Cara frontal (Revelada) con Arte Ilustrado Real */
+                      <div className="w-full h-full relative rounded-2xl overflow-hidden flex flex-col justify-end p-1.5 sm:p-2 bg-slate-950">
+                        <img
+                          src={meta.image}
+                          alt={meta.title}
+                          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.92] contrast-[1.05]"
+                          loading="lazy"
+                        />
+                        {/* Gradiente oscuro inferior para texto nítido */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+
+                        {/* Categoría superior */}
+                        <div className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider text-white">
+                          {meta.category}
+                        </div>
+
+                        {/* Icono de Match si ya se acertó */}
                         {isMatched && (
-                          <div className="absolute top-1.5 right-1.5 text-[#2BE08F]">
-                            <Sparkles className="w-3.5 h-3.5" />
+                          <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 z-10 p-1 rounded-full bg-[#2BE08F] text-black shadow-lg">
+                            <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                           </div>
                         )}
+
+                        {/* Título de la carta abajo */}
+                        <div className="relative z-10 text-center">
+                          <span className="font-serif text-[9px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
+                            {meta.title}
+                          </span>
+                        </div>
                       </div>
                     ) : (
                       /* Cara posterior (Boca abajo) */
-                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-[#2C3A4E] relative">
-                        <div className="w-8 h-8 rounded-lg border border-[#1E2836] flex items-center justify-center">
-                          <Layers className="w-4 h-4 text-[#35E0C8]/40" />
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-[#2C3A4E] relative bg-gradient-to-br from-[#0D1119] via-[#121926] to-[#0A0D14]">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-center shadow-inner">
+                          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#35E0C8]/60" />
                         </div>
-                        <span className="font-mono text-[8px] text-[#5C6675] mt-1 tracking-widest">
+                        <span className="font-mono text-[7px] sm:text-[8px] text-[#5C6675] mt-1 tracking-widest uppercase">
                           MEMORIZE
                         </span>
                       </div>

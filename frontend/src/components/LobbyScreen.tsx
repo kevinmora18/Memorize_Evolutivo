@@ -439,16 +439,49 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       </AnimatePresence>
 
       {/* ──────────────── 1. Header Minimalista y Limpio ──────────────── */}
-      <header className="h-14 sm:h-16 px-3 sm:px-8 flex items-center justify-between z-20 backdrop-blur-xl border-b border-white/5 bg-slate-950/60 shrink-0">
-        {/* Logo del Juego */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-cyan-400/40 bg-cyan-950/30 text-cyan-400 shadow-lg shadow-cyan-950/50">
-            <Brain className="w-4 h-4 sm:w-5 sm:h-5" />
+      <header className="h-14 sm:h-16 px-2.5 sm:px-8 flex items-center justify-between z-20 backdrop-blur-xl border-b border-white/5 bg-slate-950/60 shrink-0">
+        {/* Perfil de Operador integrado en la parte superior donde estaba MEMORIZE y el cerebro */}
+        <div
+          onClick={() => { playSfx('click'); onStartMode('profile'); }}
+          className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none shrink-0"
+          title="Ver Perfil Completo"
+        >
+          {/* Avatar con Nivel */}
+          <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-cyan-400/50 bg-slate-950 p-0.5 shrink-0 shadow-lg shadow-cyan-950/60 group-hover:border-cyan-300 transition-all">
+            <img
+              alt="Avatar"
+              className="w-full h-full rounded-lg object-cover"
+              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${operatorName}&backgroundColor=0d1119`}
+            />
+            <div className="absolute -bottom-1 -left-1 px-1 py-0.2 rounded-full border border-cyan-400 bg-slate-950 text-[7px] font-mono font-bold text-cyan-300 leading-none">
+              LV {playerStats.level}
+            </div>
           </div>
-          <div>
-            <span className="text-base sm:text-xl font-bold tracking-wider font-serif text-white">
-              MEMORIZE
-            </span>
+
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-bold tracking-wider font-mono text-white group-hover:text-cyan-300 transition-colors truncate max-w-[95px] xs:max-w-[130px] sm:max-w-none">
+                {operatorName}
+              </span>
+              <span className="hidden sm:inline text-slate-500 font-serif text-[11px] tracking-widest">• MEMORIZE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[9px] sm:text-[10px] font-mono font-semibold truncate max-w-[105px] xs:max-w-[130px]"
+                style={{ color: currentRank.color }}
+              >
+                {currentRank.name}
+              </span>
+              <div className="hidden xs:block w-10 sm:w-16 h-1 rounded-full overflow-hidden bg-white/10">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${progress}%`,
+                    background: `linear-gradient(90deg, ${currentRank.color}, ${AN.signal})`,
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -554,51 +587,12 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
         {/* ── BARRA SUPERIOR DE WIDGETS FLOTANTES (Bajo el Header) ── */}
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 flex items-start justify-between pointer-events-none z-20 shrink-0">
           
-          {/* Lado Izquierdo: Expediente Rápido de Operador */}
+          {/* Lado Izquierdo: Pasiva del Compañero */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="pointer-events-auto flex flex-col gap-2 max-w-xs"
           >
-            <div
-              onClick={() => { playSfx('click'); onStartMode('profile'); }}
-              className="px-3.5 py-2 rounded-2xl border border-white/10 bg-[#07090F]/70 backdrop-blur-xl flex items-center gap-3 shadow-xl hover:border-[#35E0C8]/50 hover:bg-[#0D1119]/80 transition-all cursor-pointer group"
-              title="Abrir Perfil Completo"
-            >
-              <div className="relative w-9 h-9 rounded-xl border border-white/15 bg-slate-950 p-0.5 shrink-0">
-                <img
-                  alt="Avatar"
-                  className="w-full h-full rounded-lg object-cover"
-                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${operatorName}&backgroundColor=0d1119`}
-                />
-                <div className="absolute -bottom-1 -left-1 px-1.5 py-0.2 rounded-full border border-cyan-400 bg-slate-950 text-[8px] font-mono font-bold text-cyan-300">
-                  LV {playerStats.level}
-                </div>
-              </div>
-
-              <div className="flex-grow min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-bold text-white truncate">{operatorName}</h3>
-                  <ChevronRight className="w-3 h-3 text-[#5C6675] group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all" />
-                </div>
-                <div
-                  className="text-[11px] font-mono font-semibold truncate"
-                  style={{ color: currentRank.color }}
-                >
-                  {currentRank.name}
-                </div>
-                <div className="w-24 h-1 rounded-full overflow-hidden bg-white/10 mt-1">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${progress}%`,
-                      background: `linear-gradient(90deg, ${currentRank.color}, ${AN.signal})`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Pasiva del Compañero */}
             <div
               className="px-3 py-1.5 rounded-xl border backdrop-blur-md flex items-center gap-2 bg-[#07090F]/60 text-left"
