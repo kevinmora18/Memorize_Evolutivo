@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Check, X } from 'lucide-react';
 import { AN } from '../../lib/archivoTokens';
 
 interface CardStateOverlayProps {
@@ -43,7 +44,7 @@ export function CardStateOverlay({
       )}
 
       {isBroken && (
-        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'var(--an-radius-card)' }}>
+        <div className="absolute inset-0 overflow-hidden flex items-center justify-center" style={{ borderRadius: 'var(--an-radius-card)' }}>
           <div
             className="absolute left-0 right-0 top-1/2 h-[2px] origin-center -translate-y-1/2"
             style={{ transform: 'rotate(28deg) scaleX(1.4)', background: 'linear-gradient(90deg, transparent, rgba(232,230,223,0.5), transparent)' }}
@@ -52,10 +53,11 @@ export function CardStateOverlay({
             className="absolute left-0 right-0 top-1/2 h-[2px] origin-center -translate-y-1/2"
             style={{ transform: 'rotate(-24deg) scaleX(1.4)', background: 'linear-gradient(90deg, transparent, rgba(232,230,223,0.35), transparent)' }}
           />
-          <div className="absolute inset-x-0 bottom-2 flex justify-center">
-            <span className="an-seal" style={{ color: AN.danger }}>
-              CONTENCIÓN ROTA
-            </span>
+          <div
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border"
+            style={{ borderColor: AN.danger, background: 'rgba(5,7,12,0.75)', color: AN.danger }}
+          >
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
           </div>
         </div>
       )}
@@ -123,8 +125,16 @@ export function CardStateOverlay({
             />
           )}
           {!isBomb && (
-            <div className="an-seal an-stamp" style={{ color: accent, background: 'rgba(5,7,12,0.55)' }}>
-              CAPTURADO
+            <div
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border shadow-lg an-stamp"
+              style={{
+                borderColor: accent,
+                color: accent,
+                background: 'rgba(5,7,12,0.75)',
+                boxShadow: `0 0 12px ${accent}55`,
+              }}
+            >
+              <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </div>
           )}
         </motion.div>

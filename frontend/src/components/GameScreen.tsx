@@ -531,12 +531,34 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
   const matchedGroups = cards.filter((c) => c.isMatched && !c.isBomb).length / cardsPerGroup;
   const accuracy = attempts > 0 ? Math.round((matchedGroups / attempts) * 100) : 100;
 
+  // Cálculo de filas y tamaño responsivo de cartas según la densidad del tablero (ej. Nivel 6 en celular)
+  const totalDeckCards = cards.length || levelDef.groups * cardsPerGroup + levelDef.bombs;
+  const rowsCount = Math.ceil(totalDeckCards / levelDef.cols);
+
+  const cardSizeClass =
+    rowsCount >= 5
+      ? 'max-w-[62px] xs:max-w-[66px] sm:max-w-[98px] md:max-w-[112px]'
+      : levelDef.cols >= 6
+      ? 'max-w-[56px] xs:max-w-[60px] sm:max-w-[96px] md:max-w-[112px]'
+      : levelDef.cols >= 5 || rowsCount === 4
+      ? 'max-w-[68px] xs:max-w-[74px] sm:max-w-[106px] md:max-w-[118px]'
+      : 'max-w-[78px] xs:max-w-[84px] sm:max-w-[116px] md:max-w-[126px]';
+
+  const gridMaxWidthClass =
+    rowsCount >= 5
+      ? 'max-w-[356px] xs:max-w-[380px] sm:max-w-3xl'
+      : levelDef.cols >= 6
+      ? 'max-w-[370px] xs:max-w-[395px] sm:max-w-4xl'
+      : levelDef.cols >= 5
+      ? 'max-w-[370px] xs:max-w-[395px] sm:max-w-3xl'
+      : 'max-w-[340px] xs:max-w-[365px] sm:max-w-2xl';
+
   // Fondo pictórico del reino actual
   const wingBgBase = `/classic/wing-${levelDef.wing}`;
 
   return (
     <div
-      className="relative flex flex-col min-h-screen overflow-hidden select-none bg-[#07090F]"
+      className="relative flex flex-col h-[100dvh] max-h-[100dvh] w-full overflow-hidden select-none bg-[#07090F] game-screen-lock"
     >
       {/* Dynamic Wing Background Image */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-45 mix-blend-screen transition-opacity duration-1000">
@@ -558,7 +580,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
       {/* Screen Shake Container */}
       <motion.div
-        className="flex flex-col flex-1 relative z-10"
+        className="flex flex-col flex-1 min-h-0 relative z-10 overflow-hidden"
         animate={screenShake ? { x: [0, -10, 10, -8, 8, -4, 4, 0] } : {}}
         transition={{ duration: 0.4 }}
       >
@@ -583,7 +605,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           showPowers={false}
         />
 
-        {/* Compañero 3D en miniatura en la parte superior izquierda con Habilidades Activas */}
+        {/* Compañero 3D en miniatura con Habilidades Activas */}
         <InGameCompanionWidget
           onRevealPair={handleCompanionReveal}
           onFreezeTime={handleCompanionFreeze}
@@ -593,27 +615,70 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         />
 
         {/* Board Playing Area */}
-        <div className="flex-1 flex items-center justify-center p-4 relative">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-2 pt-1.5 pb-14 sm:p-4 relative overflow-hidden">
+
+          {/* Scanning Phase Countdown Bar (arriba del tablero para no tapar cartas ni mascota) */}
+          <AnimatePresence>
+            {phase === 'scanning' && (
+              <motion.div
+                className="w-full max-w-md mx-auto mb-1.5 sm:mb-2.5 z-30 shrink-0"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <div
+                  onClick={() => {
+                    setCards((prev) => {
+                      const flippedDown = prev.map((c) => ({ ...c, isFlipped: false }));
+                      cardsRef.current = flippedDown;
+                      return flippedDown;
+                    });
+                    setPhase('playing');
+                    playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.3);
+                  }}
+                  className="an-panel-raised px-3.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl backdrop-blur-md flex flex-col items-center border border-[#35E0C8]/40 shadow-lg cursor-pointer hover:border-cyan-400 transition-all select-none"
+                  title="Toca para comenzar a jugar de inmediato"
+                >
+                  <div className="flex items-center justify-between w-full gap-2 mb-1">
+                    <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-[#35E0C8] font-bold truncate">
+                      Memoriza las reliquias
+                    </span>
+                    <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-[#E8B54A] bg-[#E8B54A]/15 px-2 py-0.5 rounded border border-[#E8B54A]/30 shrink-0">
+                      Toca para iniciar ya
+                    </span>
+                  </div>
+                  <div className="w-full h-[3px] bg-[#07090F] rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-[#35E0C8] to-[#E8B54A]"
+                      initial={{ width: '100%' }}
+                      animate={{ width: '0%' }}
+                      transition={{ duration: levelDef.previewMs / 1000, ease: 'linear' }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Shuffle Warning Banner */}
           <AnimatePresence>
             {shuffleWarning && (
               <motion.div
-                className="absolute top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
                 initial={{ opacity: 0, y: -20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
               >
                 <div
-                  className="px-6 py-2.5 rounded-full border shadow-2xl flex items-center gap-3 backdrop-blur-md"
+                  className="px-4 py-1.5 sm:px-6 sm:py-2.5 rounded-full border shadow-2xl flex items-center gap-2 sm:gap-3 backdrop-blur-md whitespace-nowrap"
                   style={{
                     background: 'rgba(7,9,15,0.94)',
                     borderColor: 'rgba(232,181,74,0.6)',
                   }}
                 >
-                  <span className="font-mono text-sm text-[#E8B54A] animate-spin">⟳</span>
-                  <span className="font-mono text-xs uppercase tracking-widest font-bold text-[#E8B54A]">
-                    TABLERO VIVO · REORDENANDO EN BREVE...
+                  <span className="font-mono text-xs sm:text-sm text-[#E8B54A] animate-spin">⟳</span>
+                  <span className="font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#E8B54A]">
+                    TABLERO VIVO · REORDENANDO...
                   </span>
                 </div>
               </motion.div>
@@ -630,7 +695,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
           {/* Cards Grid */}
           <div
-            className="grid gap-2.5 w-full max-w-5xl justify-items-center"
+            className={`grid gap-1.5 sm:gap-2.5 w-full ${gridMaxWidthClass} justify-items-center content-center items-center my-auto`}
             style={{ gridTemplateColumns: `repeat(${levelDef.cols}, minmax(0, 1fr))` }}
           >
             <AnimatePresence mode="popLayout">
@@ -641,7 +706,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
                     cardRefs.current[idx] = el;
                   }}
                   style={{ aspectRatio: '3/4' }}
-                  className="w-full max-w-[130px] max-h-36 relative"
+                  className={`w-full ${cardSizeClass} relative`}
                   layout
                   initial={isShuffling ? { scale: 0.8, opacity: 0.6 } : false}
                   animate={
@@ -671,47 +736,6 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
               ))}
             </AnimatePresence>
           </div>
-
-          {/* Scanning Phase Countdown Bar */}
-          <AnimatePresence>
-            {phase === 'scanning' && (
-              <motion.div
-                className="absolute inset-x-0 bottom-6 flex flex-col items-center justify-center z-30"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-              >
-                <div
-                  onClick={() => {
-                    setCards((prev) => {
-                      const flippedDown = prev.map((c) => ({ ...c, isFlipped: false }));
-                      cardsRef.current = flippedDown;
-                      return flippedDown;
-                    });
-                    setPhase('playing');
-                    playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.3);
-                  }}
-                  className="an-panel-raised px-8 py-3.5 rounded-2xl backdrop-blur-md flex flex-col items-center border border-[#1E2836] shadow-2xl cursor-pointer hover:border-cyan-400/50 transition-all select-none"
-                  title="Toca para comenzar a jugar de inmediato"
-                >
-                  <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#35E0C8] mb-1">
-                    FASE DE MEMORIZACIÓN · TOCA PARA INICIAR YA
-                  </div>
-                  <div className="font-serif text-base sm:text-xl text-white mb-2 font-medium">
-                    Memoriza las reliquias antes de ocultarse
-                  </div>
-                  <div className="w-52 h-[3px] bg-[#07090F] rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-[#35E0C8] to-[#E8B54A]"
-                      initial={{ width: '100%' }}
-                      animate={{ width: '0%' }}
-                      transition={{ duration: levelDef.previewMs / 1000, ease: 'linear' }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
         </div>
       </motion.div>

@@ -750,10 +750,6 @@ export function ClassicLevelSelect({ onSelectLevel, onBack }: ClassicLevelSelect
                           {relicCard && (
                             <div className="w-16 h-20 shrink-0 rounded-lg overflow-hidden border border-[#2C3A4E] shadow-md relative">
                               <CardArt artId={relicCard.id} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                              <span className="absolute bottom-1 left-1 right-1 font-mono text-[7px] text-white truncate text-center block">
-                                {relicCard.name}
-                              </span>
                             </div>
                           )}
 

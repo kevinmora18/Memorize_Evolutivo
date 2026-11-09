@@ -700,17 +700,6 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
                         className="absolute inset-0 w-full h-full object-cover filter brightness-[0.95] contrast-[1.08] transition-transform duration-300"
                         loading="lazy"
                       />
-                      {/* Gradiente oscuro inferior para texto legible */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
-
-                      {/* Categoría superior izquierda */}
-                      <div
-                        className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1 sm:px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider font-semibold"
-                        style={{ color: meta.color }}
-                      >
-                        {meta.category}
-                      </div>
-
                       {/* Icono de Match si ya se acertó */}
                       {card.isMatched && (
                         <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 z-10 p-0.5 sm:p-1 rounded-full bg-[#2BE08F] text-black shadow-lg">
@@ -718,12 +707,27 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
                         </div>
                       )}
 
-                      {/* Título de la carta abajo */}
-                      <div className="relative z-10 text-center px-0.5">
-                        <span className="font-serif text-[8px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
-                          {meta.title}
-                        </span>
-                      </div>
+                      {gameMode !== 'classic' && (
+                        <>
+                          {/* Gradiente oscuro inferior para texto legible */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+
+                          {/* Categoría superior izquierda */}
+                          <div
+                            className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1 sm:px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider font-semibold"
+                            style={{ color: meta.color }}
+                          >
+                            {meta.category}
+                          </div>
+
+                          {/* Título de la carta abajo */}
+                          <div className="relative z-10 text-center px-0.5">
+                            <span className="font-serif text-[8px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
+                              {meta.title}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     /* Cara posterior (Boca abajo) */

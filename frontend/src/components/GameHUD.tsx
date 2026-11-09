@@ -42,16 +42,16 @@ function TimerRing({
   const urgent = timer <= 10 && !isFrozen;
 
   return (
-    <div className="relative w-[72px] h-[72px]">
+    <div className="relative w-12 h-12 sm:w-[72px] sm:h-[72px] shrink-0">
       <svg viewBox="0 0 72 72" className="w-full h-full -rotate-90">
-        <circle cx="36" cy="36" r={r} fill="rgba(5,7,12,0.7)" stroke="#1E2836" strokeWidth="3" />
+        <circle cx="36" cy="36" r={r} fill="rgba(5,7,12,0.7)" stroke="#1E2836" strokeWidth="3.5" />
         <circle
           cx="36"
           cy="36"
           r={r}
           fill="none"
           stroke={color}
-          strokeWidth="3.5"
+          strokeWidth="4"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - ratio)}
@@ -60,15 +60,15 @@ function TimerRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <motion.span
-          className="font-mono font-bold text-lg leading-none"
+          className="font-mono font-bold text-sm sm:text-lg leading-none"
           style={{ color }}
           animate={urgent && !reduced ? { scale: [1, 1.1, 1] } : { scale: 1 }}
           transition={urgent && !reduced ? { duration: 0.8, repeat: Infinity } : { duration: 0.2 }}
         >
           {Math.ceil(timer)}
         </motion.span>
-        <span className="font-mono text-[7px] uppercase tracking-widest text-[#9AA3B2] mt-0.5">
-          {isFrozen ? 'CONGELADO' : 'TIEMPO'}
+        <span className="font-mono text-[6px] sm:text-[7px] uppercase tracking-wider sm:tracking-widest text-[#9AA3B2] mt-0.5">
+          {isFrozen ? 'FRÍO' : 'SEG'}
         </span>
       </div>
     </div>
@@ -107,45 +107,46 @@ export function GameHUD({
 
   return (
     <div
-      className="w-full z-30 relative px-4 pt-2.5 pb-3 border-b border-[#1E2836] shadow-lg"
+      className="w-full z-30 relative px-2.5 pt-1.5 pb-1.5 sm:px-4 sm:pt-2.5 sm:pb-3 border-b border-[#1E2836] shadow-lg shrink-0"
       style={{
         background: 'linear-gradient(180deg, rgba(7,9,15,0.96) 0%, rgba(10,14,22,0.92) 100%)',
         backdropFilter: 'blur(12px)',
       }}
     >
       {/* Top Bar: Nav, Wing/Level Breadcrumb, FX Toggle */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between gap-1.5 mb-1 sm:mb-2">
         <button
           onClick={onBack}
-          className="an-focusable flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#1E2836] bg-[#0D1119] text-[#9AA3B2] hover:text-white hover:border-[#35E0C8]/40 transition-colors"
+          className="an-focusable flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg border border-[#1E2836] bg-[#0D1119] text-[#9AA3B2] hover:text-white hover:border-[#35E0C8]/40 transition-colors shrink-0 whitespace-nowrap"
           aria-label="Volver a selección de nivel"
         >
-          <ChevronLeft size={14} />
-          <span className="font-mono text-[10px] tracking-widest uppercase">SALIR</span>
+          <ChevronLeft size={13} />
+          <span className="font-mono text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest uppercase">SALIR</span>
         </button>
 
         {/* Center Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs min-w-0 flex-1">
           <span
-            className="font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded border"
+            className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider sm:tracking-widest px-1.5 sm:px-2 py-0.5 rounded border shrink-0 whitespace-nowrap"
             style={{
               borderColor: `${wingDef.accent}55`,
               color: wingDef.accent,
               background: `${wingDef.accent}14`,
             }}
           >
-            ALA {wingDef.roman} · {wingDef.name}
+            <span className="hidden xs:inline">ALA {wingDef.roman} · </span>
+            {wingDef.name}
           </span>
-          <span className="text-[#5C6675]">//</span>
-          <span className="font-serif text-white tracking-wide font-medium">
-            Nivel {level}: "{title}"
+          <span className="text-[#5C6675] hidden sm:inline">//</span>
+          <span className="font-serif text-xs sm:text-sm text-white tracking-wide font-medium truncate">
+            Nv. {level}: "{title}"
           </span>
         </div>
 
         {/* FX Toggle */}
         <button
           onClick={() => setEffectsLevel(reduced ? 'full' : 'reduced')}
-          className="an-focusable font-mono text-[9px] tracking-wider px-2 py-1 rounded border transition-colors"
+          className="an-focusable font-mono text-[8px] sm:text-[9px] tracking-wider px-1.5 sm:px-2 py-1 rounded border transition-colors shrink-0 whitespace-nowrap"
           style={{
             color: reduced ? AN.gold : AN.inkFaint,
             borderColor: reduced ? 'rgba(232,181,74,0.4)' : '#1E2836',
@@ -153,19 +154,19 @@ export function GameHUD({
           aria-pressed={reduced}
           title={reduced ? 'Activar efectos visuales completos' : 'Reducir efectos visuales'}
         >
-          FX {reduced ? 'REDUCIDOS' : 'ALTOS'}
+          FX {reduced ? 'BAJOS' : 'ALTOS'}
         </button>
       </div>
 
       {/* Main HUD Row */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
         {/* Left: Score & Combos */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div>
-            <div className="font-mono text-[8px] uppercase tracking-widest text-[#9AA3B2]">PUNTOS</div>
+            <div className="font-mono text-[7px] sm:text-[8px] uppercase tracking-widest text-[#9AA3B2]">PUNTOS</div>
             <motion.div
               key={score}
-              className="font-mono font-bold text-xl sm:text-2xl text-white leading-none"
+              className="font-mono font-bold text-base sm:text-2xl text-white leading-none"
               initial={reduced ? false : { scale: 1.15 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.2 }}
@@ -175,15 +176,15 @@ export function GameHUD({
           </div>
 
           <div
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all"
+            className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border transition-all"
             style={{
               borderColor: combo >= 2 ? 'rgba(232,181,74,0.5)' : '#1E2836',
               background: combo >= 2 ? 'rgba(232,181,74,0.1)' : 'transparent',
             }}
           >
-            <Flame size={13} color={combo >= 2 ? AN.gold : '#5C6675'} />
+            <Flame size={12} color={combo >= 2 ? AN.gold : '#5C6675'} />
             <span
-              className="font-mono text-xs font-bold"
+              className="font-mono text-[11px] sm:text-xs font-bold"
               style={{ color: combo >= 2 ? AN.gold : '#5C6675' }}
             >
               x{combo}
@@ -197,7 +198,7 @@ export function GameHUD({
         </div>
 
         {/* Right: In-Game Powers Bar / Status */}
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2">
           {showPowers ? (
             Object.values(POWERS).map((p) => {
               const isUnlocked = unlockedPowers.includes(p.id);
@@ -210,7 +211,7 @@ export function GameHUD({
                   key={p.id}
                   onClick={() => canUse && onUsePower(p.id)}
                   disabled={!canUse}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-mono text-[11px] transition-all relative ${
+                  className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border font-mono text-[10px] sm:text-[11px] transition-all relative ${
                     canUse
                       ? 'border-[#35E0C8]/60 bg-[#131A26] text-white hover:scale-105 hover:border-[#35E0C8] shadow-[0_0_12px_rgba(53,224,200,0.2)] cursor-pointer'
                       : isUsed
@@ -240,11 +241,11 @@ export function GameHUD({
               );
             })
           ) : (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-[#0D1119]/80 shadow-inner">
-              <span className="font-mono text-[9px] uppercase tracking-wider text-[#9AA3B2]">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-white/10 bg-[#0D1119]/80 shadow-inner">
+              <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-[#9AA3B2]">
                 Restantes
               </span>
-              <span className="font-mono font-bold text-sm text-[#35E0C8]">
+              <span className="font-mono font-bold text-xs sm:text-sm text-[#35E0C8]">
                 {Math.max(0, totalPairs - matchedPairs)}
               </span>
             </div>
@@ -253,19 +254,19 @@ export function GameHUD({
       </div>
 
       {/* Bottom Progress Tracker */}
-      <div className="flex items-center gap-3 mt-2">
-        <span className="font-mono text-[9px] text-[#9AA3B2] uppercase tracking-wider shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+        <span className="font-mono text-[8px] sm:text-[9px] text-[#9AA3B2] uppercase tracking-wider shrink-0">
           {useTriads ? 'Tríadas' : 'Pares'}: {matchedPairs} / {totalPairs}
         </span>
 
         {/* Diamond Pips */}
-        <div className="flex-1 flex items-center justify-center gap-1.5 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 overflow-hidden">
           {Array.from({ length: totalPairs }, (_, i) => {
             const filled = i < matchedPairs;
             return (
               <span
                 key={i}
-                className="w-2 h-2 rotate-45 transition-all duration-300 rounded-[1px]"
+                className="w-1.5 h-1.5 sm:w-2 sm:h-2 rotate-45 transition-all duration-300 rounded-[1px]"
                 style={{
                   background: filled ? wingDef.accent : 'transparent',
                   border: `1px solid ${filled ? wingDef.accent : 'rgba(92,102,117,0.4)'}`,
@@ -276,7 +277,7 @@ export function GameHUD({
           })}
         </div>
 
-        <span className="font-mono text-[9px] text-[#9AA3B2] shrink-0">
+        <span className="font-mono text-[8px] sm:text-[9px] text-[#9AA3B2] shrink-0">
           {Math.round(progress * 100)}%
         </span>
       </div>

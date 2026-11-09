@@ -404,20 +404,13 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
                   >
                     {isRevealed ? (
                       /* Cara frontal (Revelada) con Arte Ilustrado Real */
-                      <div className="w-full h-full relative rounded-2xl overflow-hidden flex flex-col justify-end p-1.5 sm:p-2 bg-slate-950">
+                      <div className="w-full h-full relative rounded-2xl overflow-hidden bg-slate-950">
                         <img
                           src={meta.image}
                           alt={meta.title}
-                          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.92] contrast-[1.05]"
+                          className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
-                        {/* Gradiente oscuro inferior para texto nítido */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
-
-                        {/* Categoría superior */}
-                        <div className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider text-white">
-                          {meta.category}
-                        </div>
 
                         {/* Icono de Match si ya se acertó */}
                         {isMatched && (
@@ -425,13 +418,6 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
                             <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                           </div>
                         )}
-
-                        {/* Título de la carta abajo */}
-                        <div className="relative z-10 text-center">
-                          <span className="font-serif text-[9px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
-                            {meta.title}
-                          </span>
-                        </div>
                       </div>
                     ) : (
                       /* Cara posterior (Boca abajo) */
