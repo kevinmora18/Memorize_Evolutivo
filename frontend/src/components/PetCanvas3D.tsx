@@ -12,17 +12,31 @@ interface PetCanvas3DProps {
 }
 
 /**
- * Sintetizador Web Audio de sonidos cartoon tiernos:
- * - Zorro: Chirrido alegre "yip / boing"
- * - Gato: Maullido tierno y dulce "*miau*"
+ * Sintetizador Web Audio de sonidos cartoon tiernos (Reutiliza AudioContext para evitar lag en móviles)
  */
+let sharedPetAudioCtx: AudioContext | null = null;
+function getSharedAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (!sharedPetAudioCtx) {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) sharedPetAudioCtx = new AudioCtx();
+    }
+    if (sharedPetAudioCtx && sharedPetAudioCtx.state === 'suspended') {
+      sharedPetAudioCtx.resume().catch(() => {});
+    }
+    return sharedPetAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
 function playMascotSound(type: PetType) {
   try {
     const isMuted = localStorage.getItem('memorize_sound_muted') === 'true';
     if (isMuted) return;
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     if (type === 'cat') {
@@ -84,6 +98,12 @@ export function PetCanvas3D({
 }: PetCanvas3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerJumpRef = useRef<(() => void) | null>(null);
+  const onPetClickRef = useRef(onPetClick);
+
+  useEffect(() => {
+    onPetClickRef.current = onPetClick;
+  }, [onPetClick]);
+
   const stage = getPetStage(level);
 
   useEffect(() => {
@@ -950,15 +970,27 @@ export function PetCanvas3D({
 
     animate();
 
-    // 9. Interacción al hacer clic
-    const handleCanvasClick = () => {
+    // 9. Interacción táctil y clic inmediato (Sin retraso de 300ms en celulares)
+    let lastInteractTime = 0;
+    const handleCanvasInteract = (e?: Event) => {
+      if (e) {
+        e.stopPropagation();
+      }
+      const now = Date.now();
+      if (now - lastInteractTime < 450) return; // Debounce suave para evitar dobles toques en pantallas táctiles
+      lastInteractTime = now;
+
       jumpTime = 1.0;
       playMascotSound(petType);
-      if (onPetClick) onPetClick();
+      onPetClickRef.current?.();
     };
 
-    triggerJumpRef.current = handleCanvasClick;
-    renderer.domElement.addEventListener('click', handleCanvasClick);
+    triggerJumpRef.current = () => {
+      jumpTime = 1.0;
+    };
+
+    const domElement = renderer.domElement;
+    domElement.addEventListener('pointerdown', handleCanvasInteract, { passive: true });
 
     // 10. ResizeObserver
     const handleResize = () => {
@@ -978,10 +1010,10 @@ export function PetCanvas3D({
       triggerJumpRef.current = null;
       cancelAnimationFrame(animId);
       window.removeEventListener('mousemove', handleMouseMove);
-      renderer.domElement.removeEventListener('click', handleCanvasClick);
+      domElement.removeEventListener('pointerdown', handleCanvasInteract);
       resizeObserver.disconnect();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
+      if (container.contains(domElement)) {
+        container.removeChild(domElement);
       }
       renderer.dispose();
       shadowGeo.dispose();
@@ -1013,11 +1045,12 @@ export function PetCanvas3D({
         (orb.material as THREE.Material).dispose();
       });
     };
-  }, [petType, stage, onPetClick, mode, accentColor]);
+  }, [petType, stage, mode, accentColor]);
 
   return (
     <div
       ref={containerRef}
+      style={{ touchAction: 'manipulation' }}
       className="w-full h-full relative cursor-pointer select-none flex items-center justify-center group"
       title={`Haz clic para interactuar con tu ${petType === 'cat' ? 'Gatito' : 'Zorro'} 3D`}
     />

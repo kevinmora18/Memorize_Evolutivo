@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail, Users, Boxes, Infinity as InfinityIcon, Settings,
@@ -296,7 +296,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
   };
 
   // Interacción al hacer clic en el animal 3D
-  const handlePetInteract = () => {
+  const handlePetInteract = useCallback(() => {
     setIsPetJumping(true);
     setTimeout(() => setIsPetJumping(false), 900);
 
@@ -306,7 +306,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
     setTimeout(() => setPetQuote(null), 3500);
 
     playSfx('click');
-  };
+  }, [petState.type, playSfx]);
 
   // Alimentar a la mascota 3D con cerebritos
   const handleFeedPet = (cost = 10) => {

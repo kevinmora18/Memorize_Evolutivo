@@ -287,61 +287,61 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
         <div className="grid grid-cols-2 gap-2 sm:gap-4 items-center">
           {/* Jugador 1 */}
           <div
-            className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-between ${
+            className={`p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all duration-300 flex items-center justify-between gap-1.5 sm:gap-3 min-w-0 ${
               currentTurn === player1?.id
-                ? 'border-[#35E0C8] bg-[#131A26]/90 shadow-[0_0_20px_rgba(53,224,200,0.25)]'
+                ? 'border-[#35E0C8] bg-[#131A26]/90 shadow-[0_0_20px_rgba(53,224,200,0.25)] ring-1 ring-[#35E0C8]/40'
                 : 'border-[#1E2836] bg-[#0D1119]/70'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#35E0C8] to-[#2BE08F] text-[#07090F] flex items-center justify-center font-bold font-mono">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#35E0C8] to-[#2BE08F] text-[#07090F] flex items-center justify-center font-bold font-mono text-xs sm:text-base shrink-0 shadow-md">
                 {player1 ? (player1.name || player1.email)[0].toUpperCase() : '1'}
               </div>
-              <div>
-                <div className="font-serif text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>{player1 ? player1.name || player1.email.split('@')[0] : 'Jugador 1'}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-serif text-xs sm:text-sm font-bold text-white flex items-center gap-1 min-w-0">
+                  <span className="truncate">{player1 ? player1.name || player1.email.split('@')[0] : 'Jugador 1'}</span>
                   {player1?.id === currentUser.id && (
-                    <span className="text-[9px] font-mono bg-[#35E0C8]/20 text-[#35E0C8] px-1.5 py-0.2 rounded">TÚ</span>
+                    <span className="text-[8px] sm:text-[9px] font-mono bg-[#35E0C8]/20 text-[#35E0C8] px-1 py-0.2 rounded shrink-0">TÚ</span>
                   )}
                 </div>
-                <div className="font-mono text-[11px] text-[#9AA3B2]">
+                <div className="font-mono text-[9px] sm:text-[11px] text-[#9AA3B2] truncate">
                   {currentTurn === player1?.id ? 'En turno' : 'Esperando'}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-mono text-xl font-bold text-[#35E0C8]">{p1Score}</div>
-              <div className="font-mono text-[9px] text-[#9AA3B2] uppercase">PTS</div>
+            <div className="text-right shrink-0 pl-1">
+              <div className="font-mono text-base sm:text-xl font-bold text-[#35E0C8] leading-none">{p1Score}</div>
+              <div className="font-mono text-[8px] sm:text-[9px] text-[#9AA3B2] uppercase mt-0.5">PTS</div>
             </div>
           </div>
 
           {/* Jugador 2 */}
           <div
-            className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-between ${
+            className={`p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all duration-300 flex items-center justify-between gap-1.5 sm:gap-3 min-w-0 ${
               player2 && currentTurn === player2.id
-                ? 'border-[#E8B54A] bg-[#131A26]/90 shadow-[0_0_20px_rgba(232,181,74,0.25)]'
+                ? 'border-[#E8B54A] bg-[#131A26]/90 shadow-[0_0_20px_rgba(232,181,74,0.25)] ring-1 ring-[#E8B54A]/40'
                 : 'border-[#1E2836] bg-[#0D1119]/70'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E8B54A] to-[#D49A24] text-[#07090F] flex items-center justify-center font-bold font-mono">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#E8B54A] to-[#D49A24] text-[#07090F] flex items-center justify-center font-bold font-mono text-xs sm:text-base shrink-0 shadow-md">
                 {player2 ? (player2.name || player2.email)[0].toUpperCase() : '2'}
               </div>
-              <div>
-                <div className="font-serif text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>{player2 ? player2.name || player2.email.split('@')[0] : 'Rival'}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-serif text-xs sm:text-sm font-bold text-white flex items-center gap-1 min-w-0">
+                  <span className="truncate">{player2 ? player2.name || player2.email.split('@')[0] : 'Rival'}</span>
                   {player2?.id === currentUser.id && (
-                    <span className="text-[9px] font-mono bg-[#35E0C8]/20 text-[#35E0C8] px-1.5 py-0.2 rounded">TÚ</span>
+                    <span className="text-[8px] sm:text-[9px] font-mono bg-[#35E0C8]/20 text-[#35E0C8] px-1 py-0.2 rounded shrink-0">TÚ</span>
                   )}
                 </div>
-                <div className="font-mono text-[11px] text-[#9AA3B2]">
+                <div className="font-mono text-[9px] sm:text-[11px] text-[#9AA3B2] truncate">
                   {player2 && currentTurn === player2.id ? 'En turno' : 'Esperando'}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-mono text-xl font-bold text-[#E8B54A]">{p2Score}</div>
-              <div className="font-mono text-[9px] text-[#9AA3B2] uppercase">PTS</div>
+            <div className="text-right shrink-0 pl-1">
+              <div className="font-mono text-base sm:text-xl font-bold text-[#E8B54A] leading-none">{p2Score}</div>
+              <div className="font-mono text-[8px] sm:text-[9px] text-[#9AA3B2] uppercase mt-0.5">PTS</div>
             </div>
           </div>
         </div>
