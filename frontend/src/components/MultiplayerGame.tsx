@@ -109,16 +109,46 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
     return p.name || p.email.split('@')[0];
   };
 
+  // Sincronizar si room.gameState llega después del montaje inicial
+  useEffect(() => {
+    if (room.gameState?.cards?.length && cards.length === 0) {
+      setCards(room.gameState.cards);
+    }
+    if (room.gameState?.currentTurn && !currentTurn) {
+      setCurrentTurn(room.gameState.currentTurn);
+    }
+  }, [room.gameState, cards.length, currentTurn]);
+
   // Escucha de eventos de Socket.IO
   useEffect(() => {
-    // Si la partida ya arrancó en el servidor, pedir estado
+    // Solicitar estado actual de la sala (o iniciar si aún no ha arrancado)
+    socket.emit('room:reconnect', { roomId: room.id });
     socket.emit('game:start', { roomId: room.id });
+
+    const handleRoomState = (payload: any) => {
+      const gs = payload?.gameState;
+      if (!gs) return;
+      if (Array.isArray(gs.cards) && gs.cards.length > 0) {
+        setCards(gs.cards);
+      }
+      if (gs.currentTurn) {
+        setCurrentTurn(gs.currentTurn);
+      }
+      if (Array.isArray(gs.flippedCards)) {
+        setFlippedCards(gs.flippedCards);
+      }
+      if (Array.isArray(gs.matchedCards)) {
+        setMatchedCards(gs.matchedCards);
+      }
+    };
 
     const handleGameStarted = (payload: any) => {
       playSound('https://actions.google.com/sounds/v1/scifi/sci_fi_pulse.ogg', 0.4);
-      if (payload.cards) setCards(payload.cards);
-      if (payload.firstTurn || payload.currentTurn) {
-        setCurrentTurn(payload.firstTurn || payload.currentTurn);
+      const nextCards = payload.cards || payload.gameState?.cards;
+      if (Array.isArray(nextCards) && nextCards.length > 0) setCards(nextCards);
+      const nextTurn = payload.firstTurn || payload.currentTurn || payload.gameState?.currentTurn;
+      if (nextTurn) {
+        setCurrentTurn(nextTurn);
       }
       if (payload.scores) setScores(payload.scores);
       setFlippedCards([]);
@@ -196,6 +226,8 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       showNotice(`${payload.playerName || 'Un jugador'} ha abandonado la partida.`);
     };
 
+    socket.on('room:state', handleRoomState);
+    socket.on('room:joined', handleRoomState);
     socket.on('game:started', handleGameStarted);
     socket.on('game:card-flipped', handleCardFlipped);
     socket.on('game:match-found', handleMatchFound);
@@ -207,6 +239,8 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
     socket.on('room:player-left', handlePlayerLeft);
 
     return () => {
+      socket.off('room:state', handleRoomState);
+      socket.off('room:joined', handleRoomState);
       socket.off('game:started', handleGameStarted);
       socket.off('game:card-flipped', handleCardFlipped);
       socket.off('game:match-found', handleMatchFound);

@@ -79,7 +79,13 @@ export default function App() {
       setCurrentRoom(prev => {
         if (!prev) return null;
         const found = data.find((r: any) => r.id === prev.id || (r.code && prev.code && r.code === prev.code));
-        return found ? { ...prev, ...found } : prev;
+        if (!found) return prev;
+        return {
+          ...prev,
+          ...found,
+          isStarted: prev.isStarted || found.isStarted || found.status === 'playing',
+          gameState: found.gameState?.cards?.length ? found.gameState : (prev.gameState || found.gameState),
+        };
       });
     });
 
@@ -102,11 +108,32 @@ export default function App() {
     });
 
     socket.on('game:started', (payload: any) => {
-      setCurrentRoom(prev => prev ? { ...prev, isStarted: true, gameState: payload.gameState } : prev);
+      setCurrentRoom(prev => prev ? {
+        ...prev,
+        isStarted: true,
+        gameState: {
+          ...(prev.gameState || {}),
+          ...(payload.gameState || {}),
+          cards: payload.cards || payload.gameState?.cards || prev.gameState?.cards || [],
+          currentTurn: payload.firstTurn || payload.currentTurn || payload.gameState?.currentTurn,
+        },
+      } : prev);
       setCurrentScreen('multiplayerGame');
     });
 
     socket.on('room:started', (payload: any) => {
+      if (payload?.gameState || payload?.cards) {
+        setCurrentRoom(prev => prev ? {
+          ...prev,
+          isStarted: true,
+          gameState: {
+            ...(prev.gameState || {}),
+            ...(payload.gameState || {}),
+            cards: payload.cards || payload.gameState?.cards || prev.gameState?.cards || [],
+            currentTurn: payload.firstTurn || payload.currentTurn || payload.gameState?.currentTurn,
+          },
+        } : prev);
+      }
       setCurrentScreen('multiplayerGame');
     });
 
@@ -131,13 +158,6 @@ export default function App() {
 
   const [selectedUniverse, setSelectedUniverse] = useState<Universe | null>(null);
   const [currentLevel, setCurrentLevel] = useState(1);
-
-  useEffect(() => {
-    if (currentRoom) {
-      const updatedRoomData = rooms.find(r => r.id === currentRoom.id);
-      setCurrentRoom(updatedRoomData || null);
-    }
-  }, [rooms]);
 
   /**
    * Restaurar sesión al abrir la app (si hay token guardado y sigue siendo válido).
@@ -304,15 +324,20 @@ export default function App() {
           currentUser={currentUser}
           onStartMode={(mode) => {
             if (mode === 'classic') {
-              setPostLoadingScreen('classicLevelSelect');
+              setCurrentScreen('classicLevelSelect');
+              return;
             } else if (mode === 'infinite') {
-              setPostLoadingScreen('infinite');
+              setCurrentScreen('infinite');
+              return;
             } else if (mode === 'challenge') {
-              setPostLoadingScreen('challenge');
+              setCurrentScreen('challenge');
+              return;
             } else if (mode === 'boss') {
-              setPostLoadingScreen('boss-select');
+              setCurrentScreen('boss-select');
+              return;
             } else if (mode === 'ai-friends') {
-              setPostLoadingScreen('ai-room-lobby');
+              setCurrentScreen('ai-room-lobby');
+              return;
             } else if (mode === 'profile') {
               setCurrentScreen('profile');
               return;
@@ -326,9 +351,9 @@ export default function App() {
               setCurrentScreen('admin');
               return;
             } else {
-              setPostLoadingScreen('menu');
+              setCurrentScreen('menu');
+              return;
             }
-            setCurrentScreen('loading');
           }}
           onLogout={handleLogout}
           userRole={currentUser.role}
@@ -429,8 +454,7 @@ export default function App() {
         <ClassicLevelSelect
           onSelectLevel={(level) => {
             setClassicLevel(level);
-            setPostLoadingScreen('classic');
-            setCurrentScreen('loading');
+            setCurrentScreen('classic');
           }}
           onBack={() => setCurrentScreen('lobby')}
         />

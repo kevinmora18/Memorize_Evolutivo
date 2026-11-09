@@ -75,7 +75,6 @@ export function MemoryCard({
 
   return (
     <motion.div
-      layout={!reduced}
       className="relative w-full h-full an-focusable"
       style={{ perspective: 900, cursor: clickable ? 'pointer' : 'default' }}
       animate={outerAnimate}

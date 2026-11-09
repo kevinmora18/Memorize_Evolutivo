@@ -222,35 +222,61 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
     return () => clearInterval(darkInterval);
   }, [phase, levelDef.dark]);
 
+  // Mantener cardsRef siempre sincronizado ante cualquier cambio de estado
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+
   // ── Tablero Vivo / Reshuffle periódico ──────────────────────────────────────
   useEffect(() => {
     if (phase !== 'playing' || !levelDef.shuffleEvery) return;
 
+    let step1Timer: ReturnType<typeof setTimeout> | null = null;
+    let step2Timer: ReturnType<typeof setTimeout> | null = null;
+
     const shuffleInterval = setInterval(() => {
-      // Advertencia 2 segundos antes
+      // No interrumpir si se está resolviendo un par o una explosión de bomba
+      if (lockRef.current) return;
+
+      // Advertencia antes de mezclar
       setShuffleWarning(true);
       playSound('https://actions.google.com/sounds/v1/alarms/beep_short.ogg', 0.3);
 
-      setTimeout(() => {
+      step1Timer = setTimeout(() => {
         setShuffleWarning(false);
+        if (lockRef.current) return;
+
         setIsShuffling(true);
         playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.4);
 
-        setTimeout(() => {
+        step2Timer = setTimeout(() => {
+          // Limpiar cualquier selección parcial para que ninguna carta quede trabada boca arriba
+          selectedRef.current = [];
+          setSelected([]);
+          setShakingIdx([]);
+          setBouncingIdx([]);
+
           setCards((prev) => {
-            const matched = prev.filter((c) => c.isMatched);
-            const unmatched = prev.filter((c) => !c.isMatched);
+            const unmatched = prev
+              .filter((c) => !c.isMatched)
+              .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
             shuffleInPlace(unmatched);
 
             let unmatchedIdx = 0;
-            return prev.map((c) => (c.isMatched ? c : unmatched[unmatchedIdx++]));
+            const nextCards = prev.map((c) => (c.isMatched ? c : unmatched[unmatchedIdx++]));
+            cardsRef.current = nextCards;
+            return nextCards;
           });
           setIsShuffling(false);
-        }, 400);
+        }, 350);
       }, 1800);
     }, levelDef.shuffleEvery);
 
-    return () => clearInterval(shuffleInterval);
+    return () => {
+      clearInterval(shuffleInterval);
+      if (step1Timer) clearTimeout(step1Timer);
+      if (step2Timer) clearTimeout(step2Timer);
+    };
   }, [phase, levelDef.shuffleEvery, playSound]);
 
   // ── Activación de Poderes ──────────────────────────────────────────────────
@@ -268,9 +294,21 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
       if (powerId === 'reveal') {
         // Destello: revela todas las cartas ocultas durante 1.5s
-        setCards((prev) => prev.map((c) => (c.isMatched ? c : { ...c, isFlipped: true })));
+        selectedRef.current = [];
+        setSelected([]);
+        setCards((prev) => {
+          const next = prev.map((c) => (c.isMatched ? c : { ...c, isFlipped: true }));
+          cardsRef.current = next;
+          return next;
+        });
         setTimeout(() => {
-          setCards((prev) => prev.map((c) => (c.isMatched ? c : { ...c, isFlipped: false })));
+          selectedRef.current = [];
+          setSelected([]);
+          setCards((prev) => {
+            const next = prev.map((c) => (c.isMatched ? c : { ...c, isFlipped: false, isHinted: false }));
+            cardsRef.current = next;
+            return next;
+          });
           playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.3);
         }, 1500);
       } else if (powerId === 'freeze') {
@@ -283,53 +321,70 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         }, 8000);
       } else if (powerId === 'hint') {
         // Brújula: resalta un par/tríada sin emparejar durante 2.5s
-        const unmatched = cards.filter((c) => !c.isMatched && !c.isBomb);
+        const unmatched = cardsRef.current.filter((c) => !c.isMatched && !c.isBomb);
         if (unmatched.length > 0) {
           const targetSymbol = unmatched[0].symbol;
-          setCards((prev) =>
-            prev.map((c) => (c.symbol === targetSymbol ? { ...c, isHinted: true } : c))
-          );
+          setCards((prev) => {
+            const next = prev.map((c) => (c.symbol === targetSymbol ? { ...c, isHinted: true } : c));
+            cardsRef.current = next;
+            return next;
+          });
           setTimeout(() => {
-            setCards((prev) => prev.map((c) => ({ ...c, isHinted: false })));
+            setCards((prev) => {
+              const next = prev.map((c) => ({ ...c, isHinted: false }));
+              cardsRef.current = next;
+              return next;
+            });
           }, 2500);
         }
       }
     },
-    [phase, unlockedPowers, usedPowers, cards, playSound]
+    [phase, unlockedPowers, usedPowers, playSound]
   );
 
   // ── Habilidades del Compañero 3D (Zorro / Gato) ─────────────────────────────
   // Revela e ilumina temporalmente un par oculto idéntico durante 2.2s
   const handleCompanionReveal = useCallback(() => {
     if (phase !== 'playing') return;
-    const unmatched = cards.filter((c) => !c.isMatched && !c.isBomb);
+    const unmatched = cardsRef.current.filter((c) => !c.isMatched && !c.isBomb);
     if (unmatched.length === 0) return;
 
     // Seleccionar un símbolo no emparejado al azar
     const uniqueSymbols = Array.from(new Set(unmatched.map((c) => c.symbol)));
     const targetSymbol = uniqueSymbols[Math.floor(Math.random() * uniqueSymbols.length)];
 
+    selectedRef.current = [];
+    setSelected([]);
+
     // Dar la vuelta a las cartas correspondientes e iluminarlas con resplandor
-    setCards((prev) =>
-      prev.map((c) =>
+    setCards((prev) => {
+      const next = prev.map((c) =>
         c.symbol === targetSymbol
           ? { ...c, isFlipped: true, isHinted: true }
-          : c
-      )
-    );
+          : c.isMatched
+          ? c
+          : { ...c, isFlipped: false }
+      );
+      cardsRef.current = next;
+      return next;
+    });
 
     playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.4);
 
     setTimeout(() => {
-      setCards((prev) =>
-        prev.map((c) =>
-          c.symbol === targetSymbol && !c.isMatched
+      selectedRef.current = [];
+      setSelected([]);
+      setCards((prev) => {
+        const next = prev.map((c) =>
+          !c.isMatched
             ? { ...c, isFlipped: false, isHinted: false }
             : { ...c, isHinted: false }
-        )
-      );
+        );
+        cardsRef.current = next;
+        return next;
+      });
     }, 2200);
-  }, [phase, cards, playSound]);
+  }, [phase, playSound]);
 
   // Congela el tiempo durante 6 segundos
   const handleCompanionFreeze = useCallback(() => {
@@ -352,12 +407,14 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       const card = currentCards[idx];
       if (!card || card.isMatched) return;
 
-      // Si el jugador hace clic en la carta que ya seleccionó:
+      // Si el jugador toca una carta que ya está seleccionada o volteada boca arriba (sin emparejar):
       // permitir deseleccionarla y voltearla boca abajo de inmediato
-      if (selectedRef.current.includes(idx)) {
+      if (selectedRef.current.includes(idx) || (card.isFlipped && !card.isMatched)) {
         selectedRef.current = selectedRef.current.filter((i) => i !== idx);
         setSelected([...selectedRef.current]);
-        const updated = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: false } : c));
+        const updated = currentCards.map((c, i) =>
+          i === idx ? { ...c, isFlipped: false, isHinted: false } : c
+        );
         cardsRef.current = updated;
         setCards(updated);
         playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.2);
@@ -374,6 +431,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       // Si es una anomalía / bomba
       if (card.isBomb) {
         lockRef.current = true;
+        const bombCardId = card.id;
         const updatedBomb = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c));
         cardsRef.current = updatedBomb;
         setCards(updatedBomb);
@@ -403,14 +461,16 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
         setTimeout(() => {
           setCards((prev) => {
-            const updated = prev.map((c, i) => {
-              if (i === idx) return { ...c, isMatched: true, isFlipped: true };
-              if (selectedRef.current.includes(i)) return { ...c, isFlipped: false };
+            const updated = prev.map((c) => {
+              if (c.id === bombCardId) return { ...c, isMatched: true, isFlipped: true, isHinted: false };
+              if (!c.isMatched) return { ...c, isFlipped: false, isHinted: false };
               return c;
             });
 
-            // Reorganizar cartas restantes por la explosión
-            const unmatched = updated.filter((c) => !c.isMatched);
+            // Reorganizar cartas restantes por la explosión (todas boca abajo)
+            const unmatched = updated
+              .filter((c) => !c.isMatched)
+              .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
             shuffleInPlace(unmatched);
             let uIdx = 0;
             const finalUpdated = updated.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
@@ -441,9 +501,12 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
       const selectedCards = newSelected.map((i) => updatedCards[i]).filter(Boolean);
       if (selectedCards.length < requiredSelection) {
+        selectedRef.current = [];
+        setSelected([]);
         lockRef.current = false;
         return;
       }
+      const selectedCardIds = new Set(selectedCards.map((c) => c.id));
       const targetSymbol = selectedCards[0].symbol;
       const isMatch = selectedCards.every((c) => c.symbol === targetSymbol);
 
@@ -481,8 +544,12 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
         setTimeout(() => {
           setCards((prev) => {
-            const updated = prev.map((c, i) =>
-              newSelected.includes(i) ? { ...c, isMatched: true, isFlipped: true } : c
+            const updated = prev.map((c) =>
+              selectedCardIds.has(c.id)
+                ? { ...c, isMatched: true, isFlipped: true, isHinted: false }
+                : c.isMatched
+                ? c
+                : { ...c, isFlipped: false, isHinted: false }
             );
             cardsRef.current = updated;
             const remaining = updated.filter((c) => !c.isMatched && !c.isBomb).length;
@@ -512,7 +579,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           setCards((prev) => {
             // Voltear boca abajo todas las cartas no emparejadas para garantizar que NINGUNA quede atascada
             const updated = prev.map((c) =>
-              c.isMatched ? c : { ...c, isFlipped: false }
+              c.isMatched ? c : { ...c, isFlipped: false, isHinted: false }
             );
             cardsRef.current = updated;
             return updated;
@@ -698,43 +765,39 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             className={`grid gap-1.5 sm:gap-2.5 w-full ${gridMaxWidthClass} justify-items-center content-center items-center my-auto`}
             style={{ gridTemplateColumns: `repeat(${levelDef.cols}, minmax(0, 1fr))` }}
           >
-            <AnimatePresence mode="popLayout">
-              {cards.map((card, idx) => (
-                <motion.div
-                  key={card.id}
-                  ref={(el) => {
-                    cardRefs.current[idx] = el;
-                  }}
-                  style={{ aspectRatio: '3/4' }}
-                  className={`w-full ${cardSizeClass} relative`}
-                  layout
-                  initial={isShuffling ? { scale: 0.8, opacity: 0.6 } : false}
-                  animate={
-                    card.isHinted
-                      ? { scale: [1, 1.08, 1], filter: 'drop-shadow(0 0 15px #E8B54A)' }
-                      : isShuffling
-                      ? { scale: 1, opacity: 1 }
-                      : {}
-                  }
-                  transition={{
-                    layout: { duration: 0.45, ease: 'easeInOut' },
-                    scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.3 },
-                  }}
-                >
-                  <MemoryCard
-                    card={card}
-                    index={idx}
-                    backUniverse={levelDef.wing}
-                    interactive={phase === 'playing'}
-                    onClick={() => handleCardClick(idx)}
-                    isShaking={shakingIdx.includes(idx)}
-                    isBouncing={bouncingIdx.includes(idx)}
-                    isExploding={explodingIdx.includes(idx)}
-                    priority={phase === 'scanning'}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {cards.map((card, idx) => (
+              <motion.div
+                key={card.id}
+                ref={(el) => {
+                  cardRefs.current[idx] = el;
+                }}
+                style={{ aspectRatio: '3/4' }}
+                className={`w-full ${cardSizeClass} relative`}
+                animate={
+                  card.isHinted
+                    ? { scale: [1, 1.06, 1], opacity: 1, filter: 'drop-shadow(0 0 15px #E8B54A)' }
+                    : isShuffling
+                    ? { scale: 0.9, opacity: 0.7, filter: 'none' }
+                    : { scale: 1, opacity: 1, filter: 'none' }
+                }
+                transition={{
+                  scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.25 },
+                  opacity: { duration: 0.25 },
+                }}
+              >
+                <MemoryCard
+                  card={card}
+                  index={idx}
+                  backUniverse={levelDef.wing}
+                  interactive={phase === 'playing'}
+                  onClick={() => handleCardClick(idx)}
+                  isShaking={shakingIdx.includes(idx)}
+                  isBouncing={bouncingIdx.includes(idx)}
+                  isExploding={explodingIdx.includes(idx)}
+                  priority={phase === 'scanning'}
+                />
+              </motion.div>
+            ))}
           </div>
 
         </div>
