@@ -52,7 +52,7 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
     // Unirse al canal de socket de la sala
     socket.emit('room:join', {
       roomId: room.id,
-      userName: currentUser.email.split('@')[0],
+      userName: currentUser.name || currentUser.email.split('@')[0],
       userLevel: currentUser.level || 1,
     });
 
@@ -108,7 +108,7 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
     if (!messageInput.trim()) return;
 
     const text = messageInput.trim();
-    const userName = currentUser.email.split('@')[0];
+    const userName = currentUser.name || currentUser.email.split('@')[0];
 
     socket.emit('chat:message', {
       roomId: room.id,

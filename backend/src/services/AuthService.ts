@@ -76,13 +76,13 @@ export class AuthService extends BaseService implements IAuthService {
   }
 
   /**
-   * Login con email + contraseña.
+   * Login con email o nombre de usuario + contraseña.
    */
-  async login(email: string, password: string): Promise<AuthResult> {
+  async login(identifier: string, password: string): Promise<AuthResult> {
     try {
-      const user = await this.userRepository.findByEmail(email);
+      const user = await this.userRepository.findByEmailOrUsername(identifier);
 
-      // Respuesta genérica: no revelar si el email existe o no.
+      // Respuesta genérica: no revelar si el usuario existe o no.
       if (!user || !user.hasPassword()) {
         throw new UnauthorizedError('Credenciales inválidas');
       }

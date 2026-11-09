@@ -189,6 +189,7 @@ export default function App() {
   const toPlayer = (user: AuthUser): Player => ({
     id: user.id,
     email: user.email,
+    name: user.username || (user.email ? user.email.split('@')[0] : 'Operador'),
     teamId: 0,
     role: user.role,
     level: user.level,

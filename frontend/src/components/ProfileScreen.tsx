@@ -33,7 +33,7 @@ export function ProfileScreen({ onBack, currentUser, currentRoom, userId }: Prof
 
   // Avatar y Nickname personalizables
   const [nickname, setNickname] = useState(() => {
-    return localStorage.getItem('operatorNickname') || (currentUser?.email ? currentUser.email.split('@')[0] : 'Operador');
+    return localStorage.getItem('operatorNickname') || currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Operador');
   });
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(nickname);

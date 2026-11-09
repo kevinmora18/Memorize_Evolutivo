@@ -62,6 +62,24 @@ export class UserRepository extends BaseRepository<User, string> {
   }
 
   /**
+   * Buscar usuario por email o nombre de usuario (sin distinción de mayúsculas/minúsculas)
+   */
+  async findByEmailOrUsername(identifier: string): Promise<User | null> {
+    const clean = identifier.trim();
+    this.log(`Buscando usuario por email o usuario: ${clean}`);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [
+          { email: { equals: clean, mode: 'insensitive' } },
+          { username: { equals: clean, mode: 'insensitive' } },
+        ],
+      },
+    });
+    return user ? this.toDomain(user) : null;
+  }
+
+  /**
    * Implementación: Crear nuevo usuario
    */
   async create(data: Partial<IUser> & { passwordHash?: string }): Promise<User> {

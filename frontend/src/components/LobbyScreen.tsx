@@ -348,10 +348,12 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
   const nextRank = getNextRank(currentRank.id);
   const progress = getProgressToNextRank(playerStats.xp);
 
-  const rawEmail = currentUser?.email || 'operador@archivo.io';
-  const operatorName = rawEmail.includes('@')
-    ? rawEmail.split('@')[0].toUpperCase()
-    : rawEmail.toUpperCase();
+  const customNickname = typeof window !== 'undefined' ? localStorage.getItem('operatorNickname') : null;
+  const operatorName = (
+    customNickname ||
+    currentUser?.name ||
+    (currentUser?.email ? currentUser.email.split('@')[0] : 'OPERADOR')
+  ).toUpperCase();
 
   const unlockedLvl = highestUnlocked(classicProgress);
   const totalStarsCount = totalStars(classicProgress);

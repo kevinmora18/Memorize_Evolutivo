@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, Sparkles, ArrowRight, Loader2, User } from 'lucide-react';
 import { apiLogin, ApiError, type AuthResponse } from '../lib/api';
 
 interface LoginScreenProps {
@@ -18,8 +18,8 @@ export function LoginScreen({ onLoginSuccess, onRegisterRedirect }: LoginScreenP
     e.preventDefault();
     setError('');
 
-    if (!email || !email.includes('@')) {
-      setError('Por favor ingresa un email válido');
+    if (!email || !email.trim()) {
+      setError('Por favor ingresa tu correo electrónico o usuario');
       return;
     }
 
@@ -30,7 +30,7 @@ export function LoginScreen({ onLoginSuccess, onRegisterRedirect }: LoginScreenP
 
     setLoading(true);
     try {
-      const auth = await apiLogin(email, password);
+      const auth = await apiLogin(email.trim(), password);
       onLoginSuccess(auth);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -159,16 +159,16 @@ export function LoginScreen({ onLoginSuccess, onRegisterRedirect }: LoginScreenP
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm text-purple-300 mb-2 font-semibold">
-                  Correo electrónico
+                  Correo electrónico o Usuario
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400/60" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400/60" />
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@email.com"
-                    autoComplete="email"
+                    placeholder="tu@email.com o tu usuario"
+                    autoComplete="username"
                     className="text-white w-full pl-12 pr-4 py-4 bg-gray-950/50 border-2 border-purple-500/30 rounded-2xl focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all placeholder:text-gray-500"
                   />
                 </div>
