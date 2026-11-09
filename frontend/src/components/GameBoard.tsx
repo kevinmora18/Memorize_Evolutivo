@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MemoryCard } from './MemoryCard';
 import type { MemoryCardData } from './MemoryCard';
@@ -33,6 +33,10 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
   const [matchedPairs, setMatchedPairs] = useState(0);
   const [moves, setMoves] = useState(0);
 
+  const lockRef = useRef(false);
+  const flippedRef = useRef<number[]>([]);
+  const cardsRef = useRef<CardType[]>([]);
+
   useEffect(() => {
     const defs = getCardsForUniverse(universe).slice(0, cardCount / 2);
     const placeholders: CardType[] = [...defs, ...defs].map((def) => ({
@@ -63,73 +67,114 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
       .sort(() => Math.random() - 0.5)
       .map((card, index) => ({ ...card, id: index }));
 
+    cardsRef.current = shuffled;
     setCards(shuffled);
     setMatchedPairs(0);
     setMoves(0);
+    flippedRef.current = [];
     setFlippedCards([]);
+    lockRef.current = false;
   }, [level, universe, cardCount]);
 
   const handleCardClick = (id: number) => {
-    const cardIndex = cards.findIndex(c => c.id === id);
+    if (lockRef.current) return;
+    const cardIndex = cardsRef.current.findIndex((c) => c.id === id);
     if (cardIndex === -1) return;
-    const clickedCard = cards[cardIndex];
+    const clickedCard = cardsRef.current[cardIndex];
 
-    if (flippedCards.length >= 2 || flippedCards.includes(id)) return;
     if (clickedCard.isMatched || clickedCard.isBroken) return;
 
+    // Si la carta ya está seleccionada en este turno, permitir voltearla de vuelta boca abajo
+    if (flippedRef.current.includes(id)) {
+      const remainingFlipped = flippedRef.current.filter((fid) => fid !== id);
+      flippedRef.current = remainingFlipped;
+      setFlippedCards(remainingFlipped);
+      const updated = cardsRef.current.map((c) => (c.id === id ? { ...c, isFlipped: false } : c));
+      cardsRef.current = updated;
+      setCards(updated);
+      return;
+    }
+
     if (clickedCard.isBomb) {
-      const newCards = [...cards];
+      lockRef.current = true;
+      const newCards = [...cardsRef.current];
       newCards[cardIndex] = { ...clickedCard, isFlipped: true, isMatched: true };
+      cardsRef.current = newCards;
       setCards(newCards);
 
       setTimeout(() => {
-        setCards(prevCards => {
-          const afterExplosion = prevCards.map(c => c.id === id ? { ...c, isBroken: true, isFlipped: true } : c);
+        setCards((prevCards) => {
+          const afterExplosion = prevCards.map((c) =>
+            c.id === id ? { ...c, isBroken: true, isFlipped: true } : c
+          );
 
-          const toShuffle = afterExplosion.filter(c => !c.isMatched && !c.isBroken);
-          const fixed = afterExplosion.filter(c => c.isMatched || c.isBroken);
+          const toShuffle = afterExplosion.filter((c) => !c.isMatched && !c.isBroken);
+          const fixed = afterExplosion.filter((c) => c.isMatched || c.isBroken);
 
           toShuffle.sort(() => Math.random() - 0.5);
 
-          return [...fixed, ...toShuffle].sort(() => Math.random() - 0.5);
+          const finalCards = [...fixed, ...toShuffle].sort(() => Math.random() - 0.5);
+          cardsRef.current = finalCards;
+          return finalCards;
         });
 
+        flippedRef.current = [];
         setFlippedCards([]);
+        lockRef.current = false;
       }, 1000);
       return;
     }
 
-    const newFlipped = [...flippedCards, id];
+    const newFlipped = [...flippedRef.current, id];
+    flippedRef.current = newFlipped;
     setFlippedCards(newFlipped);
 
-    const newCards = [...cards];
-    newCards[cardIndex].isFlipped = true;
-    setCards(newCards);
+    const updatedCards = cardsRef.current.map((c) => (c.id === id ? { ...c, isFlipped: true } : c));
+    cardsRef.current = updatedCards;
+    setCards(updatedCards);
 
     if (newFlipped.length === 2) {
-      setMoves(moves + 1);
-      const firstIndex = cards.findIndex(c => c.id === newFlipped[0]);
-      const secondIndex = cards.findIndex(c => c.id === newFlipped[1]);
+      lockRef.current = true;
+      setMoves((m) => m + 1);
+      const firstIndex = updatedCards.findIndex((c) => c.id === newFlipped[0]);
+      const secondIndex = updatedCards.findIndex((c) => c.id === newFlipped[1]);
 
-      if (cards[firstIndex].symbol === cards[secondIndex].symbol) {
+      if (
+        firstIndex !== -1 &&
+        secondIndex !== -1 &&
+        updatedCards[firstIndex].symbol === updatedCards[secondIndex].symbol
+      ) {
         setTimeout(() => {
-          setCards(prevCards => prevCards.map(c =>
-            (c.id === newFlipped[0] || c.id === newFlipped[1]) ? { ...c, isMatched: true } : c
-          ));
+          setCards((prevCards) => {
+            const updated = prevCards.map((c) =>
+              c.id === newFlipped[0] || c.id === newFlipped[1]
+                ? { ...c, isMatched: true, isFlipped: true }
+                : c
+            );
+            cardsRef.current = updated;
+            return updated;
+          });
+          flippedRef.current = [];
           setFlippedCards([]);
-          setMatchedPairs(prev => {
+          lockRef.current = false;
+          setMatchedPairs((prev) => {
             const newPairs = prev + 1;
             if (newPairs === cardCount / 2) setTimeout(() => onLevelComplete(), 1000);
             return newPairs;
           });
-        }, 800);
+        }, 600);
       } else {
         setTimeout(() => {
-          setCards(prevCards => prevCards.map(c =>
-            (c.id === newFlipped[0] || c.id === newFlipped[1]) ? { ...c, isFlipped: false } : c
-          ));
+          setCards((prevCards) => {
+            // Voltear boca abajo todas las cartas no emparejadas para evitar desincronizaciones
+            const updated = prevCards.map((c) => (c.isMatched ? c : { ...c, isFlipped: false }));
+            cardsRef.current = updated;
+            return updated;
+          });
+          flippedRef.current = [];
           setFlippedCards([]);
-        }, 1000);
+          lockRef.current = false;
+        }, 850);
       }
     }
   };

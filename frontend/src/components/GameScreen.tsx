@@ -67,6 +67,8 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
   const [isShuffling, setIsShuffling] = useState(false);
 
   const lockRef = useRef(false);
+  const selectedRef = useRef<number[]>([]);
+  const cardsRef = useRef<CardData[]>([]);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -155,7 +157,9 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       const deck = buildLevelDeck(def);
       // Fase de escaneo: cartas cara arriba
       const previewDeck = deck.map((c) => ({ ...c, isFlipped: true }));
+      cardsRef.current = previewDeck;
       setCards(previewDeck);
+      selectedRef.current = [];
       setSelected([]);
       setTimer(def.time);
       setMaxTime(def.time);
@@ -168,7 +172,11 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
       // Finalizar escaneo tras `previewMs`
       const scanTimeout = setTimeout(() => {
-        setCards((prev) => prev.map((c) => ({ ...c, isFlipped: false })));
+        setCards((prev) => {
+          const flippedDown = prev.map((c) => ({ ...c, isFlipped: false }));
+          cardsRef.current = flippedDown;
+          return flippedDown;
+        });
         setPhase('playing');
         playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.3);
       }, def.previewMs);
@@ -339,18 +347,36 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
     (idx: number) => {
       if (phase !== 'playing') return;
       if (lockRef.current) return;
-      const card = cards[idx];
-      if (!card || card.isFlipped || card.isMatched) return;
-      if (selected.includes(idx)) return;
+
+      const currentCards = cardsRef.current;
+      const card = currentCards[idx];
+      if (!card || card.isMatched) return;
+
+      // Si el jugador hace clic en la carta que ya seleccionó:
+      // permitir deseleccionarla y voltearla boca abajo de inmediato
+      if (selectedRef.current.includes(idx)) {
+        selectedRef.current = selectedRef.current.filter((i) => i !== idx);
+        setSelected([...selectedRef.current]);
+        const updated = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: false } : c));
+        cardsRef.current = updated;
+        setCards(updated);
+        playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.2);
+        return;
+      }
 
       const requiredSelection = levelDef.useTriads ? 3 : 2;
+
+      // Si ya hay la cantidad máxima seleccionada esperando resolución, ignorar
+      if (selectedRef.current.length >= requiredSelection) return;
 
       playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.25);
 
       // Si es una anomalía / bomba
       if (card.isBomb) {
         lockRef.current = true;
-        setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c)));
+        const updatedBomb = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c));
+        cardsRef.current = updatedBomb;
+        setCards(updatedBomb);
         playSound('https://actions.google.com/sounds/v1/impacts/crash.ogg', 0.5);
 
         setBombAlert(true);
@@ -378,8 +404,8 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         setTimeout(() => {
           setCards((prev) => {
             const updated = prev.map((c, i) => {
-              if (i === idx) return { ...c, isMatched: true };
-              if (selected.includes(i)) return { ...c, isFlipped: false };
+              if (i === idx) return { ...c, isMatched: true, isFlipped: true };
+              if (selectedRef.current.includes(i)) return { ...c, isFlipped: false };
               return c;
             });
 
@@ -387,8 +413,11 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             const unmatched = updated.filter((c) => !c.isMatched);
             shuffleInPlace(unmatched);
             let uIdx = 0;
-            return updated.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
+            const finalUpdated = updated.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
+            cardsRef.current = finalUpdated;
+            return finalUpdated;
           });
+          selectedRef.current = [];
           setSelected([]);
           lockRef.current = false;
         }, 900);
@@ -396,9 +425,13 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       }
 
       // Voltear carta
-      setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c)));
-      const newSelected = [...selected, idx];
+      const newSelected = [...selectedRef.current, idx];
+      selectedRef.current = newSelected;
       setSelected(newSelected);
+
+      const updatedCards = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c));
+      cardsRef.current = updatedCards;
+      setCards(updatedCards);
 
       if (newSelected.length < requiredSelection) return;
 
@@ -406,7 +439,11 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       lockRef.current = true;
       setAttempts((a) => a + 1);
 
-      const selectedCards = newSelected.map((i) => cards[i]);
+      const selectedCards = newSelected.map((i) => updatedCards[i]).filter(Boolean);
+      if (selectedCards.length < requiredSelection) {
+        lockRef.current = false;
+        return;
+      }
       const targetSymbol = selectedCards[0].symbol;
       const isMatch = selectedCards.every((c) => c.symbol === targetSymbol);
 
@@ -445,8 +482,9 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         setTimeout(() => {
           setCards((prev) => {
             const updated = prev.map((c, i) =>
-              newSelected.includes(i) ? { ...c, isMatched: true } : c
+              newSelected.includes(i) ? { ...c, isMatched: true, isFlipped: true } : c
             );
+            cardsRef.current = updated;
             const remaining = updated.filter((c) => !c.isMatched && !c.isBomb).length;
 
             if (remaining === 0) {
@@ -458,6 +496,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             }
             return updated;
           });
+          selectedRef.current = [];
           setSelected([]);
           lockRef.current = false;
         }, 600);
@@ -470,15 +509,21 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         setTimeout(() => setShakingIdx([]), 500);
 
         setTimeout(() => {
-          setCards((prev) =>
-            prev.map((c, i) => (newSelected.includes(i) ? { ...c, isFlipped: false } : c))
-          );
+          setCards((prev) => {
+            // Voltear boca abajo todas las cartas no emparejadas para garantizar que NINGUNA quede atascada
+            const updated = prev.map((c) =>
+              c.isMatched ? c : { ...c, isFlipped: false }
+            );
+            cardsRef.current = updated;
+            return updated;
+          });
+          selectedRef.current = [];
           setSelected([]);
           lockRef.current = false;
-        }, 850);
+        }, 800);
       }
     },
-    [phase, cards, selected, levelDef, combo, timer, playSound]
+    [phase, levelDef, combo, timer, playSound]
   );
 
   // Estadísticas del juego
@@ -631,16 +676,28 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           <AnimatePresence>
             {phase === 'scanning' && (
               <motion.div
-                className="absolute inset-x-0 bottom-6 flex flex-col items-center justify-center z-30 pointer-events-none"
+                className="absolute inset-x-0 bottom-6 flex flex-col items-center justify-center z-30"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="an-panel-raised px-8 py-3.5 rounded-2xl backdrop-blur-md flex flex-col items-center border border-[#1E2836] shadow-2xl">
+                <div
+                  onClick={() => {
+                    setCards((prev) => {
+                      const flippedDown = prev.map((c) => ({ ...c, isFlipped: false }));
+                      cardsRef.current = flippedDown;
+                      return flippedDown;
+                    });
+                    setPhase('playing');
+                    playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.3);
+                  }}
+                  className="an-panel-raised px-8 py-3.5 rounded-2xl backdrop-blur-md flex flex-col items-center border border-[#1E2836] shadow-2xl cursor-pointer hover:border-cyan-400/50 transition-all select-none"
+                  title="Toca para comenzar a jugar de inmediato"
+                >
                   <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#35E0C8] mb-1">
-                    FASE DE MEMORIZACIÓN
+                    FASE DE MEMORIZACIÓN · TOCA PARA INICIAR YA
                   </div>
-                  <div className="font-serif text-xl text-white mb-2 font-medium">
+                  <div className="font-serif text-base sm:text-xl text-white mb-2 font-medium">
                     Memoriza las reliquias antes de ocultarse
                   </div>
                   <div className="w-52 h-[3px] bg-[#07090F] rounded-full overflow-hidden">

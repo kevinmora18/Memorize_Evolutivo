@@ -48,7 +48,7 @@ export function MemoryCard({
   const def = card.artId ? getCardById(card.artId) : undefined;
   const accent = card.accent ?? (def ? UNIVERSE_TOKENS[def.universe].accent : UNIVERSE_TOKENS.archivo.accent);
   const revealed = card.isFlipped || card.isMatched;
-  const clickable = interactive && !card.isFlipped && !card.isMatched && !card.isBroken;
+  const clickable = interactive && !card.isMatched && !card.isBroken;
 
   const stateLabel = card.isBroken
     ? 'contención rota, fuera de juego'
