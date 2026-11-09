@@ -545,7 +545,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
           <div className="flex items-center gap-0.5 sm:gap-1 pl-1.5 sm:pl-2 border-l border-white/10">
             <button
               onClick={() => { playSfx('click'); setShowQRModal(true); }}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(53,224,200,0.2)]"
+              className="hidden sm:flex p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/30 transition-all items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(53,224,200,0.2)]"
               title="Abrir juego en Celular con Código QR"
             >
               <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
@@ -584,104 +584,172 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
       </header>
 
       {/* ──────────────── 2. Escenario Heroico Abierto del Avatar 3D + HUD Flotante ──────────────── */}
-      <main className="flex-grow flex flex-col justify-between relative z-10 w-full min-h-0 overflow-y-auto sm:overflow-hidden select-none">
+      <main className="flex-grow flex flex-col justify-between relative z-10 w-full min-h-0 overflow-hidden select-none">
         
-        {/* ── BARRA SUPERIOR DE WIDGETS FLOTANTES (Bajo el Header) ── */}
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 flex items-start justify-between pointer-events-none z-20 shrink-0">
+        {/* ── BARRA SUPERIOR DE WIDGETS Y MASCOTA (ADAPTATIVA Y SIN COLISIONES) ── */}
+        <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-6 pt-1.5 sm:pt-3 z-20 shrink-0">
           
-          {/* Lado Izquierdo: Pasiva del Compañero */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="pointer-events-auto flex flex-col gap-2 max-w-xs"
-          >
-            {/* Pasiva del Compañero */}
-            <div
-              className="px-3 py-1.5 rounded-xl border backdrop-blur-md flex items-center gap-2 bg-[#07090F]/60 text-left"
-              style={{ borderColor: `${petDef.themeColor}33` }}
-            >
-              <Shield className="w-3.5 h-3.5 shrink-0" style={{ color: petDef.themeColor }} />
-              <div className="min-w-0">
-                <span className="text-[10px] font-mono font-bold block leading-none" style={{ color: petDef.themeColor }}>
-                  {petDef.perkName}
+          {/* Versión Móvil: Fila limpia con Nombre de Mascota, Pasiva y Botón de Bono sin colisión */}
+          <div className="flex sm:hidden flex-col gap-1 items-center w-full">
+            <div className="flex items-center justify-between w-full px-1">
+              {/* Identidad de Mascota */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-[#07090F]/70 backdrop-blur-md shadow-md">
+                <span className="text-base">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
+                <span className="font-serif text-xs font-bold text-white tracking-wide truncate max-w-[85px]">
+                  {petState.nickname}
                 </span>
-                <p className="text-[9px] text-slate-400 font-mono truncate">
-                  {petDef.perkDesc}
-                </p>
+                <span className="text-[#5C6675]">•</span>
+                <span
+                  className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border"
+                  style={{
+                    color: petDef.themeColor,
+                    borderColor: `${petDef.themeColor}55`,
+                    background: `${petDef.themeColor}15`,
+                  }}
+                >
+                  Fase {petStage}
+                </span>
+                <button
+                  onClick={handleSwitchPet}
+                  className="p-0.5 rounded text-slate-400 hover:text-white cursor-pointer"
+                  title={`Alternar a ${petState.type === 'fox' ? 'Gatito 🐱' : 'Zorro 🦊'}`}
+                >
+                  <ArrowRightLeft className="w-3 h-3 text-cyan-400" />
+                </button>
+              </div>
+
+              {/* Acciones flotantes en móvil: Bono y Misiones */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleClaimDailyBonus}
+                  className={`p-1.5 rounded-xl border backdrop-blur-xl flex items-center justify-center transition-all cursor-pointer ${
+                    claimedBonus
+                      ? 'border-white/10 bg-[#07090F]/60 text-slate-400'
+                      : 'border-amber-400/50 bg-amber-500/15 text-amber-200 shadow-[0_0_15px_rgba(255,215,0,0.25)] animate-pulse'
+                  }`}
+                  title={claimedBonus ? 'Bono diario activo' : 'Reclamar Bono'}
+                >
+                  <Gift className="w-3.5 h-3.5 text-amber-400" />
+                </button>
+
+                <button
+                  onClick={() => { playSfx('click'); setShowOperationsDrawer(true); }}
+                  className="relative p-1.5 rounded-xl border border-white/10 hover:border-cyan-400/50 bg-[#07090F]/70 backdrop-blur-xl flex items-center justify-center text-white cursor-pointer"
+                  title="Misiones & Ranking"
+                >
+                  <Gamepad2 className="w-3.5 h-3.5 text-cyan-400" />
+                  {hasReadyMission && (
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping absolute -top-0.5 -right-0.5" />
+                  )}
+                </button>
               </div>
             </div>
-          </motion.div>
 
-          {/* Lado Derecho: Acciones Flotantes (Bono Diario y Misiones) */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="pointer-events-auto flex items-center gap-2"
-          >
-            {/* Bono Diario */}
-            <button
-              onClick={handleClaimDailyBonus}
-              className={`px-3.5 py-2 rounded-2xl border backdrop-blur-xl flex items-center gap-2 text-xs font-mono transition-all shadow-xl cursor-pointer ${
-                claimedBonus
-                  ? 'border-white/10 bg-[#07090F]/60 text-slate-400'
-                  : 'border-amber-400/50 bg-amber-500/15 text-amber-200 shadow-[0_0_20px_rgba(255,215,0,0.25)] hover:scale-105'
-              }`}
-              title={claimedBonus ? 'Bono reclamado hoy' : 'Haz clic para reclamar tu bono diario'}
+            {/* Pasiva del Compañero en móvil: chip compacto no invasivo */}
+            <div
+              className="px-2.5 py-0.5 rounded-full border backdrop-blur-md flex items-center gap-1.5 bg-[#07090F]/60 max-w-full text-center"
+              style={{ borderColor: `${petDef.themeColor}33` }}
             >
-              <Gift className="w-4 h-4 text-amber-400" />
-              <span className="font-bold hidden sm:inline">
-                {claimedBonus ? 'Bono Activo' : 'Reclamar Bono'}
+              <Shield className="w-2.5 h-2.5 shrink-0" style={{ color: petDef.themeColor }} />
+              <span className="text-[9px] font-mono truncate" style={{ color: petDef.themeColor }}>
+                <span className="font-bold">{petDef.perkName}:</span> {petDef.perkDesc}
               </span>
-            </button>
+            </div>
+          </div>
 
-            {/* Botón de Cajón de Misiones & Ranking */}
-            <button
-              onClick={() => { playSfx('click'); setShowOperationsDrawer(true); }}
-              className="relative px-3.5 py-2 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-[#07090F]/70 hover:bg-[#0D1119]/90 backdrop-blur-xl flex items-center gap-2 text-xs font-mono text-white transition-all shadow-xl cursor-pointer group"
-              title="Abrir Misiones y Clasificación"
+          {/* Versión Desktop: HUD Superior Clásico */}
+          <div className="hidden sm:flex items-start justify-between pointer-events-none w-full">
+            {/* Lado Izquierdo: Pasiva del Compañero */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="pointer-events-auto flex flex-col gap-2 max-w-xs"
             >
-              <Gamepad2 className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="font-bold hidden sm:inline">Misiones & Ranking</span>
-              {hasReadyMission && (
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping absolute -top-0.5 -right-0.5" />
-              )}
-            </button>
-          </motion.div>
+              <div
+                className="px-3 py-1.5 rounded-xl border backdrop-blur-md flex items-center gap-2 bg-[#07090F]/60 text-left"
+                style={{ borderColor: `${petDef.themeColor}33` }}
+              >
+                <Shield className="w-3.5 h-3.5 shrink-0" style={{ color: petDef.themeColor }} />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-mono font-bold block leading-none" style={{ color: petDef.themeColor }}>
+                    {petDef.perkName}
+                  </span>
+                  <p className="text-[9px] text-slate-400 font-mono truncate">
+                    {petDef.perkDesc}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Centro: Identidad Flotante del Compañero en Desktop */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="pointer-events-auto flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#07090F]/60 backdrop-blur-md shadow-lg"
+            >
+              <span className="text-xl">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
+              <span className="font-serif text-sm font-bold text-white tracking-wide">
+                {petState.nickname}
+              </span>
+              <span className="text-[#5C6675]">•</span>
+              <span
+                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border"
+                style={{
+                  color: petDef.themeColor,
+                  borderColor: `${petDef.themeColor}55`,
+                  background: `${petDef.themeColor}15`,
+                }}
+              >
+                Fase {petStage}: {petStageInfo.title}
+              </span>
+              <button
+                onClick={handleSwitchPet}
+                className="ml-1 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title={`Alternar a ${petState.type === 'fox' ? 'Gatito 🐱' : 'Zorro 🦊'}`}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
+              </button>
+            </motion.div>
+
+            {/* Lado Derecho: Acciones Flotantes en Desktop */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="pointer-events-auto flex items-center gap-2"
+            >
+              <button
+                onClick={handleClaimDailyBonus}
+                className={`px-3.5 py-2 rounded-2xl border backdrop-blur-xl flex items-center gap-2 text-xs font-mono transition-all shadow-xl cursor-pointer ${
+                  claimedBonus
+                    ? 'border-white/10 bg-[#07090F]/60 text-slate-400'
+                    : 'border-amber-400/50 bg-amber-500/15 text-amber-200 shadow-[0_0_20px_rgba(255,215,0,0.25)] hover:scale-105'
+                }`}
+                title={claimedBonus ? 'Bono reclamado hoy' : 'Haz clic para reclamar tu bono diario'}
+              >
+                <Gift className="w-4 h-4 text-amber-400" />
+                <span className="font-bold">
+                  {claimedBonus ? 'Bono Activo' : 'Reclamar Bono'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => { playSfx('click'); setShowOperationsDrawer(true); }}
+                className="relative px-3.5 py-2 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-[#07090F]/70 hover:bg-[#0D1119]/90 backdrop-blur-xl flex items-center gap-2 text-xs font-mono text-white transition-all shadow-xl cursor-pointer group"
+                title="Abrir Misiones y Clasificación"
+              >
+                <Gamepad2 className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span className="font-bold">Misiones & Ranking</span>
+                {hasReadyMission && (
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping absolute -top-0.5 -right-0.5" />
+                )}
+              </button>
+            </motion.div>
+          </div>
         </div>
 
         {/* ── ÁREA CENTRAL HEROICA: EL AVATAR 3D LIBRE EN EL ESCENARIO ── */}
-        <div className="relative flex-1 w-full flex flex-col items-center justify-center my-auto min-h-0 pointer-events-auto">
+        <div className="relative flex-1 w-full flex flex-col items-center justify-center my-auto min-h-0 pointer-events-auto overflow-hidden">
           
-          {/* Identidad Flotante del Compañero (posicionada arriba con holgura para no tapar orejas) */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#07090F]/60 backdrop-blur-md shadow-lg -mt-3 sm:-mt-5 mb-4 sm:mb-6"
-          >
-            <span className="text-xl">{petState.type === 'cat' ? '🐱' : '🦊'}</span>
-            <span className="font-serif text-sm font-bold text-white tracking-wide">
-              {petState.nickname}
-            </span>
-            <span className="text-[#5C6675]">•</span>
-            <span
-              className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border"
-              style={{
-                color: petDef.themeColor,
-                borderColor: `${petDef.themeColor}55`,
-                background: `${petDef.themeColor}15`,
-              }}
-            >
-              Fase {petStage}: {petStageInfo.title}
-            </span>
-            <button
-              onClick={handleSwitchPet}
-              className="ml-1 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title={`Alternar a ${petState.type === 'fox' ? 'Gatito 🐱' : 'Zorro 🦊'}`}
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-            </button>
-          </motion.div>
-
           {/* Globo de diálogo flotante al interactuar */}
           <AnimatePresence>
             {petQuote && (
@@ -689,7 +757,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                 initial={{ opacity: 0, y: 15, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                className="absolute top-12 sm:top-14 z-30 px-5 py-2.5 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-sm text-center"
+                className="absolute top-2 sm:top-14 z-30 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl border text-xs font-medium text-white shadow-2xl max-w-xs sm:max-w-sm text-center"
                 style={{
                   borderColor: petDef.themeColor,
                   background: 'rgba(8, 12, 22, 0.95)',
@@ -701,8 +769,8 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
             )}
           </AnimatePresence>
 
-          {/* Canvas 3D a tamaño heroico (100% libre, sin contenedor negro opaco) */}
-          <div className="w-full flex-1 max-w-4xl min-h-[220px] sm:min-h-[340px] md:min-h-[400px] max-h-[540px] flex items-center justify-center relative select-none">
+          {/* Canvas 3D adaptativo para que nunca apriete en pantallas de teléfono */}
+          <div className="w-full flex-1 max-w-4xl min-h-[140px] sm:min-h-[280px] md:min-h-[380px] max-h-[36vh] sm:max-h-[500px] flex items-center justify-center relative select-none">
             <PetCanvas3D
               petType={petState.type}
               level={petState.level}
@@ -714,28 +782,28 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
           </div>
 
           {/* Pista interactiva debajo del pedestal */}
-          <span className="text-[10px] font-mono text-slate-400/80 -mt-2 mb-1 pointer-events-none tracking-wider uppercase">
-            Haz clic en el animal para interactuar
+          <span className="text-[9px] sm:text-[10px] font-mono text-slate-400/80 -mt-1 sm:-mt-2 mb-0.5 sm:mb-1 pointer-events-none tracking-wider uppercase">
+            Toca el animal para interactuar
           </span>
         </div>
 
         {/* ── DOCK INFERIOR DE COMBATE (FLOTANTE ESTILO AAA) ── */}
-        <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 pb-3 sm:pb-4 z-20 shrink-0">
-          <div className="rounded-3xl border border-white/10 bg-[#07090F]/75 backdrop-blur-2xl p-3 sm:p-4 shadow-2xl flex flex-col gap-2.5 sm:gap-3 transition-all">
+        <div className="w-full max-w-5xl mx-auto px-2 sm:px-6 pb-2 sm:pb-4 z-20 shrink-0">
+          <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-[#07090F]/80 backdrop-blur-2xl p-2 sm:p-4 shadow-2xl flex flex-col gap-1.5 sm:gap-3 transition-all">
             
             {/* Fila 1: Progreso Evolutivo y Botón de Alimentar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-1">
-              <div className="flex-1 w-full sm:w-auto">
-                <div className="flex justify-between items-center text-[11px] font-mono mb-1">
-                  <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5" style={{ color: petDef.themeColor }} />
-                    Progreso a Fase {petStage < 3 ? petStage + 1 : 'Máxima'}
+            <div className="flex flex-row items-center justify-between gap-2 px-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center text-[10px] sm:text-[11px] font-mono mb-0.5 sm:mb-1">
+                  <span className="text-slate-300 font-bold flex items-center gap-1 truncate">
+                    <Award className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color: petDef.themeColor }} />
+                    <span className="truncate">Progreso a Fase {petStage < 3 ? petStage + 1 : 'Máx'}</span>
                   </span>
-                  <span className="text-slate-400 font-mono text-[10px]">
-                    {petState.xp} / {petXpNeeded} XP ({petXpProgress}%)
+                  <span className="text-slate-400 font-mono text-[9px] sm:text-[10px] shrink-0 ml-1">
+                    {petState.xp}/{petXpNeeded} XP ({petXpProgress}%)
                   </span>
                 </div>
-                <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
+                <div className="w-full h-1 sm:h-1.5 rounded-full overflow-hidden bg-white/10">
                   <motion.div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
@@ -749,7 +817,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
               {/* Botón de Alimentar con Cerebritos */}
               <button
                 onClick={() => handleFeedPet(10)}
-                className="w-full sm:w-auto px-4 py-1.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                className="px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-mono text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:scale-105 active:scale-95 cursor-pointer shrink-0"
                 style={{
                   background:
                     petState.brains >= 10
@@ -759,13 +827,13 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                   boxShadow: petState.brains >= 10 ? `0 0 16px ${petDef.glowColor}` : 'none',
                 }}
               >
-                <Brain className="w-3.5 h-3.5" />
+                <Brain className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>Alimentar (-10 🧠)</span>
               </button>
             </div>
 
             {/* Fila 2: Selector de Modos de Juego (Píldoras Flotantes) */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
               {MODES.map((item) => {
                 const isSelected = selectedModeKey === item.mode;
                 const IconComp = item.icon;
@@ -782,7 +850,7 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                       playSfx('launch');
                       onStartMode(item.mode);
                     }}
-                    className="rounded-2xl p-2 sm:p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer last:col-span-2 sm:last:col-span-1"
+                    className="rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 text-center transition-all duration-200 border relative overflow-hidden group cursor-pointer last:col-span-2 sm:last:col-span-1"
                     style={{
                       background: isSelected
                         ? 'linear-gradient(180deg, rgba(20, 30, 48, 0.95) 0%, rgba(10, 15, 26, 0.95) 100%)'
@@ -793,22 +861,22 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                     }}
                   >
                     <div
-                      className="w-6 h-6 sm:w-7 sm:h-7 mx-auto rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 mb-1"
+                      className="w-5 h-5 sm:w-7 sm:h-7 mx-auto rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 mb-0.5 sm:mb-1"
                       style={{
                         background: isSelected ? item.color : 'rgba(255, 255, 255, 0.05)',
                         color: isSelected ? '#000000' : item.color,
                       }}
                     >
-                      <IconComp className="w-3.5 h-3.5" />
+                      <IconComp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </div>
 
-                    <h3 className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
+                    <h3 className="text-[10px] sm:text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
                       {item.title}
                     </h3>
 
                     {isSelected && (
                       <div
-                        className="absolute bottom-0 left-0 right-0 h-1"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1"
                         style={{ background: item.color }}
                       />
                     )}
@@ -823,15 +891,15 @@ export function LobbyScreen({ onStartMode, onLogout, userRole, userId, currentUs
                 playSfx('launch');
                 onStartMode(activeMode.mode);
               }}
-              className="w-full py-3 sm:py-3.5 px-6 rounded-2xl font-mono text-sm sm:text-base font-bold tracking-wider uppercase text-black flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl group cursor-pointer"
+              className="w-full py-2.5 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-mono text-xs sm:text-base font-bold tracking-wider uppercase text-black flex items-center justify-center gap-2 sm:gap-3 transition-all hover:scale-[1.01] active:scale-[0.98] shadow-2xl group cursor-pointer"
               style={{
                 background: `linear-gradient(135deg, ${activeMode.color} 0%, #FFFFFF 100%)`,
                 boxShadow: `0 0 30px ${activeMode.glowColor}`,
               }}
             >
-              <Play className="w-5 h-5 fill-black group-hover:translate-x-0.5 transition-transform" />
-              <span>JUGAR: {activeMode.title.toUpperCase()}</span>
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-black group-hover:translate-x-0.5 transition-transform" />
+              <span className="truncate">JUGAR: {activeMode.title.toUpperCase()}</span>
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>

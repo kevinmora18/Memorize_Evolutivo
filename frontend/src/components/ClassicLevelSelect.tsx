@@ -144,76 +144,98 @@ export function ClassicLevelSelect({ onSelectLevel, onBack }: ClassicLevelSelect
         />
       )}
 
-      {/* HEADER SUPERIOR */}
-      <header className="relative z-20 px-6 py-4 flex items-center justify-between border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/75">
-        <div className="flex items-center gap-3">
-          {viewMode === 'worlds' ? (
-            <button
-              onClick={onBack}
-              className="an-focusable flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#35E0C8]/50 transition-all group cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              <span className="font-mono text-xs uppercase tracking-widest">Lobby</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.2);
-                setViewMode('worlds');
-              }}
-              className="an-focusable flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#0D1119]/90 text-[#35E0C8] hover:bg-[#35E0C8]/10 hover:border-[#35E0C8] transition-all group cursor-pointer shadow-[0_0_15px_rgba(53,224,200,0.15)]"
-            >
-              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              <span className="font-mono text-xs uppercase tracking-widest font-bold">Atlas de Mundos</span>
-            </button>
-          )}
+      {/* HEADER SUPERIOR RESPONSIVE */}
+      <header className="relative z-20 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-[#1E2836]/70 backdrop-blur-md bg-[#07090F]/85">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+          
+          {/* Fila superior en móvil: Botón Volver + Badges de Progreso */}
+          <div className="w-full sm:w-auto flex items-center justify-between gap-3">
+            {viewMode === 'worlds' ? (
+              <button
+                onClick={onBack}
+                className="an-focusable flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1E2836] bg-[#0D1119]/80 text-[#9AA3B2] hover:text-[#E8E6DF] hover:border-[#35E0C8]/50 transition-all group cursor-pointer text-xs"
+              >
+                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                <span className="font-mono text-[11px] sm:text-xs uppercase tracking-widest font-semibold">Lobby</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.2);
+                  setViewMode('worlds');
+                }}
+                className="an-focusable flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#0D1119]/90 text-[#35E0C8] hover:bg-[#35E0C8]/10 hover:border-[#35E0C8] transition-all group cursor-pointer text-xs shadow-[0_0_15px_rgba(53,224,200,0.15)]"
+              >
+                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                <span className="font-mono text-[11px] sm:text-xs uppercase tracking-widest font-bold">Atlas de Mundos</span>
+              </button>
+            )}
 
-          {viewMode === 'path' && (
-            <div className="hidden sm:flex items-center gap-2 font-mono text-xs text-[#9AA3B2]">
-              <span>/</span>
-              <span className="text-white font-medium">{activeWing.name}</span>
+            {viewMode === 'path' && (
+              <div className="hidden sm:flex items-center gap-2 font-mono text-xs text-[#9AA3B2]">
+                <span>/</span>
+                <span className="text-white font-medium">{activeWing.name}</span>
+              </div>
+            )}
+
+            {/* En móvil: badge de estrellas a la derecha de la fila superior para evitar colisión */}
+            <div className="flex sm:hidden items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E8B54A]/40 bg-[#0D1119]/90 shadow-[0_0_12px_rgba(232,181,74,0.15)]"
+                title={`${totalStarsCount} de ${MAX_STARS} estrellas`}
+              >
+                <Star className="w-3.5 h-3.5 text-[#E8B54A] fill-[#E8B54A]" />
+                <span className="font-mono text-[11px] font-semibold text-[#E8B54A]">
+                  {totalStarsCount} / {MAX_STARS}
+                </span>
+              </div>
+              {progress.crown && (
+                <div className="p-1 rounded-lg border border-[#E8B54A] bg-[#E8B54A]/10 text-[#E8B54A]">
+                  <Crown className="w-3.5 h-3.5" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Título Central */}
-        <div className="text-center">
-          <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-[#35E0C8] flex items-center justify-center gap-2">
-            <span>EXPEDICIÓN DEL ARCHIVO</span>
-            <span>//</span>
-            <span>{viewMode === 'worlds' ? 'LOS 5 REINOS' : `ALA ${activeWing.roman}`}</span>
-          </div>
-          <h1 className="font-serif text-2xl tracking-wide text-white drop-shadow-md">
-            {viewMode === 'worlds' ? 'Selector de Mundos' : activeWing.name}
-          </h1>
-        </div>
-
-        {/* Badges de progreso */}
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E8B54A]/40 bg-[#0D1119]/80 shadow-[0_0_15px_rgba(232,181,74,0.1)]"
-            title={`${totalStarsCount} de ${MAX_STARS} estrellas conseguidas`}
-          >
-            <Star className="w-4 h-4 text-[#E8B54A] fill-[#E8B54A]" />
-            <span className="font-mono text-xs font-semibold text-[#E8B54A]">
-              {totalStarsCount} / {MAX_STARS}
-            </span>
           </div>
 
-          {progress.crown && (
+          {/* Título Central */}
+          <div className="text-center w-full sm:w-auto">
+            <div className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] sm:tracking-[0.3em] uppercase text-[#35E0C8] flex items-center justify-center gap-1.5 sm:gap-2">
+              <span>EXPEDICIÓN DEL ARCHIVO</span>
+              <span>//</span>
+              <span>{viewMode === 'worlds' ? 'LOS 5 REINOS' : `ALA ${activeWing.roman}`}</span>
+            </div>
+            <h1 className="font-serif text-base sm:text-2xl tracking-wide text-white drop-shadow-md leading-tight mt-0.5">
+              {viewMode === 'worlds' ? 'Selector de Mundos' : activeWing.name}
+            </h1>
+          </div>
+
+          {/* Badges de progreso (Versión Desktop) */}
+          <div className="hidden sm:flex items-center gap-3">
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E8B54A] bg-[#E8B54A]/10 text-[#E8B54A]"
-              title="¡Corona del Archivo conseguida!"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E8B54A]/40 bg-[#0D1119]/80 shadow-[0_0_15px_rgba(232,181,74,0.1)]"
+              title={`${totalStarsCount} de ${MAX_STARS} estrellas conseguidas`}
             >
-              <Crown className="w-4 h-4" />
-              <span className="font-mono text-xs font-bold tracking-wider hidden sm:inline">CORONADO</span>
+              <Star className="w-4 h-4 text-[#E8B54A] fill-[#E8B54A]" />
+              <span className="font-mono text-xs font-semibold text-[#E8B54A]">
+                {totalStarsCount} / {MAX_STARS}
+              </span>
             </div>
-          )}
+
+            {progress.crown && (
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E8B54A] bg-[#E8B54A]/10 text-[#E8B54A]"
+                title="¡Corona del Archivo conseguida!"
+              >
+                <Crown className="w-4 h-4" />
+                <span className="font-mono text-xs font-bold tracking-wider hidden sm:inline">CORONADO</span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="relative z-10 flex-1 px-4 py-6 max-w-7xl mx-auto w-full flex flex-col justify-between overflow-y-auto an-scroll">
+      <main className="relative z-10 flex-1 px-3 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto w-full flex flex-col justify-between overflow-y-auto an-scroll">
         <AnimatePresence mode="wait">
           {/* ==================================================================== */}
           {/* VISTA 1: SELECTOR DE MUNDOS (ATLAS DE LOS 5 REINOS)                 */}
@@ -225,12 +247,12 @@ export function ClassicLevelSelect({ onSelectLevel, onBack }: ClassicLevelSelect
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.3 }}
-              className="flex-1 flex flex-col justify-between gap-6"
+              className="flex-1 flex flex-col justify-between gap-4 sm:gap-6"
             >
               {/* Encabezado descriptivo */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#1E2836]/50 pb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 border-b border-[#1E2836]/50 pb-3 sm:pb-4">
                 <div>
-                  <h2 className="font-serif text-xl sm:text-2xl text-white">
+                  <h2 className="font-serif text-lg sm:text-2xl text-white">
                     Elige un Reino para tu Incursión
                   </h2>
                   <p className="text-xs sm:text-sm text-[#9AA3B2] mt-0.5">
@@ -241,7 +263,7 @@ export function ClassicLevelSelect({ onSelectLevel, onBack }: ClassicLevelSelect
                 {/* Acceso rápido al nivel más alto disponible */}
                 <button
                   onClick={() => handleOpenWorld(WING_BY_ID[highestLevelDef.wing])}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#35E0C8]/20 to-[#2BE08F]/20 border border-[#35E0C8]/50 text-[#35E0C8] hover:border-[#35E0C8] hover:shadow-[0_0_20px_rgba(53,224,200,0.3)] transition-all flex items-center gap-2 cursor-pointer font-mono text-xs uppercase tracking-wider font-semibold"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#35E0C8]/20 to-[#2BE08F]/20 border border-[#35E0C8]/50 text-[#35E0C8] hover:border-[#35E0C8] hover:shadow-[0_0_20px_rgba(53,224,200,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer font-mono text-xs uppercase tracking-wider font-semibold shrink-0"
                 >
                   <span>Continuar Nivel {highest} ({highestLevelDef.title})</span>
                   <ArrowRight className="w-4 h-4" />
