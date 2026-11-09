@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Bot, Trophy, Zap, Brain } from 'lucide-react';
+import { ArrowLeft, Users, Bot, Trophy, Zap, Brain, Sparkles, Layers } from 'lucide-react';
 
 interface Card {
   id: number;
@@ -24,6 +24,82 @@ interface AIFriendsGameProps {
   onBackToLobby: () => void;
 }
 
+export interface AICardMeta {
+  title: string;
+  image: string;
+  category: string;
+  color: string;
+}
+
+export const AI_GAME_CARDS_META: Record<string, AICardMeta> = {
+  // Tríada 1: Ciclo Vital Vegetal
+  '🌞': { title: 'Sol Primigenio', image: '/cards/triads/eco-sol.webp', category: 'Ecosistema', color: '#FFB800' },
+  '🌱': { title: 'Semilla Lumínica', image: '/cards/triads/eco-semilla.webp', category: 'Ecosistema', color: '#2BE08F' },
+  '🌳': { title: 'Árbol Ancestral', image: '/cards/triads/eco-arbol.webp', category: 'Ecosistema', color: '#2BE08F' },
+
+  // Tríada 2: Polinización y Producción
+  '🐝': { title: 'Abeja Centinela', image: '/cards/triads/eco-abeja.webp', category: 'Ecosistema', color: '#E8B54A' },
+  '🌸': { title: 'Flor de Loto', image: '/cards/triads/eco-flor.webp', category: 'Ecosistema', color: '#FF6B8B' },
+  '🍯': { title: 'Néctar Dorado', image: '/cards/triads/eco-miel.webp', category: 'Ecosistema', color: '#E8B54A' },
+
+  // Tríada 3: Ciclo del Agua
+  '☁️': { title: 'Vapor Celeste', image: '/cards/triads/eco-nube.webp', category: 'Ecosistema', color: '#35E0C8' },
+  '💧': { title: 'Gota de Cristal', image: '/cards/triads/eco-gota.webp', category: 'Ecosistema', color: '#35E0C8' },
+  '🌊': { title: 'Masa Oceánica', image: '/cards/triads/eco-oceano.webp', category: 'Ecosistema', color: '#35E0C8' },
+
+  // Tríada 4: Metamorfosis
+  '🥚': { title: 'Génesis Vital', image: '/cards/triads/eco-huevo.webp', category: 'Ecosistema', color: '#2BE08F' },
+  '🐛': { title: 'Oruga Primordial', image: '/cards/triads/eco-oruga.webp', category: 'Ecosistema', color: '#2BE08F' },
+  '🦋': { title: 'Mariposa Astral', image: '/cards/triads/eco-mariposa.webp', category: 'Ecosistema', color: '#B79CFF' },
+
+  // Tríada 5: Elementos - Fuego
+  '🔥': { title: 'Chispa Ancestral', image: '/cards/triads/ele-chispa.webp', category: 'Elementos', color: '#FF6B35' },
+  '🌋': { title: 'Llama Sagrada', image: '/cards/triads/ele-llama.webp', category: 'Elementos', color: '#FF4D5E' },
+  '🪨': { title: 'Magma Viviente', image: '/cards/triads/ele-inferno.webp', category: 'Elementos', color: '#E8B54A' },
+
+  // Tríada 6: Tecnología - Inteligencia
+  '💾': { title: 'Microchip Cuántico', image: '/cards/triads/tec-chip.webp', category: 'Tecnología', color: '#2BE08F' },
+  '🧠': { title: 'Matriz de IA', image: '/cards/triads/tec-ia.webp', category: 'Tecnología', color: '#35E0C8' },
+  '🤖': { title: 'Androide Centinela', image: '/cards/triads/tec-androide.webp', category: 'Tecnología', color: '#B79CFF' },
+
+  // Tríada 7: Ciencia - Materia y Reacción
+  '⚛️': { title: 'Átomo Cuántico', image: '/cards/triads/cie-atomo.webp', category: 'Ciencia', color: '#35E0C8' },
+  '🔬': { title: 'Molécula Primaria', image: '/cards/triads/cie-molecula.webp', category: 'Ciencia', color: '#35E0C8' },
+  '✨': { title: 'Reacción Nuclear', image: '/cards/triads/cie-reaccion.webp', category: 'Ciencia', color: '#FFB800' },
+
+  // Tríada 8: Humanidad y Progreso
+  '📜': { title: 'Papiro del Saber', image: '/cards/triads/hum-papiro.webp', category: 'Humanidad', color: '#E8B54A' },
+  '⚙️': { title: 'Engranaje Industrial', image: '/cards/triads/hum-engranaje.webp', category: 'Humanidad', color: '#9AA3B2' },
+  '🚀': { title: 'Cohete Astral', image: '/cards/triads/hum-cohete.webp', category: 'Humanidad', color: '#35E0C8' },
+
+  // Parejas / Símbolos de Conexiones
+  '🐟': { title: 'Organismo Marino', image: '/cards/triads/cie-organismo.webp', category: 'Ecosistema', color: '#35E0C8' },
+  '🍃': { title: 'Brisa de Follaje', image: '/cards/triads/ele-brisa.webp', category: 'Ecosistema', color: '#2BE08F' },
+  '🌻': { title: 'Espiga Dorada', image: '/cards/triads/hum-espiga.webp', category: 'Ecosistema', color: '#FFB800' },
+  '🍂': { title: 'Hoz de Cosecha', image: '/cards/triads/hum-hoz.webp', category: 'Humanidad', color: '#E8B54A' },
+  '🌧️': { title: 'Tempestad Glacial', image: '/cards/triads/ele-tempestad-hielo.webp', category: 'Elementos', color: '#35E0C8' },
+
+  // Clásico (Pares)
+  '🌟': { title: 'Estrella Naciente', image: '/cards/triads/cie-estrella.webp', category: 'Ciencia', color: '#FFB800' },
+  '🎮': { title: 'Microchip Cuántico', image: '/cards/triads/tec-chip.webp', category: 'Tecnología', color: '#2BE08F' },
+  '💎': { title: 'Glaciar Eterno', image: '/cards/triads/ele-glaciar.webp', category: 'Elementos', color: '#35E0C8' },
+  '⚡': { title: 'Centella Espectral', image: '/cards/triads/ele-centella.webp', category: 'Elementos', color: '#B79CFF' },
+  '🌈': { title: 'Supernova Astral', image: '/cards/triads/cie-supernova.webp', category: 'Ciencia', color: '#FF4D5E' },
+  '🎯': { title: 'Red de Enlace', image: '/cards/triads/tec-red.webp', category: 'Tecnología', color: '#35E0C8' },
+};
+
+export function getAICardMeta(val: string): AICardMeta {
+  if (AI_GAME_CARDS_META[val]) {
+    return AI_GAME_CARDS_META[val];
+  }
+  return {
+    title: val || 'Eslabón Neural',
+    image: '/cards/triads/eco-sol.webp',
+    category: 'Ecosistema',
+    color: '#35E0C8',
+  };
+}
+
 const GAME_MODES = {
   classic: {
     name: 'Clásico',
@@ -36,13 +112,13 @@ const GAME_MODES = {
     name: 'Conexiones',
     pairs: [
       { id: 1, symbols: ['🐝', '🍯'], relation: 'Abeja produce miel' },
-      { id: 2, symbols: ['🐟', '🌊'], relation: 'Pez vive en océano' },
-      { id: 3, symbols: ['🌳', '🍃'], relation: 'Árbol tiene hojas' },
-      { id: 4, symbols: ['☁️', '💧'], relation: 'Nube trae lluvia' },
+      { id: 2, symbols: ['🐟', '🌊'], relation: 'Organismo vive en océano' },
+      { id: 3, symbols: ['🌳', '🍃'], relation: 'Árbol genera hojas y sombra' },
+      { id: 4, symbols: ['☁️', '💧'], relation: 'Nube condensa lluvia' },
       { id: 5, symbols: ['🌸', '🦋'], relation: 'Flor atrae mariposa' },
-      { id: 6, symbols: ['🌞', '🌻'], relation: 'Sol nutre girasol' },
-      { id: 7, symbols: ['🐛', '🍂'], relation: 'Oruga come hoja' },
-      { id: 8, symbols: ['🌱', '🌧️'], relation: 'Semilla necesita lluvia' },
+      { id: 6, symbols: ['🌞', '🌻'], relation: 'Sol nutre espiga' },
+      { id: 7, symbols: ['🐛', '🥚'], relation: 'Huevo eclosiona en oruga' },
+      { id: 8, symbols: ['🌱', '🌧️'], relation: 'Semilla brota con lluvia' },
     ],
     description: 'Encuentra parejas relacionadas',
     cardsPerMatch: 2,
@@ -57,6 +133,10 @@ const GAME_MODES = {
       { id: 2, symbols: ['🐝', '🌸', '🍯'], relation: 'Abeja → Flor → Miel' },
       { id: 3, symbols: ['☁️', '💧', '🌊'], relation: 'Nube → Lluvia → Océano' },
       { id: 4, symbols: ['🥚', '🐛', '🦋'], relation: 'Huevo → Oruga → Mariposa' },
+      { id: 5, symbols: ['🔥', '🌋', '🪨'], relation: 'Chispa → Llama → Magma' },
+      { id: 6, symbols: ['💾', '🧠', '🤖'], relation: 'Microchip → Red IA → Androide' },
+      { id: 7, symbols: ['⚛️', '🔬', '✨'], relation: 'Átomo → Molécula → Reacción' },
+      { id: 8, symbols: ['📜', '⚙️', '🚀'], relation: 'Papiro → Engranaje → Cohete' },
     ],
     description: 'Encuentra tríos conectados',
     cardsPerMatch: 3,
@@ -74,8 +154,11 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
   const cardCount = parseInt(localStorage.getItem('aiFriendsCardCount') || '4');
   const modeConfig = GAME_MODES[gameMode];
 
+  const customNickname = typeof window !== 'undefined' ? localStorage.getItem('operatorNickname') : null;
+  const myPlayerName = customNickname || 'Tú';
+
   const [players] = useState<Player[]>([
-    { id: 1, name: 'Tú', isAI: false, score: 0, avatar: '👤', color: 'cyan' },
+    { id: 1, name: myPlayerName, isAI: false, score: 0, avatar: '👤', color: 'cyan' },
     { id: 2, name: 'NeuroBot Alpha', isAI: true, score: 0, avatar: '🤖', color: 'purple' },
     { id: 3, name: 'SynapticAI', isAI: true, score: 0, avatar: '🧠', color: 'green' },
     { id: 4, name: 'MemoryCore', isAI: true, score: 0, avatar: '⚡', color: 'orange' },
@@ -568,39 +651,90 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
       </AnimatePresence>
 
       {/* Game Board */}
-      <div className="flex justify-center mb-8 relative z-10">
+      <div className="flex justify-center mb-8 relative z-10 w-full max-w-4xl mx-auto px-2">
         <div
-          className={`grid gap-2 ${
-            cards.length <= 16 ? 'grid-cols-4' : 'grid-cols-6'
+          className={`grid gap-2 sm:gap-3 w-full ${
+            cards.length <= 12
+              ? 'grid-cols-3 sm:grid-cols-4 max-w-2xl'
+              : cards.length <= 16
+              ? 'grid-cols-4 max-w-3xl'
+              : 'grid-cols-4 sm:grid-cols-6 max-w-4xl'
           }`}
         >
-          {cards.map((card, index) => (
-            <motion.div
-              key={card.id}
-              className={`w-24 h-24 rounded-xl cursor-pointer ${
-                card.isMatched
-                  ? 'bg-green-500/20 border-2 border-green-400'
-                  : card.isFlipped
-                  ? 'bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border-2 border-cyan-400'
-                  : 'bg-gray-800/50 border-2 border-gray-700 hover:border-gray-600'
-              } flex items-center justify-center text-4xl transition-all`}
-              onClick={() => handleCardClick(index)}
-              whileHover={
-                !card.isFlipped && !card.isMatched && !players[currentPlayerIndex].isAI && gamePhase === 'playing'
-                  ? { scale: 1.05 }
-                  : {}
-              }
-              whileTap={
-                !card.isFlipped && !card.isMatched && !players[currentPlayerIndex].isAI && gamePhase === 'playing'
-                  ? { scale: 0.95 }
-                  : {}
-              }
-              animate={card.isFlipped || card.isMatched ? { rotateY: 180 } : { rotateY: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {card.isFlipped || card.isMatched ? card.value : '?'}
-            </motion.div>
-          ))}
+          {cards.map((card, index) => {
+            const meta = getAICardMeta(card.value);
+            const isRevealed = card.isFlipped || card.isMatched;
+            const isMyTurn = !players[currentPlayerIndex].isAI && gamePhase === 'playing';
+
+            return (
+              <motion.div
+                key={card.id}
+                whileHover={!isRevealed && isMyTurn ? { scale: 1.04, y: -2 } : {}}
+                whileTap={!isRevealed && isMyTurn ? { scale: 0.96 } : {}}
+                onClick={() => handleCardClick(index)}
+                className={`aspect-[3/4] rounded-xl sm:rounded-2xl relative cursor-pointer select-none transition-all duration-300 ${
+                  !isMyTurn && !isRevealed ? 'opacity-85' : ''
+                }`}
+                style={{ perspective: 1000 }}
+              >
+                <div
+                  className={`w-full h-full rounded-xl sm:rounded-2xl transition-transform duration-500 relative shadow-lg ${
+                    isRevealed
+                      ? card.isMatched
+                        ? 'border-2 border-[#2BE08F] bg-[#13221B] shadow-[0_0_15px_rgba(43,224,143,0.35)]'
+                        : 'border-2 border-[#35E0C8] bg-[#131A26] shadow-[0_0_15px_rgba(53,224,200,0.35)]'
+                      : 'border border-[#1E2836] bg-gradient-to-br from-[#0D1119] to-[#151D2A] hover:border-[#35E0C8]/60 hover:shadow-[0_0_12px_rgba(53,224,200,0.2)]'
+                  }`}
+                >
+                  {isRevealed ? (
+                    /* Cara frontal ilustrada */
+                    <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-end p-1 sm:p-2 bg-slate-950">
+                      <img
+                        src={meta.image}
+                        alt={meta.title}
+                        className="absolute inset-0 w-full h-full object-cover filter brightness-[0.95] contrast-[1.08] transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      {/* Gradiente oscuro inferior para texto legible */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+
+                      {/* Categoría superior izquierda */}
+                      <div
+                        className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1 sm:px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider font-semibold"
+                        style={{ color: meta.color }}
+                      >
+                        {meta.category}
+                      </div>
+
+                      {/* Icono de Match si ya se acertó */}
+                      {card.isMatched && (
+                        <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 z-10 p-0.5 sm:p-1 rounded-full bg-[#2BE08F] text-black shadow-lg">
+                          <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                        </div>
+                      )}
+
+                      {/* Título de la carta abajo */}
+                      <div className="relative z-10 text-center px-0.5">
+                        <span className="font-serif text-[8px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
+                          {meta.title}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Cara posterior (Boca abajo) */
+                    <div className="w-full h-full flex flex-col items-center justify-center p-1 sm:p-2 text-[#2C3A4E] relative bg-gradient-to-br from-[#0D1119] via-[#121926] to-[#0A0D14] rounded-xl sm:rounded-2xl">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-center shadow-inner">
+                        <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#35E0C8]/60" />
+                      </div>
+                      <span className="font-mono text-[6px] sm:text-[8px] text-[#5C6675] mt-1 tracking-widest uppercase">
+                        MEMORIZE
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 

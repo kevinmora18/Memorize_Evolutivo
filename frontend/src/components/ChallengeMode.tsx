@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Target, Trophy, Star, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Target, Trophy, Star, CheckCircle, Sparkles, Layers } from 'lucide-react';
+import { getAICardMeta } from './AIFriendsGame';
 
 interface Card {
   id: number;
@@ -378,30 +379,77 @@ export function ChallengeMode({ onBackToLobby }: ChallengeModeProps) {
             )}
           </AnimatePresence>
           
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {cards.map((card, index) => (
-              <motion.div
-                key={card.id}
-                className={`aspect-square rounded-xl cursor-pointer ${
-                  card.isMatched
-                    ? 'bg-green-500/20 border-2 border-green-400'
-                    : card.isFlipped
-                    ? 'bg-gradient-to-br from-orange-500/30 to-red-500/30 border-2 border-orange-400'
-                    : 'bg-gray-800/50 border-2 border-gray-700 hover:border-gray-600'
-                } flex items-center justify-center text-5xl transition-all`}
-                onClick={() => handleCardClick(index)}
-                whileHover={!card.isFlipped && !card.isMatched ? { scale: 1.05 } : {}}
-                whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.95 } : {}}
-                animate={
-                  card.isFlipped || card.isMatched
-                    ? { rotateY: 180 }
-                    : { rotateY: 0 }
-                }
-                transition={{ duration: 0.3 }}
-              >
-                {card.isFlipped || card.isMatched ? card.value : '?'}
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-8 max-w-xl mx-auto w-full">
+            {cards.map((card, index) => {
+              const meta = getAICardMeta(card.value);
+              const isRevealed = card.isFlipped || card.isMatched;
+
+              return (
+                <motion.div
+                  key={card.id}
+                  className="aspect-[3/4] rounded-xl sm:rounded-2xl cursor-pointer relative select-none transition-all duration-300"
+                  onClick={() => handleCardClick(index)}
+                  whileHover={!card.isFlipped && !card.isMatched ? { scale: 1.05, y: -2 } : {}}
+                  whileTap={!card.isFlipped && !card.isMatched ? { scale: 0.95 } : {}}
+                  style={{ perspective: 1000 }}
+                >
+                  <div
+                    className={`w-full h-full rounded-xl sm:rounded-2xl transition-transform duration-500 relative shadow-lg ${
+                      isRevealed
+                        ? card.isMatched
+                          ? 'border-2 border-[#2BE08F] bg-[#13221B] shadow-[0_0_15px_rgba(43,224,143,0.35)]'
+                          : 'border-2 border-[#FF6B35] bg-[#1A1313] shadow-[0_0_15px_rgba(255,107,53,0.35)]'
+                        : 'border border-[#1E2836] bg-gradient-to-br from-[#0D1119] to-[#151D2A] hover:border-[#FF6B35]/60 hover:shadow-[0_0_12px_rgba(255,107,53,0.2)]'
+                    }`}
+                  >
+                    {isRevealed ? (
+                      /* Cara frontal ilustrada */
+                      <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-end p-1 sm:p-2 bg-slate-950">
+                        <img
+                          src={meta.image}
+                          alt={meta.title}
+                          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.95] contrast-[1.08]"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+
+                        {/* Categoría superior izquierda */}
+                        <div
+                          className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 z-10 px-1 sm:px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 font-mono text-[7px] sm:text-[8px] uppercase tracking-wider font-semibold"
+                          style={{ color: meta.color }}
+                        >
+                          {meta.category}
+                        </div>
+
+                        {/* Sparkles al emparejar */}
+                        {card.isMatched && (
+                          <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 z-10 p-0.5 sm:p-1 rounded-full bg-[#2BE08F] text-black shadow-lg">
+                            <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                          </div>
+                        )}
+
+                        {/* Título de la carta abajo */}
+                        <div className="relative z-10 text-center px-0.5">
+                          <span className="font-serif text-[8px] sm:text-[11px] font-bold text-white block truncate leading-tight drop-shadow-md">
+                            {meta.title}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Cara posterior */
+                      <div className="w-full h-full flex flex-col items-center justify-center p-1 sm:p-2 text-[#2C3A4E] relative bg-gradient-to-br from-[#0D1119] via-[#121926] to-[#0A0D14] rounded-xl sm:rounded-2xl">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-center shadow-inner">
+                          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400/60" />
+                        </div>
+                        <span className="font-mono text-[6px] sm:text-[8px] text-[#5C6675] mt-1 tracking-widest uppercase">
+                          MEMORIZE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
