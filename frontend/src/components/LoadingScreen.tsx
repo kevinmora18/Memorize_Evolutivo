@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 interface LoadingScreenProps {
@@ -7,24 +7,34 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const startTime = Date.now();
-    const duration = 3000;
+    const duration = 1200;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let completed = false;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const newProgress = Math.min((elapsed / duration) * 100, 100);
       setProgress(newProgress);
 
-      if (newProgress === 100) {
+      if (newProgress >= 100 && !completed) {
+        completed = true;
         clearInterval(interval);
-        setTimeout(onComplete, 500);
+        timeoutId = setTimeout(() => {
+          onCompleteRef.current();
+        }, 150);
       }
     }, 30);
 
-    return () => clearInterval(interval);
-  }, [onComplete]);
+    return () => {
+      clearInterval(interval);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   return (
     <div 
