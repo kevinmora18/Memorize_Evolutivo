@@ -246,16 +246,25 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         setShuffleWarning(false);
         if (lockRef.current) return;
 
+        // Paso 1: Voltear boca abajo en su sitio cualquier carta seleccionada antes de mover
+        selectedRef.current = [];
+        setSelected([]);
+        setShakingIdx([]);
+        setBouncingIdx([]);
+
+        setCards((prev) => {
+          const flippedDown = prev.map((c) =>
+            c.isMatched ? c : { ...c, isFlipped: false, isHinted: false }
+          );
+          cardsRef.current = flippedDown;
+          return flippedDown;
+        });
+
         setIsShuffling(true);
         playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.4);
 
+        // Paso 2: Reordenar una vez que todas las cartas no emparejadas ya están boca abajo
         step2Timer = setTimeout(() => {
-          // Limpiar cualquier selección parcial para que ninguna carta quede trabada boca arriba
-          selectedRef.current = [];
-          setSelected([]);
-          setShakingIdx([]);
-          setBouncingIdx([]);
-
           setCards((prev) => {
             const unmatched = prev
               .filter((c) => !c.isMatched)
@@ -268,7 +277,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             return nextCards;
           });
           setIsShuffling(false);
-        }, 350);
+        }, 420);
       }, 1800);
     }, levelDef.shuffleEvery);
 
@@ -459,28 +468,36 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           });
         }
 
+        // Paso 1: Voltear boca abajo cualquier otra carta que estuviera abierta (en su lugar actual)
+        // y marcar la bomba como neutralizada
         setTimeout(() => {
+          selectedRef.current = [];
+          setSelected([]);
           setCards((prev) => {
             const updated = prev.map((c) => {
               if (c.id === bombCardId) return { ...c, isMatched: true, isFlipped: true, isHinted: false };
               if (!c.isMatched) return { ...c, isFlipped: false, isHinted: false };
               return c;
             });
-
-            // Reorganizar cartas restantes por la explosión (todas boca abajo)
-            const unmatched = updated
-              .filter((c) => !c.isMatched)
-              .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
-            shuffleInPlace(unmatched);
-            let uIdx = 0;
-            const finalUpdated = updated.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
-            cardsRef.current = finalUpdated;
-            return finalUpdated;
+            cardsRef.current = updated;
+            return updated;
           });
-          selectedRef.current = [];
-          setSelected([]);
-          lockRef.current = false;
-        }, 900);
+
+          // Paso 2: Una vez completado el giro boca abajo (400ms), reordenar las cartas ocultas
+          setTimeout(() => {
+            setCards((prev) => {
+              const unmatched = prev
+                .filter((c) => !c.isMatched)
+                .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
+              shuffleInPlace(unmatched);
+              let uIdx = 0;
+              const finalUpdated = prev.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
+              cardsRef.current = finalUpdated;
+              return finalUpdated;
+            });
+            lockRef.current = false;
+          }, 420);
+        }, 650);
         return;
       }
 
@@ -595,7 +612,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
 
   // Estadísticas del juego
   const cardsPerGroup = levelDef.useTriads ? 3 : 2;
-  const matchedGroups = cards.filter((c) => c.isMatched && !c.isBomb).length / cardsPerGroup;
+  const matchedGroups = Math.floor(cards.filter((c) => c.isMatched && !c.isBomb).length / cardsPerGroup);
   const accuracy = attempts > 0 ? Math.round((matchedGroups / attempts) * 100) : 100;
 
   // Cálculo de filas y tamaño responsivo de cartas según la densidad del tablero (ej. Nivel 6 en celular)
@@ -767,7 +784,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           >
             {cards.map((card, idx) => (
               <motion.div
-                key={card.id}
+                key={`slot-${level}-${idx}`}
                 ref={(el) => {
                   cardRefs.current[idx] = el;
                 }}

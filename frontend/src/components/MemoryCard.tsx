@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { getCardById } from '../lib/cardCatalog';
-import { UNIVERSE_TOKENS, EASE_FLIP } from '../lib/archivoTokens';
+import { UNIVERSE_TOKENS } from '../lib/archivoTokens';
 import type { UniverseId } from '../lib/archivoTokens';
 import { useReducedEffects } from '../lib/effects';
 import { CardArt } from './cards/CardArt';
@@ -100,16 +100,23 @@ export function MemoryCard({
       aria-label={`Carta ${index + 1} de la cuadrícula: ${stateLabel}`}
       aria-disabled={!clickable}
     >
-      <motion.div
+      <div
         className="relative w-full h-full"
-        style={{ transformStyle: 'preserve-3d' }}
-        animate={{ rotateY: revealed ? 180 : 0 }}
-        transition={{ duration: reduced ? 0.15 : 0.55, ease: EASE_FLIP }}
+        style={{
+          transformStyle: 'preserve-3d',
+          WebkitTransformStyle: 'preserve-3d',
+          transform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          transition: reduced
+            ? 'transform 0.15s ease-out'
+            : 'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
       >
         <div
           className="absolute inset-0 overflow-hidden"
           style={{
             backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            transform: 'rotateY(0deg) translateZ(1px)',
             borderRadius: 'var(--an-radius-card)',
             border: '1px solid var(--an-line-strong)',
             boxShadow: 'var(--an-shadow-card)',
@@ -128,7 +135,8 @@ export function MemoryCard({
           className="absolute inset-0"
           style={{
             backfaceVisibility: 'hidden',
-            transform: 'rotateY(180deg)',
+            WebkitBackfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg) translateZ(1px)',
             opacity: card.isMatched ? 0.62 : card.isBroken ? 0.5 : 1,
             filter: card.isBroken ? 'grayscale(100%)' : undefined,
           }}
@@ -150,7 +158,7 @@ export function MemoryCard({
             />
           </CardFrame>
         </div>
-      </motion.div>
+      </div>
 
       <CardStateOverlay
         revealed={revealed}
