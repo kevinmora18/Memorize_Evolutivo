@@ -98,30 +98,38 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
     if (clickedCard.isBomb) {
       lockRef.current = true;
       const newCards = [...cardsRef.current];
-      newCards[cardIndex] = { ...clickedCard, isFlipped: true, isMatched: true };
+      newCards[cardIndex] = { ...clickedCard, isFlipped: true };
       cardsRef.current = newCards;
       setCards(newCards);
 
       setTimeout(() => {
-        setCards((prevCards) => {
-          const afterExplosion = prevCards.map((c) =>
-            c.id === id ? { ...c, isBroken: true, isFlipped: true } : c
-          );
-
-          const toShuffle = afterExplosion.filter((c) => !c.isMatched && !c.isBroken);
-          const fixed = afterExplosion.filter((c) => c.isMatched || c.isBroken);
-
-          toShuffle.sort(() => Math.random() - 0.5);
-
-          const finalCards = [...fixed, ...toShuffle].sort(() => Math.random() - 0.5);
-          cardsRef.current = finalCards;
-          return finalCards;
-        });
-
         flippedRef.current = [];
         setFlippedCards([]);
-        lockRef.current = false;
-      }, 1000);
+        setCards((prevCards) => {
+          const closedCards = prevCards.map((c) =>
+            c.isMatched && !c.isBomb
+              ? c
+              : { ...c, isMatched: false, isFlipped: false, isBroken: false }
+          );
+          cardsRef.current = closedCards;
+          return closedCards;
+        });
+
+        setTimeout(() => {
+          setCards((prevCards) => {
+            const toShuffle = prevCards
+              .filter((c) => !c.isMatched)
+              .map((c) => ({ ...c, isFlipped: false }));
+            toShuffle.sort(() => Math.random() - 0.5);
+
+            let uIdx = 0;
+            const finalCards = prevCards.map((c) => (c.isMatched ? c : toShuffle[uIdx++]));
+            cardsRef.current = finalCards;
+            return finalCards;
+          });
+          lockRef.current = false;
+        }, 420);
+      }, 700);
       return;
     }
 

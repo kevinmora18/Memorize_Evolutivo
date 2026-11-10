@@ -440,7 +440,6 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       // Si es una anomalía / bomba
       if (card.isBomb) {
         lockRef.current = true;
-        const bombCardId = card.id;
         const updatedBomb = currentCards.map((c, i) => (i === idx ? { ...c, isFlipped: true } : c));
         cardsRef.current = updatedBomb;
         setCards(updatedBomb);
@@ -468,22 +467,21 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           });
         }
 
-        // Paso 1: Voltear boca abajo cualquier otra carta que estuviera abierta (en su lugar actual)
-        // y marcar la bomba como neutralizada
+        // Paso 1: Cerrar boca abajo TANTO la carta que estaba abierta COMO la bomba (en su lugar actual)
         setTimeout(() => {
           selectedRef.current = [];
           setSelected([]);
           setCards((prev) => {
-            const updated = prev.map((c) => {
-              if (c.id === bombCardId) return { ...c, isMatched: true, isFlipped: true, isHinted: false };
-              if (!c.isMatched) return { ...c, isFlipped: false, isHinted: false };
-              return c;
-            });
+            const updated = prev.map((c) =>
+              c.isMatched && !c.isBomb
+                ? c
+                : { ...c, isMatched: false, isFlipped: false, isHinted: false }
+            );
             cardsRef.current = updated;
             return updated;
           });
 
-          // Paso 2: Una vez completado el giro boca abajo (400ms), reordenar las cartas ocultas
+          // Paso 2: Una vez completado el giro boca abajo (420ms), reordenar las cartas ocultas
           setTimeout(() => {
             setCards((prev) => {
               const unmatched = prev
@@ -497,7 +495,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             });
             lockRef.current = false;
           }, 420);
-        }, 650);
+        }, 700);
         return;
       }
 
