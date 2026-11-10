@@ -186,6 +186,13 @@ export class RoomManager {
       throw new Error('Contraseña incorrecta');
     }
 
+    // Si el jugador ya está en la sala, reconectarlo sin error
+    if (room.hasPlayer(playerData.id)) {
+      room.reconnectPlayer(playerData.id, playerData.socketId || '');
+      this.notifyChange();
+      return room;
+    }
+
     // Añadir jugador
     room.addPlayer(playerData);
 

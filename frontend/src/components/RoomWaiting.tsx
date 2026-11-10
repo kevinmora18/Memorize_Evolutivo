@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Crown, Users, Play, Copy, Check, Send,
-  MessageCircle, Swords, CheckCircle2, Clock, ShieldCheck, Globe, QrCode
+  MessageCircle, Swords, CheckCircle2, Clock, ShieldCheck, Globe, QrCode, Bot
 } from 'lucide-react';
 import type { Room, Player } from '../App';
-import socket from '../lib/socket';
+import socket, { connectSocket } from '../lib/socket';
+import { apiFetch } from '../lib/api';
 import { useEquippedRoomTheme, type RoomThemeDef } from '../lib/roomTheme';
 import { QRCodeModal } from './QRCodeModal';
 
@@ -22,9 +23,18 @@ interface RoomWaitingProps {
   currentUser: Player;
   onChangeTeam?: (teamId: number) => void;
   onBackToLobby: () => void;
+  onUpdateRoom?: (room: Room) => void;
+  onStartRoomGame?: (room: Room) => void;
 }
 
-export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: RoomWaitingProps) {
+export function RoomWaiting({
+  room,
+  currentUser,
+  onChangeTeam,
+  onBackToLobby,
+  onUpdateRoom,
+  onStartRoomGame,
+}: RoomWaitingProps) {
   const [copiedCode, setCopiedCode] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
@@ -47,14 +57,20 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
   const allGuestsReady = guestPlayers.length > 0 && guestPlayers.every((p: any) => p.isReady);
   const canStart = playersList.length >= 2 && allGuestsReady;
 
-  // Sincronización Socket.IO de la sala
+  // Sincronización Socket.IO + Polling HTTP de respaldo de la sala
   useEffect(() => {
-    // Unirse al canal de socket de la sala
-    socket.emit('room:join', {
-      roomId: room.id,
-      userName: currentUser.name || currentUser.email.split('@')[0],
-      userLevel: currentUser.level || 1,
-    });
+    connectSocket();
+
+    const joinSocketRoom = () => {
+      socket.emit('room:join', {
+        roomId: room.id,
+        userName: currentUser.name || currentUser.email.split('@')[0],
+        userLevel: currentUser.level || 1,
+      });
+    };
+
+    joinSocketRoom();
+    socket.on('connect', joinSocketRoom);
 
     const handleChatMessage = (msg: any) => {
       setChatMessages((prev) => [
@@ -71,10 +87,34 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
 
     socket.on('chat:message', handleChatMessage);
 
+    // Polling HTTP cada 2.2s como respaldo para mantener jugadores, estado de "Listo" e inicio sincronizados
+    const pollInterval = setInterval(async () => {
+      try {
+        const latestRoom = await apiFetch<any>(`/api/rooms/${room.id}`);
+        if (!latestRoom) return;
+        if (onUpdateRoom) {
+          onUpdateRoom(latestRoom);
+        }
+        const meInRoom = (latestRoom.players || []).find((p: any) => p.id === currentUser.id);
+        if (meInRoom && typeof meInRoom.isReady === 'boolean') {
+          setIsReady(meInRoom.isReady);
+        }
+        if (latestRoom.status === 'playing' || latestRoom.gameState?.status === 'playing') {
+          if (onStartRoomGame) {
+            onStartRoomGame({ ...latestRoom, isStarted: true });
+          }
+        }
+      } catch {
+        /* silencioso en caso de red intermitente */
+      }
+    }, 2200);
+
     return () => {
+      clearInterval(pollInterval);
+      socket.off('connect', joinSocketRoom);
       socket.off('chat:message', handleChatMessage);
     };
-  }, [room.id, currentUser]);
+  }, [room.id, currentUser, onUpdateRoom, onStartRoomGame]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -87,21 +127,73 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
     setTimeout(() => setCopiedCode(false), 2200);
   };
 
-  const toggleReady = () => {
+  const toggleReady = async () => {
     const nextState = !isReady;
     setIsReady(nextState);
     socket.emit('room:ready', {
       roomId: room.id,
       isReady: nextState,
     });
+    try {
+      const updated = await apiFetch<any>(`/api/rooms/${room.id}/ready`, {
+        method: 'PUT',
+        body: JSON.stringify({ isReady: nextState }),
+      });
+      if (updated && onUpdateRoom) {
+        onUpdateRoom(updated);
+      }
+    } catch {
+      /* fallback socket ya enviado */
+    }
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (!isHost || !canStart) return;
-    // El servidor es la única fuente de verdad: el motor valida host/estado y
-    // difunde `game:started` a TODOS los jugadores de la sala. No se inicia
-    // también por HTTP para evitar una doble ejecución y condiciones de carrera.
     socket.emit('game:start', { roomId: room.id });
+    // Respaldo HTTP si el evento de socket tarda en propagarse
+    setTimeout(async () => {
+      try {
+        const latest = await apiFetch<any>(`/api/rooms/${room.id}`);
+        if (latest && latest.status !== 'playing') {
+          const started = await apiFetch<any>(`/api/rooms/${room.id}/start`, {
+            method: 'PUT',
+            body: JSON.stringify({}),
+          });
+          if (started && onStartRoomGame) {
+            onStartRoomGame({ ...started, isStarted: true });
+          }
+        } else if (latest && latest.status === 'playing' && onStartRoomGame) {
+          onStartRoomGame({ ...latest, isStarted: true });
+        }
+      } catch {
+        /* ya iniciado por socket */
+      }
+    }, 900);
+  };
+
+  // Permite iniciar un duelo 1v1 de inmediato contra un Rival IA si no hay un segundo jugador conectado
+  const handleStartWithBotRival = () => {
+    const botPlayer: Player = {
+      id: 'bot-rival-1v1',
+      name: 'Nexus-IV (IA)',
+      email: 'nexus@memorize.ai',
+      teamId: 2,
+      level: currentUser.level || 3,
+      isReady: true,
+      score: 0,
+    };
+
+    const updatedRoom: Room & { isBotMatch?: boolean } = {
+      ...room,
+      isStarted: true,
+      status: 'playing',
+      isBotMatch: true,
+      players: [currentUser, botPlayer],
+    };
+
+    if (onStartRoomGame) {
+      onStartRoomGame(updatedRoom);
+    }
   };
 
   const handleSendMessage = () => {
@@ -399,12 +491,21 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
                       Pásale el código <span className="font-mono text-[#35E0C8] font-bold">{room.code || room.id.slice(0, 6)}</span> a tu compañero para comenzar.
                     </p>
                   </div>
-                  <button
-                    onClick={copyRoomCode}
-                    className="mt-1 px-4 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#35E0C8]/10 text-[#35E0C8] hover:bg-[#35E0C8]/20 transition-all font-mono text-xs font-semibold cursor-pointer"
-                  >
-                    {copiedCode ? '¡Código Copiado!' : 'Copiar Código de Sala'}
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                    <button
+                      onClick={copyRoomCode}
+                      className="px-4 py-1.5 rounded-lg border border-[#35E0C8]/40 bg-[#35E0C8]/10 text-[#35E0C8] hover:bg-[#35E0C8]/20 transition-all font-mono text-xs font-semibold cursor-pointer"
+                    >
+                      {copiedCode ? '¡Código Copiado!' : 'Copiar Código de Sala'}
+                    </button>
+                    <button
+                      onClick={handleStartWithBotRival}
+                      className="px-4 py-1.5 rounded-lg border border-[#B79CFF]/50 bg-[#B79CFF]/15 text-[#B79CFF] hover:bg-[#B79CFF]/25 transition-all font-mono text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(183,156,255,0.2)]"
+                    >
+                      <Bot className="w-3.5 h-3.5" />
+                      <span>Jugar 1v1 con Rival IA</span>
+                    </button>
+                  </div>
                 </motion.div>
               );
             })()}
@@ -504,6 +605,17 @@ export function RoomWaiting({ room, currentUser, onChangeTeam, onBackToLobby }: 
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{isReady ? 'CANCELAR LISTO' : '¡ESTOY LISTO!'}</span>
+              </button>
+            )}
+
+            {/* Si eres el host y aún no hay segundo jugador, permitir iniciar con Rival IA */}
+            {isHost && playersList.length < 2 && (
+              <button
+                onClick={handleStartWithBotRival}
+                className="flex-1 sm:flex-none px-5 py-3 rounded-xl border border-[#B79CFF] bg-[#B79CFF]/20 hover:bg-[#B79CFF]/30 text-[#E8E6DF] font-mono text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_20px_rgba(183,156,255,0.25)]"
+              >
+                <Bot className="w-4 h-4 text-[#B79CFF]" />
+                <span>Duelo vs IA (1v1)</span>
               </button>
             )}
 

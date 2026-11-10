@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Timer, Trophy, Zap, Crown, Swords,
-  Sparkles, RefreshCw, Layers, Shield
+  Sparkles, RefreshCw, Layers, Shield, Bot
 } from 'lucide-react';
 import type { Room, Player } from '../App';
-import socket from '../lib/socket';
+import socket, { connectSocket } from '../lib/socket';
+import { apiFetch } from '../lib/api';
 import { useEquippedRoomTheme, type RoomThemeDef } from '../lib/roomTheme';
 
 interface MultiplayerGameProps {
@@ -65,28 +66,65 @@ const MULTIPLAYER_CARDS: Record<string, MultiplayerCardMeta> = {
 };
 
 export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }: MultiplayerGameProps) {
-  // Inicializar cartas desde el estado de la sala si ya vino en room.gameState
   const initialCards = room.gameState?.cards || [];
-  const initialTurn = room.gameState?.currentTurn || room.hostId || (room.players[0]?.id ?? '');
+  const initialTurn = room.gameState?.currentTurn || room.hostId || (room.players[0]?.id ?? currentUser.id);
+  const initialBotMode = Boolean(
+    (room as any).isBotMatch ||
+    room.players?.some((p) => p.id === 'bot-rival-1v1')
+  );
 
+  const [isBotMatch, setIsBotMatch] = useState<boolean>(initialBotMode);
   const [cards, setCards] = useState<CardItem[]>(initialCards);
   const [currentTurn, setCurrentTurn] = useState<string>(initialTurn);
   const [flippedCards, setFlippedCards] = useState<number[]>(room.gameState?.flippedCards || []);
   const [matchedCards, setMatchedCards] = useState<number[]>(room.gameState?.matchedCards || []);
-  const [scores, setScores] = useState<Record<string, number>>(room.gameState?.scores || {});
+  const [scores, setScores] = useState<Record<string, number>>(
+    room.gameState?.scores && !(room.gameState.scores instanceof Map) ? room.gameState.scores : {}
+  );
   const [turnTime, setTurnTime] = useState<number>(30);
   const [notice, setNotice] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const roomTheme = useEquippedRoomTheme();
 
-  const playersList = room.players || [];
-  const player1 = playersList[0] || currentUser;
-  const player2 = playersList.find((p) => p.id !== player1.id) || playersList[1] || null;
+  const isEvaluatingRef = useRef(false);
+  const botMemoryRef = useRef<Map<number, string>>(new Map());
+  const cardsRef = useRef<CardItem[]>(cards);
+  const matchedRef = useRef<number[]>(matchedCards);
+  const scoresRef = useRef<Record<string, number>>(scores);
 
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+
+  useEffect(() => {
+    matchedRef.current = matchedCards;
+  }, [matchedCards]);
+
+  useEffect(() => {
+    scoresRef.current = scores;
+  }, [scores]);
+
+  const botFallbackPlayer: Player = {
+    id: 'bot-rival-1v1',
+    name: 'Nexus-IV (IA)',
+    email: 'nexus@memorize.ai',
+    teamId: 2,
+    level: currentUser.level || 3,
+  };
+
+  const playersList = isBotMatch
+    ? [currentUser, room.players?.find((p) => p.id !== currentUser.id) || botFallbackPlayer]
+    : room.players || [currentUser];
+
+  const player1 = playersList[0] || currentUser;
+  const player2 = playersList.find((p) => p.id !== player1.id) || playersList[1] || (isBotMatch ? botFallbackPlayer : null);
+
+  const requiredFlips = room.mode === 'triads' ? 3 : 2;
+  const pointsPerMatch = room.mode === 'triads' ? 150 : 100;
   const isMyTurn = currentTurn === currentUser.id;
 
-  const playSound = (src: string, vol = 0.3) => {
+  const playSound = useCallback((src: string, vol = 0.3) => {
     try {
       const audio = new Audio(src);
       audio.volume = vol;
@@ -94,36 +132,240 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
     } catch {
       /* Audio no disponible */
     }
-  };
+  }, []);
 
-  const showNotice = (msg: string) => {
+  const showNotice = useCallback((msg: string) => {
     setNotice(msg);
     setTimeout(() => {
       setNotice((prev) => (prev === msg ? null : prev));
     }, 2000);
-  };
+  }, []);
 
-  const getPlayerName = (id: string) => {
-    const p = playersList.find((x) => x.id === id);
-    if (!p) return 'Jugador';
-    return p.name || p.email.split('@')[0];
-  };
+  const getPlayerName = useCallback(
+    (id: string) => {
+      if (id === 'bot-rival-1v1') return 'Nexus-IV (IA)';
+      const p = playersList.find((x) => x.id === id);
+      if (!p) return id === currentUser.id ? currentUser.name || 'Tú' : 'Rival';
+      return p.name || p.email.split('@')[0];
+    },
+    [playersList, currentUser]
+  );
+
+  // Generador de mazo local para Duelo 1v1 contra IA (o revancha)
+  const initLocalBotMatch = useCallback(() => {
+    const allKeys = Object.keys(MULTIPLAYER_CARDS);
+    const groupCount = room.mode === 'triads' ? 5 : 8;
+    const copies = room.mode === 'triads' ? 3 : 2;
+    const chosenKeys = allKeys.slice(0, groupCount);
+
+    const deckValues: string[] = [];
+    chosenKeys.forEach((k) => {
+      for (let i = 0; i < copies; i++) deckValues.push(k);
+    });
+
+    for (let i = deckValues.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deckValues[i], deckValues[j]] = [deckValues[j], deckValues[i]];
+    }
+
+    const generated: CardItem[] = deckValues.map((val, idx) => ({
+      id: `local_${idx}_${val}`,
+      value: val,
+    }));
+
+    botMemoryRef.current.clear();
+    isEvaluatingRef.current = false;
+    cardsRef.current = generated;
+    matchedRef.current = [];
+    const initialScores = { [currentUser.id]: 0, 'bot-rival-1v1': 0 };
+    scoresRef.current = initialScores;
+
+    setCards(generated);
+    setFlippedCards([]);
+    setMatchedCards([]);
+    setScores(initialScores);
+    setCurrentTurn(currentUser.id);
+    setTurnTime(30);
+    setIsFinished(false);
+    setWinnerId(null);
+    setIsBotMatch(true);
+    playSound('https://actions.google.com/sounds/v1/scifi/sci_fi_pulse.ogg', 0.4);
+    showNotice('¡Duelo 1v1 iniciado! Tu turno.');
+  }, [room.mode, currentUser.id, playSound, showNotice]);
+
+  useEffect(() => {
+    if (isBotMatch && cards.length === 0) {
+      initLocalBotMatch();
+    }
+  }, [isBotMatch, cards.length, initLocalBotMatch]);
 
   // Sincronizar si room.gameState llega después del montaje inicial
   useEffect(() => {
-    if (room.gameState?.cards?.length && cards.length === 0) {
+    if (!isBotMatch && room.gameState?.cards?.length && cards.length === 0) {
       setCards(room.gameState.cards);
     }
-    if (room.gameState?.currentTurn && !currentTurn) {
+    if (!isBotMatch && room.gameState?.currentTurn && !currentTurn) {
       setCurrentTurn(room.gameState.currentTurn);
     }
-  }, [room.gameState, cards.length, currentTurn]);
+  }, [isBotMatch, room.gameState, cards.length, currentTurn]);
 
-  // Escucha de eventos de Socket.IO
+  // Evaluación local de mano (modo Duelo 1v1 vs IA)
+  const evaluateLocalTurn = useCallback(
+    (chosenIndices: number[], activePlayerId: string) => {
+      isEvaluatingRef.current = true;
+      const deck = cardsRef.current;
+      const firstVal = deck[chosenIndices[0]]?.value;
+      const isMatch = Boolean(firstVal && chosenIndices.every((idx) => deck[idx]?.value === firstVal));
+
+      // Guardar en la memoria del bot las cartas reveladas
+      chosenIndices.forEach((idx) => {
+        if (deck[idx]) {
+          botMemoryRef.current.set(idx, deck[idx].value);
+        }
+      });
+
+      setTimeout(() => {
+        if (isMatch) {
+          playSound('https://actions.google.com/sounds/v1/cartoon/pop.ogg', 0.5);
+          const nextMatched = Array.from(new Set([...matchedRef.current, ...chosenIndices]));
+          matchedRef.current = nextMatched;
+          setMatchedCards(nextMatched);
+          setFlippedCards([]);
+
+          const nextScores = {
+            ...scoresRef.current,
+            [activePlayerId]: (scoresRef.current[activePlayerId] || 0) + pointsPerMatch,
+          };
+          scoresRef.current = nextScores;
+          setScores(nextScores);
+          setTurnTime(30);
+          showNotice(`¡Punto para ${getPlayerName(activePlayerId)}! 🎉`);
+
+          // Eliminar cartas acertadas de la memoria del bot
+          chosenIndices.forEach((idx) => botMemoryRef.current.delete(idx));
+
+          if (nextMatched.length >= deck.length && deck.length > 0) {
+            isEvaluatingRef.current = false;
+            playSound('https://actions.google.com/sounds/v1/crowds/applause.ogg', 0.5);
+            const myPts = nextScores[currentUser.id] || 0;
+            const botPts = nextScores['bot-rival-1v1'] || 0;
+            setWinnerId(myPts > botPts ? currentUser.id : botPts > myPts ? 'bot-rival-1v1' : null);
+            setIsFinished(true);
+            return;
+          }
+
+          isEvaluatingRef.current = false;
+          // Si el bot acertó, continúa su turno
+          if (activePlayerId === 'bot-rival-1v1') {
+            setCurrentTurn('bot-rival-1v1');
+          }
+        } else {
+          playSound('https://actions.google.com/sounds/v1/cartoon/slide_whistle_down.ogg', 0.25);
+          showNotice('No coinciden. Cambio de turno.');
+          setFlippedCards([]);
+          setTurnTime(30);
+          const nextPlayer = activePlayerId === currentUser.id ? 'bot-rival-1v1' : currentUser.id;
+          isEvaluatingRef.current = false;
+          setCurrentTurn(nextPlayer);
+        }
+      }, 1050);
+    },
+    [currentUser.id, getPlayerName, playSound, pointsPerMatch, showNotice]
+  );
+
+  // Turno automático de Nexus-IV (IA) en modo 1v1
   useEffect(() => {
-    // Solicitar estado actual de la sala (o iniciar si aún no ha arrancado)
+    if (!isBotMatch || isFinished || currentTurn !== 'bot-rival-1v1') return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const startTimer = setTimeout(() => {
+      if (isFinished || isEvaluatingRef.current) return;
+      const deck = cardsRef.current;
+      const matched = matchedRef.current;
+      const available = deck
+        .map((_, idx) => idx)
+        .filter((idx) => !matched.includes(idx));
+
+      if (available.length < requiredFlips) return;
+
+      let chosen: number[] = [];
+
+      // 45% de probabilidad de usar memoria si ya vio un par/tríada completo
+      if (Math.random() < 0.45) {
+        const byValue = new Map<string, number[]>();
+        botMemoryRef.current.forEach((val, idx) => {
+          if (available.includes(idx)) {
+            byValue.set(val, [...(byValue.get(val) || []), idx]);
+          }
+        });
+        for (const [, indices] of byValue.entries()) {
+          if (indices.length >= requiredFlips) {
+            chosen = indices.slice(0, requiredFlips);
+            break;
+          }
+        }
+      }
+
+      // Si no encontró en memoria, elegir al azar entre las disponibles
+      if (chosen.length < requiredFlips) {
+        const pool = [...available];
+        while (chosen.length < requiredFlips && pool.length > 0) {
+          const r = Math.floor(Math.random() * pool.length);
+          chosen.push(pool.splice(r, 1)[0]);
+        }
+      }
+
+      chosen.forEach((cardIdx, step) => {
+        const flipTimer = setTimeout(() => {
+          playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.25);
+          setFlippedCards((prev) => Array.from(new Set([...prev, cardIdx])));
+
+          if (step === chosen.length - 1) {
+            evaluateLocalTurn(chosen, 'bot-rival-1v1');
+          }
+        }, 700 * (step + 1));
+        timers.push(flipTimer);
+      });
+    }, 650);
+
+    timers.push(startTimer);
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+    };
+  }, [isBotMatch, isFinished, currentTurn, requiredFlips, flippedCards.length === 0 ? matchedCards.length : 0, evaluateLocalTurn, playSound]);
+
+  // Temporizador local de 30s cuando se juega contra Rival IA
+  useEffect(() => {
+    if (!isBotMatch || isFinished) return;
+    const interval = setInterval(() => {
+      if (isEvaluatingRef.current) return;
+      setTurnTime((t) => {
+        if (t <= 1) {
+          setFlippedCards([]);
+          const next = currentTurn === currentUser.id ? 'bot-rival-1v1' : currentUser.id;
+          setCurrentTurn(next);
+          showNotice('¡Tiempo agotado! Cambio de turno.');
+          return 30;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isBotMatch, isFinished, currentTurn, currentUser.id, showNotice]);
+
+  // Escucha de eventos de Socket.IO (Modo En Línea Real)
+  useEffect(() => {
+    if (isBotMatch) return;
+
+    connectSocket();
     socket.emit('room:reconnect', { roomId: room.id });
-    socket.emit('game:start', { roomId: room.id });
+
+    // Solo el host solicita iniciar si el mazo aún no fue generado
+    const hostId = room.hostId || room.creatorId || room.players?.[0]?.id;
+    if (currentUser.id === hostId && (!room.gameState?.cards || room.gameState.cards.length === 0)) {
+      socket.emit('game:start', { roomId: room.id });
+    }
 
     const handleRoomState = (payload: any) => {
       const gs = payload?.gameState;
@@ -140,6 +382,9 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       if (Array.isArray(gs.matchedCards)) {
         setMatchedCards(gs.matchedCards);
       }
+      if (gs.scores && typeof gs.scores === 'object' && !(gs.scores instanceof Map)) {
+        setScores(gs.scores);
+      }
     };
 
     const handleGameStarted = (payload: any) => {
@@ -150,7 +395,7 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       if (nextTurn) {
         setCurrentTurn(nextTurn);
       }
-      if (payload.scores) setScores(payload.scores);
+      if (payload.scores && !(payload.scores instanceof Map)) setScores(payload.scores);
       setFlippedCards([]);
       setMatchedCards([]);
       setIsFinished(false);
@@ -173,12 +418,12 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
         setMatchedCards((prev) => Array.from(new Set([...prev, ...payload.cardIndexes])));
       }
       setFlippedCards([]);
-      if (payload.scores) {
+      if (payload.scores && !(payload.scores instanceof Map) && Object.keys(payload.scores).length > 0) {
         setScores(payload.scores);
       } else if (payload.playerId) {
         setScores((prev) => ({
           ...prev,
-          [payload.playerId]: (prev[payload.playerId] || 0) + (payload.points || 100),
+          [payload.playerId]: (prev[payload.playerId] || 0) + (payload.points || pointsPerMatch),
         }));
       }
       showNotice(`¡Punto para ${getPlayerName(payload.playerId)}! 🎉`);
@@ -219,7 +464,9 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       playSound('https://actions.google.com/sounds/v1/crowds/applause.ogg', 0.5);
       setIsFinished(true);
       setWinnerId(payload.winnerId);
-      if (payload.scores) setScores(payload.scores);
+      if (payload.scores && !(payload.scores instanceof Map) && Object.keys(payload.scores).length > 0) {
+        setScores(payload.scores);
+      }
     };
 
     const handlePlayerLeft = (payload: any) => {
@@ -238,7 +485,23 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
     socket.on('game:finished', handleGameFinished);
     socket.on('room:player-left', handlePlayerLeft);
 
+    // Respaldo HTTP para sincronizar el tablero si el evento de socket no llegó a tiempo
+    const syncPoll = setInterval(async () => {
+      try {
+        const data = await apiFetch<any>(`/api/rooms/${room.id}`);
+        if (data?.gameState) {
+          handleRoomState(data);
+          if (data.status === 'finished' || data.gameState.status === 'finished') {
+            setIsFinished(true);
+          }
+        }
+      } catch {
+        /* ignorar errores de red puntuales */
+      }
+    }, 2500);
+
     return () => {
+      clearInterval(syncPoll);
       socket.off('room:state', handleRoomState);
       socket.off('room:joined', handleRoomState);
       socket.off('game:started', handleGameStarted);
@@ -251,11 +514,22 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       socket.off('game:finished', handleGameFinished);
       socket.off('room:player-left', handlePlayerLeft);
     };
-  }, [room.id]);
+  }, [room.id, isBotMatch, currentUser.id, room.hostId, room.creatorId, room.players, room.gameState, getPlayerName, playSound, pointsPerMatch, showNotice]);
 
   const handleCardClick = (index: number) => {
-    if (!isMyTurn) return;
-    if (flippedCards.length >= 2 || flippedCards.includes(index) || matchedCards.includes(index)) return;
+    if (!isMyTurn || isEvaluatingRef.current) return;
+    if (flippedCards.length >= requiredFlips || flippedCards.includes(index) || matchedCards.includes(index)) return;
+
+    if (isBotMatch) {
+      playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.25);
+      const nextFlipped = [...flippedCards, index];
+      setFlippedCards(nextFlipped);
+
+      if (nextFlipped.length >= requiredFlips) {
+        evaluateLocalTurn(nextFlipped, currentUser.id);
+      }
+      return;
+    }
 
     socket.emit('game:flip-card', {
       roomId: room.id,
@@ -398,9 +672,16 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
       {/* TABLERO DE JUEGO */}
       <main className="relative z-10 flex-1 px-4 py-2 max-w-5xl mx-auto w-full flex items-center justify-center overflow-y-auto an-scroll">
         {cards.length === 0 ? (
-          <div className="text-center py-12 text-[#9AA3B2] font-mono">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-[#35E0C8]" />
+          <div className="text-center py-12 text-[#9AA3B2] font-mono flex flex-col items-center gap-4">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-[#35E0C8]" />
             <p>Sincronizando tablero del servidor...</p>
+            <button
+              onClick={initLocalBotMatch}
+              className="px-5 py-2.5 rounded-xl border border-[#B79CFF] bg-[#B79CFF]/20 hover:bg-[#B79CFF]/30 text-white font-mono text-xs uppercase font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg"
+            >
+              <Bot className="w-4 h-4 text-[#B79CFF]" />
+              <span>Iniciar Duelo con Rival IA Ahora</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 sm:gap-3.5 max-w-4xl w-full p-1 sm:p-2">
@@ -518,12 +799,22 @@ export function MultiplayerGame({ room, currentUser, onGameEnd, onBackToLobby }:
                 </div>
               </div>
 
-              <button
-                onClick={onBackToLobby}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] font-mono text-xs uppercase font-bold tracking-widest hover:brightness-110 shadow-lg cursor-pointer"
-              >
-                Volver a la Sala
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {isBotMatch && (
+                  <button
+                    onClick={initLocalBotMatch}
+                    className="flex-1 py-3.5 rounded-xl border border-[#B79CFF] bg-[#B79CFF]/20 hover:bg-[#B79CFF]/30 text-white font-mono text-xs uppercase font-bold tracking-widest transition-all cursor-pointer"
+                  >
+                    ¡Jugar Revancha!
+                  </button>
+                )}
+                <button
+                  onClick={onBackToLobby}
+                  className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] font-mono text-xs uppercase font-bold tracking-widest hover:brightness-110 shadow-lg cursor-pointer"
+                >
+                  Volver a la Sala
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

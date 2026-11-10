@@ -65,12 +65,15 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
   const [darkVeil, setDarkVeil] = useState(0);
   const [shuffleWarning, setShuffleWarning] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
+  // Mapa card.id -> grupo de intercambio (1, 2, 3) para que el jugador vea qué carta pasó a qué lugar
+  const [swappingGroups, setSwappingGroups] = useState<Record<string, number>>({});
 
   const lockRef = useRef(false);
   const selectedRef = useRef<number[]>([]);
   const cardsRef = useRef<CardData[]>([]);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swapTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Reproducir sonido con control de errores
   const playSound = useCallback((url: string, vol = 0.35) => {
@@ -80,6 +83,126 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       audio.play().catch(() => {});
     } catch {}
   }, []);
+
+  const clearSwapTimers = useCallback(() => {
+    swapTimersRef.current.forEach((t) => clearTimeout(t));
+    swapTimersRef.current = [];
+  }, []);
+
+  /**
+   * Selecciona `pairCount` pares de cartas no emparejadas para intercambiar sus posiciones.
+   * Si se pasa `priorityIdx` (por ejemplo, la bomba recién activada), garantiza que esa carta
+   * forme parte del primer par intercambiado.
+   */
+  const pickSwapPairs = useCallback(
+    (deck: CardData[], pairCount: number, priorityIdx?: number): Array<[number, number, number]> => {
+      const availableIndices = deck
+        .map((c, i) => (!c.isMatched ? i : -1))
+        .filter((i) => i !== -1);
+
+      if (availableIndices.length < 2) return [];
+
+      const pool = [...availableIndices];
+      const pairs: Array<[number, number, number]> = [];
+      let groupNum = 1;
+
+      if (typeof priorityIdx === 'number' && pool.includes(priorityIdx)) {
+        const pPos = pool.indexOf(priorityIdx);
+        pool.splice(pPos, 1);
+        const partnerPoolIdx = Math.floor(Math.random() * pool.length);
+        const partnerIdx = pool.splice(partnerPoolIdx, 1)[0];
+        pairs.push([priorityIdx, partnerIdx, groupNum++]);
+      }
+
+      // Mezclar el resto de índices disponibles
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+
+      while (pairs.length < pairCount && pool.length >= 2) {
+        const a = pool.pop()!;
+        const b = pool.pop()!;
+        pairs.push([a, b, groupNum++]);
+      }
+
+      return pairs;
+    },
+    []
+  );
+
+  /**
+   * Ejecuta un intercambio visualmente rastreable de `pairCount` pares de cartas:
+   * 1. Cierra todas las cartas no emparejadas boca abajo en su sitio e ilumina las cartas que se van a mover.
+   * 2. Tras 480ms (ya cerradas), intercambia sus posiciones en el arreglo para que se deslicen suavemente (`layout`).
+   * 3. Mantiene el indicador luminoso hasta que aterrizan en su nueva casilla.
+   */
+  const executeVisualSwap = useCallback(
+    (pairCount: number, priorityIdx?: number) => {
+      clearSwapTimers();
+      lockRef.current = true;
+      selectedRef.current = [];
+      setSelected([]);
+      setShakingIdx([]);
+      setBouncingIdx([]);
+
+      const current = cardsRef.current;
+      const closedDeck = current.map((c) =>
+        c.isMatched && !c.isBomb
+          ? c
+          : { ...c, isMatched: false, isFlipped: false, isHinted: false }
+      );
+      cardsRef.current = closedDeck;
+      setCards(closedDeck);
+
+      const pairs = pickSwapPairs(closedDeck, pairCount, priorityIdx);
+      if (pairs.length === 0) {
+        lockRef.current = false;
+        return;
+      }
+
+      const groupsMap: Record<string, number> = {};
+      pairs.forEach(([idxA, idxB, grp]) => {
+        if (closedDeck[idxA]) groupsMap[closedDeck[idxA].id] = grp;
+        if (closedDeck[idxB]) groupsMap[closedDeck[idxB].id] = grp;
+      });
+
+      setSwappingGroups(groupsMap);
+      setIsShuffling(true);
+
+      // Paso 2: Una vez cerradas boca abajo (480ms), intercambiar posiciones para que se deslicen por pantalla
+      const t1 = setTimeout(() => {
+        playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.45);
+        setCards((prev) => {
+          const next = prev.map((c) =>
+            c.isMatched && !c.isBomb
+              ? c
+              : { ...c, isMatched: false, isFlipped: false, isHinted: false }
+          );
+          pairs.forEach(([idxA, idxB]) => {
+            if (next[idxA] && next[idxB] && !next[idxA].isMatched && !next[idxB].isMatched) {
+              const temp = next[idxA];
+              next[idxA] = next[idxB];
+              next[idxB] = temp;
+            }
+          });
+          cardsRef.current = next;
+          return next;
+        });
+
+        // Paso 3: Limpiar resaltado cuando terminan de deslizarse (900ms)
+        const t2 = setTimeout(() => {
+          setSwappingGroups({});
+          setIsShuffling(false);
+          lockRef.current = false;
+        }, 900);
+        swapTimersRef.current.push(t2);
+      }, 480);
+
+      swapTimersRef.current.push(t1);
+    },
+    [clearSwapTimers, pickSwapPairs, playSound]
+  );
 
   // ── Construcción del mazo específico para el nivel ──────────────────────────
   const buildLevelDeck = useCallback((def: LevelDef): CardData[] => {
@@ -152,6 +275,9 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       setUnlockedPowers(prog.powers);
       setUsedPowers([]);
       setIsFrozen(false);
+      setSwappingGroups({});
+      setIsShuffling(false);
+      clearSwapTimers();
       if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
 
       const deck = buildLevelDeck(def);
@@ -232,7 +358,6 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
     if (phase !== 'playing' || !levelDef.shuffleEvery) return;
 
     let step1Timer: ReturnType<typeof setTimeout> | null = null;
-    let step2Timer: ReturnType<typeof setTimeout> | null = null;
 
     const shuffleInterval = setInterval(() => {
       // No interrumpir si se está resolviendo un par o una explosión de bomba
@@ -245,48 +370,16 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
       step1Timer = setTimeout(() => {
         setShuffleWarning(false);
         if (lockRef.current) return;
-
-        // Paso 1: Voltear boca abajo en su sitio cualquier carta seleccionada antes de mover
-        selectedRef.current = [];
-        setSelected([]);
-        setShakingIdx([]);
-        setBouncingIdx([]);
-
-        setCards((prev) => {
-          const flippedDown = prev.map((c) =>
-            c.isMatched ? c : { ...c, isFlipped: false, isHinted: false }
-          );
-          cardsRef.current = flippedDown;
-          return flippedDown;
-        });
-
-        setIsShuffling(true);
-        playSound('https://actions.google.com/sounds/v1/foley/swoosh.ogg', 0.4);
-
-        // Paso 2: Reordenar una vez que todas las cartas no emparejadas ya están boca abajo
-        step2Timer = setTimeout(() => {
-          setCards((prev) => {
-            const unmatched = prev
-              .filter((c) => !c.isMatched)
-              .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
-            shuffleInPlace(unmatched);
-
-            let unmatchedIdx = 0;
-            const nextCards = prev.map((c) => (c.isMatched ? c : unmatched[unmatchedIdx++]));
-            cardsRef.current = nextCards;
-            return nextCards;
-          });
-          setIsShuffling(false);
-        }, 420);
-      }, 1800);
+        // Intercambiar 2 pares de cartas con indicador luminoso y deslizamiento visible
+        executeVisualSwap(2);
+      }, 1500);
     }, levelDef.shuffleEvery);
 
     return () => {
       clearInterval(shuffleInterval);
       if (step1Timer) clearTimeout(step1Timer);
-      if (step2Timer) clearTimeout(step2Timer);
     };
-  }, [phase, levelDef.shuffleEvery, playSound]);
+  }, [phase, levelDef.shuffleEvery, playSound, executeVisualSwap]);
 
   // ── Activación de Poderes ──────────────────────────────────────────────────
   const handleUsePower = useCallback(
@@ -467,34 +560,9 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
           });
         }
 
-        // Paso 1: Cerrar boca abajo TANTO la carta que estaba abierta COMO la bomba (en su lugar actual)
+        // Cerrar boca abajo la carta abierta y la bomba, e intercambiar visualmente 2 pares (incluyendo la bomba)
         setTimeout(() => {
-          selectedRef.current = [];
-          setSelected([]);
-          setCards((prev) => {
-            const updated = prev.map((c) =>
-              c.isMatched && !c.isBomb
-                ? c
-                : { ...c, isMatched: false, isFlipped: false, isHinted: false }
-            );
-            cardsRef.current = updated;
-            return updated;
-          });
-
-          // Paso 2: Una vez completado el giro boca abajo (420ms), reordenar las cartas ocultas
-          setTimeout(() => {
-            setCards((prev) => {
-              const unmatched = prev
-                .filter((c) => !c.isMatched)
-                .map((c) => ({ ...c, isFlipped: false, isHinted: false }));
-              shuffleInPlace(unmatched);
-              let uIdx = 0;
-              const finalUpdated = prev.map((c) => (c.isMatched ? c : unmatched[uIdx++]));
-              cardsRef.current = finalUpdated;
-              return finalUpdated;
-            });
-            lockRef.current = false;
-          }, 420);
+          executeVisualSwap(2, idx);
         }, 700);
         return;
       }
@@ -605,7 +673,7 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
         }, 800);
       }
     },
-    [phase, levelDef, combo, timer, playSound]
+    [phase, levelDef, combo, timer, playSound, executeVisualSwap]
   );
 
   // Estadísticas del juego
@@ -780,39 +848,83 @@ export function GameScreen({ initialLevel = 1, onBackToLobby }: GameScreenProps)
             className={`grid gap-1.5 sm:gap-2.5 w-full ${gridMaxWidthClass} justify-items-center content-center items-center my-auto`}
             style={{ gridTemplateColumns: `repeat(${levelDef.cols}, minmax(0, 1fr))` }}
           >
-            {cards.map((card, idx) => (
-              <motion.div
-                key={`slot-${level}-${idx}`}
-                ref={(el) => {
-                  cardRefs.current[idx] = el;
-                }}
-                style={{ aspectRatio: '3/4' }}
-                className={`w-full ${cardSizeClass} relative`}
-                animate={
-                  card.isHinted
-                    ? { scale: [1, 1.06, 1], opacity: 1, filter: 'drop-shadow(0 0 15px #E8B54A)' }
-                    : isShuffling
-                    ? { scale: 0.9, opacity: 0.7, filter: 'none' }
-                    : { scale: 1, opacity: 1, filter: 'none' }
-                }
-                transition={{
-                  scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.25 },
-                  opacity: { duration: 0.25 },
-                }}
-              >
-                <MemoryCard
-                  card={card}
-                  index={idx}
-                  backUniverse={levelDef.wing}
-                  interactive={phase === 'playing'}
-                  onClick={() => handleCardClick(idx)}
-                  isShaking={shakingIdx.includes(idx)}
-                  isBouncing={bouncingIdx.includes(idx)}
-                  isExploding={explodingIdx.includes(idx)}
-                  priority={phase === 'scanning'}
-                />
-              </motion.div>
-            ))}
+            {cards.map((card, idx) => {
+              const swapGroup = swappingGroups[card.id];
+              const swapColor =
+                swapGroup === 1
+                  ? '#35E0C8'
+                  : swapGroup === 2
+                  ? '#FF6B35'
+                  : swapGroup === 3
+                  ? '#B79CFF'
+                  : undefined;
+
+              return (
+                <motion.div
+                  key={card.id}
+                  layout
+                  ref={(el) => {
+                    cardRefs.current[idx] = el;
+                  }}
+                  style={{
+                    aspectRatio: '3/4',
+                    zIndex: swapGroup ? 25 : 1,
+                  }}
+                  className={`w-full ${cardSizeClass} relative`}
+                  animate={
+                    swapGroup
+                      ? {
+                          scale: 1.07,
+                          opacity: 1,
+                          filter: `drop-shadow(0 0 16px ${swapColor})`,
+                        }
+                      : card.isHinted
+                      ? { scale: [1, 1.06, 1], opacity: 1, filter: 'drop-shadow(0 0 15px #E8B54A)' }
+                      : isShuffling
+                      ? { scale: 0.96, opacity: 0.85, filter: 'none' }
+                      : { scale: 1, opacity: 1, filter: 'none' }
+                  }
+                  transition={{
+                    layout: { duration: 0.78, ease: [0.22, 1, 0.36, 1] },
+                    scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.25 },
+                    opacity: { duration: 0.25 },
+                  }}
+                >
+                  {/* Indicador luminoso de intercambio para seguir con la vista qué carta se movió a dónde */}
+                  {swapGroup && swapColor && (
+                    <div
+                      className="absolute -inset-1 rounded-[15px] pointer-events-none z-30 flex items-start justify-center"
+                      style={{
+                        border: `2px solid ${swapColor}`,
+                        boxShadow: `0 0 18px ${swapColor}, inset 0 0 10px ${swapColor}55`,
+                      }}
+                    >
+                      <span
+                        className="px-1.5 py-0.2 -mt-2 rounded-full font-mono text-[9px] sm:text-[10px] font-black tracking-tight shadow-lg"
+                        style={{
+                          background: swapColor,
+                          color: '#07090F',
+                        }}
+                      >
+                        ⇄ {swapGroup}
+                      </span>
+                    </div>
+                  )}
+
+                  <MemoryCard
+                    card={card}
+                    index={idx}
+                    backUniverse={levelDef.wing}
+                    interactive={phase === 'playing' && !isShuffling}
+                    onClick={() => handleCardClick(idx)}
+                    isShaking={shakingIdx.includes(idx)}
+                    isBouncing={bouncingIdx.includes(idx)}
+                    isExploding={explodingIdx.includes(idx)}
+                    priority={phase === 'scanning'}
+                  />
+                </motion.div>
+              );
+            })}
           </div>
 
         </div>

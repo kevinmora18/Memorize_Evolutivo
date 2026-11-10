@@ -185,11 +185,15 @@ export class SocketManager {
         });
 
         // Enviar estado actual al jugador
+        const rawGs = room.getGameState();
         socket.emit('room:joined', {
           roomId: realRoomId,
           room: room.toJSON(),
           players: room.getPlayers().map(p => p.toJSON()),
-          gameState: room.getGameState(),
+          gameState: {
+            ...rawGs,
+            scores: rawGs.scores instanceof Map ? Object.fromEntries(rawGs.scores) : rawGs.scores,
+          },
         });
 
         this.broadcastRooms();
@@ -351,9 +355,17 @@ export class SocketManager {
       const event = outcome.event || (type ? eventMap[type] : undefined);
 
       if (event) {
+        const rawGs = outcome.room?.getGameState ? outcome.room.getGameState() : undefined;
+        const serializedGs = rawGs
+          ? {
+              ...rawGs,
+              scores: rawGs.scores instanceof Map ? Object.fromEntries(rawGs.scores) : rawGs.scores,
+            }
+          : undefined;
         const fullPayload = {
           ...outcome.payload,
-          gameState: outcome.room?.getGameState ? outcome.room.getGameState() : undefined,
+          scores: outcome.payload?.scores || serializedGs?.scores,
+          gameState: serializedGs,
           players: outcome.room?.getPlayers ? outcome.room.getPlayers().map(p => p.toJSON()) : undefined,
         };
         this.io.to(roomId).emit(event, fullPayload);
@@ -508,10 +520,14 @@ export class SocketManager {
           playerId: userId,
         });
 
+        const rawGs = room.getGameState();
         socket.emit('room:state', {
           roomId,
           players: room.getPlayers().map(p => p.toJSON()),
-          gameState: room.getGameState(),
+          gameState: {
+            ...rawGs,
+            scores: rawGs.scores instanceof Map ? Object.fromEntries(rawGs.scores) : rawGs.scores,
+          },
         });
 
         this.log(`Jugador ${userId} reconectado a sala ${roomId}`);

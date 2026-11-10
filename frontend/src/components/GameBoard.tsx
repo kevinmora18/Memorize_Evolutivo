@@ -32,6 +32,7 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [matchedPairs, setMatchedPairs] = useState(0);
   const [moves, setMoves] = useState(0);
+  const [swappingGroups, setSwappingGroups] = useState<Record<number, number>>({});
 
   const lockRef = useRef(false);
   const flippedRef = useRef<number[]>([]);
@@ -105,30 +106,60 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
       setTimeout(() => {
         flippedRef.current = [];
         setFlippedCards([]);
-        setCards((prevCards) => {
-          const closedCards = prevCards.map((c) =>
-            c.isMatched && !c.isBomb
-              ? c
-              : { ...c, isMatched: false, isFlipped: false, isBroken: false }
-          );
-          cardsRef.current = closedCards;
-          return closedCards;
+        const closedCards = cardsRef.current.map((c) =>
+          c.isMatched && !c.isBomb
+            ? c
+            : { ...c, isMatched: false, isFlipped: false, isBroken: false }
+        );
+        cardsRef.current = closedCards;
+        setCards(closedCards);
+
+        const available = closedCards
+          .map((c, i) => (!c.isMatched ? i : -1))
+          .filter((i) => i !== -1);
+
+        const pool = [...available];
+        const pairs: Array<[number, number, number]> = [];
+        let grp = 1;
+
+        if (pool.includes(cardIndex) && pool.length >= 2) {
+          pool.splice(pool.indexOf(cardIndex), 1);
+          const partnerIdx = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+          pairs.push([cardIndex, partnerIdx, grp++]);
+        }
+
+        while (pairs.length < 2 && pool.length >= 2) {
+          const a = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+          const b = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+          pairs.push([a, b, grp++]);
+        }
+
+        const groupsMap: Record<number, number> = {};
+        pairs.forEach(([a, b, g]) => {
+          groupsMap[closedCards[a].id as number] = g;
+          groupsMap[closedCards[b].id as number] = g;
         });
+        setSwappingGroups(groupsMap);
 
         setTimeout(() => {
           setCards((prevCards) => {
-            const toShuffle = prevCards
-              .filter((c) => !c.isMatched)
-              .map((c) => ({ ...c, isFlipped: false }));
-            toShuffle.sort(() => Math.random() - 0.5);
-
-            let uIdx = 0;
-            const finalCards = prevCards.map((c) => (c.isMatched ? c : toShuffle[uIdx++]));
-            cardsRef.current = finalCards;
-            return finalCards;
+            const next = [...prevCards];
+            pairs.forEach(([a, b]) => {
+              if (next[a] && next[b] && !next[a].isMatched && !next[b].isMatched) {
+                const tmp = next[a];
+                next[a] = next[b];
+                next[b] = tmp;
+              }
+            });
+            cardsRef.current = next;
+            return next;
           });
-          lockRef.current = false;
-        }, 420);
+
+          setTimeout(() => {
+            setSwappingGroups({});
+            lockRef.current = false;
+          }, 900);
+        }, 480);
       }, 700);
       return;
     }
@@ -272,30 +303,55 @@ export function GameBoard({ universe, level, onLevelComplete, onBackToMenu }: Ga
               style={{ gridTemplateColumns: `repeat(${Math.min(6, Math.ceil(Math.sqrt(totalSlots)))}, minmax(0, 1fr))` }}
             >
               <AnimatePresence>
-                {cards.map((card, index) => (
-                  <motion.div
-                    key={card.id}
-                    className="aspect-square relative w-full max-w-[95px] sm:max-w-none max-h-[16dvh] sm:max-h-none flex items-center justify-center touch-manipulation"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={
-                      card.isHinted
-                        ? { scale: [1, 1.08, 1], filter: 'drop-shadow(0 0 16px #E8B54A)' }
-                        : { opacity: 1, scale: 1 }
-                    }
-                    transition={{
-                      delay: index * 0.03,
-                      scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.3 },
-                    }}
-                  >
-                    <MemoryCard
-                      card={card}
-                      index={index}
-                      backUniverse={universe}
-                      onClick={() => handleCardClick(card.id as number)}
-                      priority
-                    />
-                  </motion.div>
-                ))}
+                {cards.map((card, index) => {
+                  const swapGroup = swappingGroups[card.id as number];
+                  const swapColor = swapGroup === 1 ? '#35E0C8' : swapGroup === 2 ? '#FF6B35' : undefined;
+                  return (
+                    <motion.div
+                      key={card.id}
+                      layout
+                      style={{ zIndex: swapGroup ? 25 : 1 }}
+                      className="aspect-square relative w-full max-w-[95px] sm:max-w-none max-h-[16dvh] sm:max-h-none flex items-center justify-center touch-manipulation"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={
+                        swapGroup
+                          ? { opacity: 1, scale: 1.07, filter: `drop-shadow(0 0 16px ${swapColor})` }
+                          : card.isHinted
+                          ? { scale: [1, 1.08, 1], filter: 'drop-shadow(0 0 16px #E8B54A)' }
+                          : { opacity: 1, scale: 1, filter: 'none' }
+                      }
+                      transition={{
+                        layout: { duration: 0.78, ease: [0.22, 1, 0.36, 1] },
+                        delay: index * 0.03,
+                        scale: card.isHinted ? { repeat: Infinity, duration: 1 } : { duration: 0.3 },
+                      }}
+                    >
+                      {swapGroup && swapColor && (
+                        <div
+                          className="absolute -inset-1 rounded-[15px] pointer-events-none z-30 flex items-start justify-center"
+                          style={{
+                            border: `2px solid ${swapColor}`,
+                            boxShadow: `0 0 18px ${swapColor}, inset 0 0 10px ${swapColor}55`,
+                          }}
+                        >
+                          <span
+                            className="px-1.5 py-0.2 -mt-2 rounded-full font-mono text-[9px] font-black tracking-tight shadow-lg"
+                            style={{ background: swapColor, color: '#07090F' }}
+                          >
+                            ⇄ {swapGroup}
+                          </span>
+                        </div>
+                      )}
+                      <MemoryCard
+                        card={card}
+                        index={index}
+                        backUniverse={universe}
+                        onClick={() => handleCardClick(card.id as number)}
+                        priority
+                      />
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           </div>

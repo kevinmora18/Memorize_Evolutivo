@@ -365,13 +365,14 @@ export class GameRoom extends BaseEntity<any> {
     // Agregar todas las cartas matched
     this.gameState.matchedCards.push(...cardIndexes);
     
+    const pointsGained = this.mode === 'triads' ? 150 : 100;
     const currentScore = this.gameState.scores.get(playerId) || 0;
-    this.gameState.scores.set(playerId, currentScore + 1);
+    this.gameState.scores.set(playerId, currentScore + pointsGained);
 
     const player = this.players.get(playerId);
     if (player) {
       player.addMatch();
-      player.addScore(1);
+      player.addScore(pointsGained);
     }
   }
 

@@ -182,10 +182,15 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
   const scoresRef = useRef([0, 0, 0, 0]);
   const gameOverRef = useRef(false);
   const isProcessingRef = useRef(false); // prevents double-evaluation
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     initializeGame();
+    return () => {
+      gameOverRef.current = true;
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    };
   }, []);
 
   // Countdown during preview
@@ -269,13 +274,23 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
     setIsAIThinking(false);
     setShowConnection(false);
 
-    // After 5 s flip down and start
-    setTimeout(() => {
+    // After 4 s flip down and start
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    previewTimeoutRef.current = setTimeout(() => {
       const hidden = gameCards.map((c) => ({ ...c, isFlipped: false }));
       cardsRef.current = hidden;
       setCards(hidden);
       setGamePhase('playing');
-    }, 5000);
+    }, 4000);
+  };
+
+  const skipPreviewNow = () => {
+    if (gamePhase !== 'preview') return;
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    const hidden = cardsRef.current.map((c) => ({ ...c, isFlipped: false }));
+    cardsRef.current = hidden;
+    setCards(hidden);
+    setGamePhase('playing');
   };
 
   // ── Core evaluation (called after all cards for a turn are flipped) ───────
@@ -600,11 +615,16 @@ export function AIFriendsGame({ onBackToLobby }: AIFriendsGameProps) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-3 sm:mb-4 px-3 py-2 sm:py-3 bg-purple-950/70 border border-purple-500/50 rounded-xl text-center backdrop-blur-sm max-w-xl mx-auto w-full shadow-lg"
+            onClick={skipPreviewNow}
+            className="mb-3 sm:mb-4 px-3 py-2 sm:py-3 bg-purple-950/70 border border-purple-500/50 hover:border-cyan-400 rounded-xl text-center backdrop-blur-sm max-w-xl mx-auto w-full shadow-lg cursor-pointer transition-all"
+            title="Toca para comenzar a jugar de inmediato"
           >
             <div className="flex items-center justify-center gap-2 text-purple-200 font-bold text-sm sm:text-base">
               <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" />
               <span>¡Memoriza las cartas! ({previewCountdown}s)</span>
+              <span className="text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-2 py-0.5 rounded">
+                Toca para iniciar ya
+              </span>
             </div>
             <p className="text-[11px] sm:text-xs text-purple-300 font-mono mt-0.5">
               Las cartas se voltearán automáticamente para comenzar

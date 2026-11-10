@@ -89,6 +89,29 @@ export default function App() {
       });
     });
 
+    socket.on('room:joined', (payload: any) => {
+      setCurrentRoom(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ...(payload.room || {}),
+          players: payload.players || payload.room?.players || prev.players,
+          gameState: payload.gameState?.cards?.length ? payload.gameState : (prev.gameState || payload.gameState),
+        };
+      });
+    });
+
+    socket.on('room:state', (payload: any) => {
+      setCurrentRoom(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          players: payload.players || prev.players,
+          gameState: payload.gameState?.cards?.length ? payload.gameState : (prev.gameState || payload.gameState),
+        };
+      });
+    });
+
     socket.on('room:player-joined', (payload: any) => {
       if (payload.players) {
         setCurrentRoom(prev => prev ? { ...prev, players: payload.players } : prev);
@@ -148,6 +171,8 @@ export default function App() {
 
     return () => {
       socket.off('rooms:update');
+      socket.off('room:joined');
+      socket.off('room:state');
       socket.off('room:player-joined');
       socket.off('room:player-ready');
       socket.off('room:player-left');
@@ -367,6 +392,11 @@ export default function App() {
           currentUser={currentUser}
           onChangeTeam={handleChangeTeam}
           onBackToLobby={handleBackToLobby}
+          onUpdateRoom={(updatedRoom) => setCurrentRoom(updatedRoom)}
+          onStartRoomGame={(startedRoom) => {
+            setCurrentRoom(startedRoom);
+            setCurrentScreen('multiplayerGame');
+          }}
         />
       )}
 

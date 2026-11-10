@@ -163,72 +163,72 @@ export const WING_BY_ID = Object.fromEntries(WINGS.map((w) => [w.id, w])) as Rec
 export const LEVELS: LevelDef[] = [
   {
     level: 1, wing: 'verdalis', title: 'Claro de las Esporas',
-    lore: 'Tu primera custodia. Observa, recuerda, captura.',
-    groups: 4, useTriads: false, time: 75, previewMs: 3500, cols: 4,
+    lore: 'Tu primera custodia. Observa rápido, recuerda y captura.',
+    groups: 4, useTriads: false, time: 32, previewMs: 2400, cols: 4,
     glitchRatio: 0, bombs: 0, shuffleEvery: null, dark: false,
     relicId: 'vrd-03',
   },
   {
     level: 2, wing: 'verdalis', title: 'Raíces Antiguas',
-    lore: 'Más reliquias, la misma calma. El bosque te pone a prueba.',
-    groups: 6, useTriads: false, time: 80, previewMs: 3500, cols: 4,
-    glitchRatio: 0, bombs: 0, shuffleEvery: null, dark: false,
+    lore: 'Más reliquias y menos margen de error. El bosque acelera tu pulso.',
+    groups: 6, useTriads: false, time: 40, previewMs: 2600, cols: 4,
+    glitchRatio: 0, bombs: 0, shuffleEvery: 14000, dark: false,
     relicId: 'vrd-08', unlocksPower: 'reveal',
   },
   {
     level: 3, wing: 'frostheim', title: 'Galería de Escarcha',
-    lore: 'Algunas reliquias se muestran distorsionadas por el hielo.',
-    groups: 6, useTriads: false, time: 75, previewMs: 3500, cols: 4,
-    glitchRatio: 0.3, bombs: 0, shuffleEvery: null, dark: false,
+    lore: 'El hielo distorsiona las reliquias y esconde la primera anomalía.',
+    groups: 6, useTriads: false, time: 38, previewMs: 2500, cols: 4,
+    glitchRatio: 0.4, bombs: 1, shuffleEvery: null, dark: false,
     relicId: 'frs-04',
   },
   {
     level: 4, wing: 'frostheim', title: 'Corazón Glacial',
-    lore: 'Aparecen las primeras anomalías. No todas las cartas son reliquias.',
-    groups: 8, useTriads: false, time: 90, previewMs: 4000, cols: 4,
-    glitchRatio: 0.25, bombs: 2, shuffleEvery: null, dark: false,
+    lore: 'Anomalías activas y ventisca constante. Un fallo cuesta segundos vitales.',
+    groups: 8, useTriads: false, time: 50, previewMs: 2800, cols: 4,
+    glitchRatio: 0.35, bombs: 2, shuffleEvery: 13000, dark: false,
     relicId: 'frs-08', unlocksPower: 'freeze',
   },
   {
     level: 5, wing: 'volcania', title: 'Forja Dormida',
-    lore: 'El magma despierta: el tablero se reordena cada cierto tiempo.',
-    groups: 8, useTriads: false, time: 85, previewMs: 4000, cols: 4,
-    glitchRatio: 0, bombs: 2, shuffleEvery: 16000, dark: false,
+    lore: 'El magma despierta: sigue con la mirada las cartas que intercambian lugar.',
+    groups: 8, useTriads: false, time: 48, previewMs: 2800, cols: 4,
+    glitchRatio: 0, bombs: 2, shuffleEvery: 11000, dark: false,
     relicId: 'vlc-06',
   },
   {
     level: 6, wing: 'volcania', title: 'Erupción',
-    lore: 'Diez reliquias, tres anomalías y un suelo que no deja de moverse.',
-    groups: 10, useTriads: false, time: 100, previewMs: 4500, cols: 5,
-    glitchRatio: 0, bombs: 3, shuffleEvery: 13000, dark: false,
+    lore: 'Diez reliquias, tres anomalías y un suelo que intercambia posiciones sin tregua.',
+    groups: 10, useTriads: false, time: 58, previewMs: 3000, cols: 5,
+    glitchRatio: 0.2, bombs: 3, shuffleEvery: 9500, dark: false,
     relicId: 'vlc-08', unlocksPower: 'hint',
   },
   {
     level: 7, wing: 'neural', title: 'Señal Menguante',
-    lore: 'La luz del núcleo se apaga. Memoriza antes de que llegue la oscuridad.',
-    groups: 10, useTriads: false, time: 100, previewMs: 4500, cols: 5,
-    glitchRatio: 0.2, bombs: 2, shuffleEvery: null, dark: true,
+    lore: 'La luz del núcleo cae rápido mientras las cartas se desplazan en la penumbra.',
+    groups: 10, useTriads: false, time: 56, previewMs: 3000, cols: 5,
+    glitchRatio: 0.35, bombs: 3, shuffleEvery: 11500, dark: true,
     relicId: 'nrl-07',
   },
   {
     level: 8, wing: 'neural', title: 'Mente Colmena',
-    lore: 'Las memorias ahora existen en tríadas. Encuentra las tres.',
-    groups: 4, useTriads: true, time: 75, previewMs: 4000, cols: 4,
-    glitchRatio: 0, bombs: 0, shuffleEvery: null, dark: false,
+    lore: 'Las memorias existen en tríadas. Encuentra las tres antes de que el reloj caiga.',
+    groups: 4, useTriads: true, time: 45, previewMs: 2800, cols: 4,
+    glitchRatio: 0.25, bombs: 1, shuffleEvery: 12000, dark: false,
     relicId: 'nrl-08',
   },
   {
     level: 9, wing: 'lunaris', title: 'Observatorio Roto',
-    lore: 'Tríadas bajo un cielo que se oscurece.',
-    groups: 5, useTriads: true, time: 85, previewMs: 4500, cols: 5,
-    glitchRatio: 0, bombs: 0, shuffleEvery: null, dark: true,
+    lore: 'Tríadas bajo un cielo que se oscurece y desplaza tus recuerdos.',
+    groups: 5, useTriads: true, time: 52, previewMs: 3000, cols: 5,
+    glitchRatio: 0.25, bombs: 2, shuffleEvery: 10500, dark: true,
     relicId: 'lnr-05',
   },
   {
     level: 10, wing: 'lunaris', title: 'Eclipse Total',
-    lore: 'La prueba final del Archivo. Quien la supere, portará la Corona.',
-    groups: 6, useTriads: true, time: 100, previewMs: 5000, cols: 6,
-    glitchRatio: 0, bombs: 0, shuffleEvery: 15000, dark: true,
+    lore: 'La prueba suprema del Archivo. Solo una memoria perfecta portará la Corona.',
+    groups: 6, useTriads: true, time: 60, previewMs: 3200, cols: 6,
+    glitchRatio: 0.35, bombs: 2, shuffleEvery: 9000, dark: true,
     relicId: 'lnr-08',
   },
 ];
@@ -283,8 +283,8 @@ export const POWER_ORDER: PowerId[] = ['reveal', 'freeze', 'hint'];
 // ── Estrellas y puntuación ──────────────────────────────────────────────────
 
 export const STAR_RULES = {
-  accuracy: 70,
-  timeRatio: 0.3,
+  accuracy: 75,
+  timeRatio: 0.35,
 };
 
 export function computeStars(won: boolean, accuracy: number, timeLeft: number, maxTime: number): number {
@@ -299,8 +299,8 @@ export function matchPoints(useTriads: boolean, combo: number): number {
   return useTriads ? 150 + combo * 75 : 100 + combo * 50;
 }
 
-export const TIME_BONUS_PER_SECOND = 10;
-export const BOMB_PENALTY = { points: 150, seconds: 8 };
+export const TIME_BONUS_PER_SECOND = 12;
+export const BOMB_PENALTY = { points: 180, seconds: 10 };
 
 // ── Mazo por nivel ──────────────────────────────────────────────────────────
 

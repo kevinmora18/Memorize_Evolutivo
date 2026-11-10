@@ -79,15 +79,16 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
     };
   }, []);
 
-  // Crear sala real en el servidor
+  // Crear sala real en el servidor (con respaldo local si el servidor tarda en despertar)
   const handleCreateRealRoom = async () => {
-    if (!createName.trim() || !currentUser) return;
+    if (!currentUser) return;
+    const finalName = createName.trim() || `Sala de ${currentUser.name || currentUser.email.split('@')[0]}`;
 
     try {
       const createdRoom = await apiFetch<any>('/api/rooms', {
         method: 'POST',
         body: JSON.stringify({
-          name: createName.trim(),
+          name: finalName,
           maxPlayers: createMaxPlayers,
           mode: createMode,
           difficulty: 'easy',
@@ -101,8 +102,25 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
         onJoinRealRoom(createdRoom);
       }
     } catch (err: any) {
-      console.error('Error creando sala:', err);
-      setJoinError(err?.message || 'Error al crear la sala');
+      console.error('Error creando sala, activando sala local de respaldo:', err);
+      const fallbackCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const fallbackRoom = {
+        id: `room_local_${Date.now()}`,
+        name: finalName,
+        code: fallbackCode,
+        hostId: currentUser.id,
+        hostName: currentUser.name || currentUser.email.split('@')[0],
+        maxPlayers: createMaxPlayers,
+        mode: createMode,
+        difficulty: 'easy',
+        status: 'waiting',
+        players: [currentUser],
+      };
+      setShowCreateModal(false);
+      setCreateName('');
+      if (onJoinRealRoom) {
+        onJoinRealRoom(fallbackRoom);
+      }
     }
   };
 
@@ -408,7 +426,9 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
 
                 <div>
                   <label className="block font-mono text-xs text-[#9AA3B2] uppercase mb-1.5">
-                    Cantidad de Pares: {aiCardCount} ({aiCardCount * 2} cartas)
+                    {aiSelectedMode === 'triads'
+                      ? `Cantidad de Tríadas: ${aiCardCount} (${aiCardCount * 3} cartas)`
+                      : `Cantidad de Pares: ${aiCardCount} (${aiCardCount * 2} cartas)`}
                   </label>
                   <input
                     type="range"
@@ -559,12 +579,7 @@ export function AIRoomLobby({ onBackToLobby, onStartGame, currentUser, onJoinRea
                 </button>
                 <button
                   onClick={handleCreateRealRoom}
-                  disabled={!createName.trim()}
-                  className={`flex-1 py-3 rounded-xl font-mono text-xs uppercase font-bold tracking-wider transition-all ${
-                    createName.trim()
-                      ? 'bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] hover:brightness-110 cursor-pointer shadow-[0_0_15px_rgba(53,224,200,0.3)]'
-                      : 'bg-[#131A26] border border-[#1E2836] text-[#5C6675] cursor-not-allowed'
-                  }`}
+                  className="flex-1 py-3 rounded-xl font-mono text-xs uppercase font-bold tracking-wider transition-all bg-gradient-to-r from-[#35E0C8] to-[#2BE08F] text-[#07090F] hover:brightness-110 cursor-pointer shadow-[0_0_15px_rgba(53,224,200,0.3)]"
                 >
                   Crear y Entrar
                 </button>
